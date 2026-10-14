@@ -15,6 +15,7 @@ import { genreOptions, isNoTheme, LANGS, matchesTheme, NO_THEME, PERIODS, themeL
  */
 const WEIGHT_EXP = 0.9;
 const QUEUE_SIZE = 4;
+const FLIP_MS = 350; // durée du retournement de la carte (animation flip-in)
 
 interface Pool {
   items: { title: Title; w: number }[];
@@ -141,6 +142,8 @@ export default function Swipe({ type }: { type: MediaType }) {
   const [saga, setSaga] = useState<{ forKey: string; name: string; parts: Title[] } | null>(null);
   // Pivot : l'ancien titre de derrière tourne pour laisser place au film de la saga.
   const [flip, setFlip] = useState<{ out: Title; inKey: string } | null>(null);
+  // Mode 2 directions : la carte de derrière attend la fin du retournement pour la 2e question.
+  const [flipping, setFlipping] = useState(false);
   const cardArea = useRef<HTMLDivElement>(null);
 
   const fill = (q: Title[]) => {
@@ -187,7 +190,7 @@ export default function Swipe({ type }: { type: MediaType }) {
   // Carte de derrière : aucune au 1er swipe du mode 2 directions (la carte va revenir pour la 2e question) ;
   // le film de la saga quand on sait déjà que le titre est vu.
   const behind =
-    !queue || flip || (mode === 'horizontal' && phase === 'seen') ? undefined : phase === 'rate' && sagaNext ? sagaNext : queue[1];
+    !queue || flip || flipping || (mode === 'horizontal' && phase === 'seen') ? undefined : phase === 'rate' && sagaNext ? sagaNext : queue[1];
 
   useEffect(() => {
     setSaga(null);
@@ -209,6 +212,9 @@ export default function Swipe({ type }: { type: MediaType }) {
     setFling(null);
     if (!current || !queue) return;
     if (phase === 'seen' && (dir === 'left' || dir === 'right')) {
+      // Masque la carte de derrière dans le même rendu que le changement de question.
+      setFlipping(true);
+      setTimeout(() => setFlipping(false), FLIP_MS);
       setPhase(dir === 'left' ? 'wish' : 'rate');
       return;
     }
