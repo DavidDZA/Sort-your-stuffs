@@ -72,6 +72,6 @@ export const writePref = (key: string, value: unknown) => write(key, JSON.string
 export type SwipeMode = 'horizontal' | 'corners';
 const MODE_KEY = 'swipe-mode';
 
-/** « 2 directions » (vu / pas vu puis wishlist) ou « 4 coins » (un seul geste). */
-export const getSwipeMode = (): SwipeMode => (read(MODE_KEY) === 'corners' ? 'corners' : 'horizontal');
+/** « 4 coins » (un seul geste, par défaut) ou « 2 directions » (vu / pas vu puis une 2e question). */
+export const getSwipeMode = (): SwipeMode => (read(MODE_KEY) === 'horizontal' ? 'horizontal' : 'corners');
 export const setSwipeMode = (mode: SwipeMode) => write(MODE_KEY, mode);

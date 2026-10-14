@@ -1489,3 +1489,27 @@ body.rate-phase .swipe-card:not(.card-behind) {
   background: linear-gradient(135deg, #ffe08a, #f2b632);
   box-shadow: 0 6px 20px rgb(255 209 102 / 0.4);
 }
+
+/* ---------- Pivot quand une saga remplace le titre suivant ---------- */
+
+.swipe-card.flip-out {
+  z-index: 2;
+  animation: flip-out 0.2s ease-in forwards;
+}
+@keyframes flip-out {
+  from {
+    transform: translateX(-50%) perspective(900px) rotateY(0deg);
+  }
+  to {
+    transform: translateX(-50%) perspective(900px) rotateY(90deg);
+  }
+}
+.swipe-card.flip-in-late {
+  animation: flip-in-late 0.42s ease-out;
+}
+@keyframes flip-in-late {
+  0%,
+  48% {
+    transform: perspective(900px) rotateY(-90deg);
+  }
+}

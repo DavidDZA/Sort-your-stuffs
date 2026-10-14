@@ -137,6 +137,10 @@ export default function Swipe({ type }: { type: MediaType }) {
   const [history, setHistory] = useState<Title[]>([]);
   const [count, setCount] = useState(0);
   const [showInfo, setShowInfo] = useState(false);
+  // Suites de saga du titre affiché, calculées à l'avance pour mettre le bon titre derrière.
+  const [saga, setSaga] = useState<{ forKey: string; name: string; parts: Title[] } | null>(null);
+  // Pivot : l'ancien titre de derrière tourne pour laisser place au film de la saga.
+  const [flip, setFlip] = useState<{ out: Title; inKey: string } | null>(null);
   const cardArea = useRef<HTMLDivElement>(null);
 
   const fill = (q: Title[]) => {
@@ -179,6 +183,21 @@ export default function Swipe({ type }: { type: MediaType }) {
 
   const current = queue?.[0];
   const busy = fling !== null;
+  const sagaNext = saga && current && saga.forKey === current.key ? saga.parts[0] : undefined;
+  // Carte de derrière : aucune au 1er swipe du mode 2 directions (la carte va revenir pour la 2e question) ;
+  // le film de la saga quand on sait déjà que le titre est vu.
+  const behind =
+    !queue || flip || (mode === 'horizontal' && phase === 'seen') ? undefined : phase === 'rate' && sagaNext ? sagaNext : queue[1];
+
+  useEffect(() => {
+    setSaga(null);
+    if (!current || current.type !== 'movie') return;
+    let alive = true;
+    sagaFollowUps(current).then((s) => alive && s && setSaga({ forKey: current.key, ...s }));
+    return () => {
+      alive = false;
+    };
+  }, [current?.key]);
 
   const advance = (rest: Title[]) => {
     setPhase('seen');
@@ -215,16 +234,22 @@ export default function Swipe({ type }: { type: MediaType }) {
     setCount(n);
 
     let rest = queue.slice(1);
+    const shownBehind = behind;
     // Vu un film de saga ? Les suites pas encore triées passent en tête de file.
-    const saga = status === 'seen' ? await sagaFollowUps(current) : null;
-    if (saga) {
-      const keys = new Set(saga.parts.map((p) => p.key));
-      const added = saga.parts.filter((p) => !rest.slice(0, saga.parts.length).some((t) => t.key === p.key)).length;
-      rest = [...saga.parts, ...rest.filter((t) => !keys.has(t.key))];
+    const follow = status === 'seen' ? (saga?.forKey === current.key ? saga : await sagaFollowUps(current)) : null;
+    if (follow) {
+      const keys = new Set(follow.parts.map((p) => p.key));
+      const added = follow.parts.filter((p) => !rest.slice(0, follow.parts.length).some((t) => t.key === p.key)).length;
+      rest = [...follow.parts, ...rest.filter((t) => !keys.has(t.key))];
       pool.current.items = pool.current.items.filter((i) => !keys.has(i.title.key));
       pool.current.total = pool.current.items.reduce((s, i) => s + i.w, 0);
-      saga.parts.forEach(prefetch);
-      if (added) toast(`🎞️ ${saga.name} : ${saga.parts.length} film${saga.parts.length > 1 ? 's' : ''} à suivre`);
+      follow.parts.forEach(prefetch);
+      if (added) toast(`🎞️ ${follow.name} : ${follow.parts.length} film${follow.parts.length > 1 ? 's' : ''} à suivre`);
+    }
+    // Le titre visible derrière n'est plus le suivant : il pivote pour devenir le bon.
+    if (shownBehind && rest[0] && shownBehind.key !== rest[0].key) {
+      setFlip({ out: shownBehind, inKey: rest[0].key });
+      setTimeout(() => setFlip(null), 420);
     }
     advance(rest);
   };
@@ -356,10 +381,16 @@ export default function Swipe({ type }: { type: MediaType }) {
                 ))}
               </div>
             )}
-            {queue[1] && (
-              <div key={queue[1].key} className="swipe-card card-behind" aria-hidden>
-                <Poster title={queue[1]} size="w500" className="card-poster" />
-                <TitleText title={queue[1]} credits />
+            {behind && (
+              <div key={behind.key} className="swipe-card card-behind" aria-hidden>
+                <Poster title={behind} size="w500" className="card-poster" />
+                <TitleText title={behind} credits />
+              </div>
+            )}
+            {flip && (
+              <div key={`out-${flip.out.key}`} className="swipe-card card-behind flip-out" aria-hidden>
+                <Poster title={flip.out} size="w500" className="card-poster" />
+                <TitleText title={flip.out} credits />
               </div>
             )}
             <SwipeCard
@@ -370,7 +401,7 @@ export default function Swipe({ type }: { type: MediaType }) {
               onSwipe={onSwipe}
               onAmbiguous={() => toast('↖ ↗ ↙ ↘ Swipe en diagonale, vers un coin')}
               stay={mode === 'horizontal' && phase === 'seen' ? ['left', 'right'] : []}
-              className={phase !== 'seen' ? 'flip-in' : ''}
+              className={phase !== 'seen' ? 'flip-in' : flip?.inKey === current.key ? 'flip-in-late' : ''}
               onTap={() => setShowInfo((s) => !s)}
             >
               <Poster title={current} size="w500" className="card-poster" />
