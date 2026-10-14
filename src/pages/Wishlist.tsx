@@ -30,7 +30,7 @@ export default function Wishlist() {
 
   return (
     <main className="page">
-      <TopBar title="Wishlist" right={count !== undefined && <span className="muted small" title="Titres dans la wishlist">{count}</span>} />
+      <TopBar title="💖 Wishlist" right={count !== undefined && <span className="pill" title="Titres dans la wishlist">{count}</span>} />
       <TypeFilter<View>
         value={view}
         options={[

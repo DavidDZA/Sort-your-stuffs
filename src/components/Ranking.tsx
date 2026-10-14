@@ -13,6 +13,8 @@ import {
   type Scope,
 } from '../ranking';
 import { Poster, TitleText } from './common';
+import { burst, centerOf, toast } from '../fun';
+import { recordActivity } from '../activity';
 
 interface DuelState {
   ranking: string[];
@@ -30,6 +32,7 @@ interface DuelState {
 export function Duel({ scope, question, emptyText }: { scope: Scope; question: string; emptyText: string }) {
   const [st, setSt] = useState<DuelState | null>(null);
   const [placed, setPlaced] = useState(0);
+  const [picked, setPicked] = useState<string | null>(null);
   const skipped = useRef(new Set<string>());
   const undoStack = useRef<{ ranking: string[]; ins: InsertState }[]>([]);
   const busy = useRef(false);
@@ -83,6 +86,7 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
     try {
       const { ranking, ins } = st;
       undoStack.current.push({ ranking, ins });
+      recordActivity();
       const mid = Math.floor((ins.lo + ins.hi) / 2);
       let { lo, hi } = ins;
       if (choice === 'tie') lo = hi = mid;
@@ -94,6 +98,8 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
         updated.splice(lo, 0, ins.key);
         await saveRanking(scope, updated);
         setPlaced((n) => n + 1);
+        const title = st.candidate?.title ?? '';
+        toast(scope.list === 'seen' ? `🏆 « ${title} » classé n°${lo + 1}` : `💖 « ${title} » priorité n°${lo + 1}`);
         await next(updated);
       } else {
         const updated = { ...ins, lo, hi };
@@ -102,6 +108,7 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
       }
     } finally {
       busy.current = false;
+      setPicked(null);
     }
   };
 
@@ -125,6 +132,7 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
   if (!st.ins || !st.candidate || !st.opponent) {
     return (
       <div className="empty">
+        <span className="big-emoji">{st.ranking.length ? '🏆' : '🍿'}</span>
         <p>{st.ranking.length ? 'Tout est classé !' : emptyText}</p>
         {undoStack.current.length > 0 && (
           <button className="btn" onClick={undo} title="Revenir sur le dernier choix">
@@ -137,14 +145,27 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
 
   const left = st.candidateLeft ? st.candidate : st.opponent;
   const right = st.candidateLeft ? st.opponent : st.candidate;
-  const pick = (t: Title) => choose(t.key === st.candidate!.key ? 'candidate' : 'opponent');
+  const pick = (t: Title, el: HTMLElement) => {
+    if (picked || busy.current) return;
+    setPicked(t.key);
+    burst(scope.list === 'seen' ? ['⭐', '👑'] : ['💖', '✨'], centerOf(el), 8);
+    setTimeout(() => choose(t.key === st.candidate!.key ? 'candidate' : 'opponent'), 320);
+  };
 
   return (
     <>
       <p className="question">{question}</p>
       <div className="duel">
+        <span className="vs" aria-hidden>
+          VS
+        </span>
         {[left, right].map((t) => (
-          <button key={t.key} className="duel-card" onClick={() => pick(t)} title={`Choisir « ${t.title} »`}>
+          <button
+            key={t.key}
+            className={`duel-card ${picked === t.key ? 'winner' : picked ? 'loser' : ''}`}
+            onClick={(e) => pick(t, e.currentTarget)}
+            title={`Choisir « ${t.title} »`}
+          >
             <Poster title={t} size="w342" />
             <TitleText title={t} credits />
           </button>
@@ -188,7 +209,7 @@ export function RankedList({ scope, empty, actions }: { scope: Scope; empty: str
       <ol className="list">
         {data.ranked.map((t, i) => (
           <li key={t.key} className="list-item">
-            <span className="rank-num">{i + 1}</span>
+            <span className={`rank-num ${i < 3 ? 'medal' : ''}`}>{i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</span>
             <Poster title={t} size="w92" className="thumb" />
             <TitleText title={t} />
             <div className="item-actions">{actions(t, true)}</div>

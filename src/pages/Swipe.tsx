@@ -3,6 +3,8 @@ import { clearStatus, db, setStatus, type MediaType, type Title } from '../db';
 import { ensureCredits, posterUrl } from '../tmdb';
 import { Poster, TitleText, TopBar } from '../components/common';
 import SwipeCard, { type Dir } from '../components/SwipeCard';
+import { burst, centerOf, MILESTONES, pick, toast } from '../fun';
+import { recordActivity } from '../activity';
 
 /**
  * Tirage aléatoire pondéré par le nombre de votes TMDB : les titres connus sortent
@@ -48,8 +50,8 @@ interface PhaseText {
 const PHASES: Record<Phase, PhaseText> = {
   seen: {
     question: 'Tu l’as vu ?',
-    left: 'PAS VU',
-    right: 'VU',
+    left: 'PAS VU 🙈',
+    right: 'VU ✅',
     leftBtn: '✕',
     rightBtn: '✓',
     leftCap: 'Pas vu',
@@ -59,8 +61,8 @@ const PHASES: Record<Phase, PhaseText> = {
   },
   wish: {
     question: 'Pas vu… envie de le voir ?',
-    left: 'NON',
-    right: 'WISHLIST',
+    left: 'BOF 💤',
+    right: 'ENVIE 💖',
     leftBtn: '✕',
     rightBtn: '♥',
     leftCap: 'Non',
@@ -79,6 +81,7 @@ export default function Swipe({ type }: { type: MediaType }) {
   const [count, setCount] = useState(0);
   const [showInfo, setShowInfo] = useState(false);
   const [catalogueSize, setCatalogueSize] = useState(0);
+  const cardArea = useRef<HTMLDivElement>(null);
 
   const fill = (q: Title[]) => {
     const next = [...q];
@@ -127,9 +130,19 @@ export default function Swipe({ type }: { type: MediaType }) {
       setPhase('wish');
       return;
     }
-    await setStatus(current, phase === 'seen' ? 'seen' : dir === 'right' ? 'wish' : 'unseen');
+    const status = phase === 'seen' ? 'seen' : dir === 'right' ? 'wish' : 'unseen';
+    await setStatus(current, status);
+    recordActivity();
+    const origin = centerOf(cardArea.current);
+    if (status === 'seen') burst(['✅', '🍿', '⭐'], origin, 10);
+    else if (status === 'wish') burst(['💖', '💕', '✨'], origin, 14);
+    const n = count + 1;
+    if (n % 25 === 0) {
+      toast(`${pick(MILESTONES)} ${n} titres triés`);
+      burst(['🎉', '🎊', '✨', '🥳'], undefined, 28);
+    }
     setHistory((h) => [...h.slice(-49), current]);
-    setCount((c) => c + 1);
+    setCount(n);
     advance(queue);
   };
 
@@ -146,6 +159,7 @@ export default function Swipe({ type }: { type: MediaType }) {
     const last = history.at(-1);
     if (!last) return;
     await clearStatus(last.key);
+    recordActivity(-1);
     setHistory((h) => h.slice(0, -1));
     setCount((c) => Math.max(0, c - 1));
     setShowInfo(false);
@@ -173,13 +187,19 @@ export default function Swipe({ type }: { type: MediaType }) {
     return () => removeEventListener('keydown', onKey);
   });
 
-  const label = type === 'movie' ? 'Films' : 'Séries';
   const remaining = pool.current.items.length + (queue?.length ?? 0);
   const p = PHASES[phase];
 
   return (
     <main className="page swipe-page">
-      <TopBar title={label} right={<span className="muted small">{count} triés</span>} />
+      <TopBar
+        title={type === 'movie' ? '🎬 Films' : '📺 Séries'}
+        right={
+          <span className="pill" title="Titres triés pendant cette session">
+            🔥 {count}
+          </span>
+        }
+      />
 
       {queue === null ? (
         <p className="muted center">Chargement…</p>
@@ -187,19 +207,28 @@ export default function Swipe({ type }: { type: MediaType }) {
         <div className="empty">
           {catalogueSize === 0 ? (
             <>
+              <span className="big-emoji">📦</span>
               <p>Le catalogue est vide.</p>
               <a className="btn primary" href="#/settings">
                 Télécharger le catalogue
               </a>
             </>
           ) : (
-            <p>Tout est trié ! Mets à jour le catalogue de temps en temps pour récupérer les nouveautés.</p>
+            <>
+              <span className="big-emoji">🏁</span>
+              <p>Tout est trié ! Mets à jour le catalogue de temps en temps pour récupérer les nouveautés.</p>
+            </>
           )}
         </div>
       ) : (
         <>
           <p className={`question ${phase}`}>{p.question}</p>
-          <div className="card-area">
+          <div className="card-area" ref={cardArea}>
+            {queue[1] && (
+              <div className="swipe-card card-behind" aria-hidden>
+                <Poster title={queue[1]} size="w500" className="card-poster" />
+              </div>
+            )}
             <SwipeCard key={`${current.key}-${phase}`} labels={{ left: p.left, right: p.right }} fling={fling} onSwipe={onSwipe} onTap={() => setShowInfo((s) => !s)}>
               <Poster title={current} size="w500" className="card-poster" />
               {showInfo && <div className="card-overview">{current.overview || 'Pas de résumé disponible.'}</div>}

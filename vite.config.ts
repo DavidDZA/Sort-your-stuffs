@@ -28,6 +28,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         runtimeCaching: [
           {
             // Les affiches sont gardées en cache pour un affichage rapide et hors ligne.

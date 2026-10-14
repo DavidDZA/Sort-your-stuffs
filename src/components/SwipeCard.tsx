@@ -56,7 +56,7 @@ export default function SwipeCard({ labels, fling, onSwipe, onTap, children }: P
 
   return (
     <div
-      className="swipe-card"
+      className={`swipe-card ${dragging ? 'dragging' : ''}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

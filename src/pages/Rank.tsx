@@ -18,7 +18,7 @@ export default function Rank({ type }: { type: MediaType }) {
 
   return (
     <main className="page">
-      <TopBar title={type === 'movie' ? 'Classer les films' : 'Classer les séries'} />
+      <TopBar title={type === 'movie' ? '🏆 Films' : '🥇 Séries'} />
       <TypeFilter<View>
         value={view}
         options={[

@@ -61,10 +61,10 @@ export default function Settings() {
 
   return (
     <main className="page">
-      <TopBar title="Réglages" />
+      <TopBar title="⚙️ Réglages" />
 
       <section className="card">
-        <h3>Clé TMDB</h3>
+        <h3>🔑 Clé TMDB</h3>
         <p className="muted small">
           Le « jeton d’accès en lecture » de ton compte themoviedb.org (Paramètres → API). Il reste uniquement dans ce navigateur.
         </p>
@@ -76,7 +76,7 @@ export default function Settings() {
       </section>
 
       <section className="card">
-        <h3>Catalogue</h3>
+        <h3>📦 Catalogue</h3>
         <p className="muted small">
           {info ? `${info.movies.toLocaleString('fr-FR')} films · ${info.series.toLocaleString('fr-FR')} séries` : '…'}
           <br />
@@ -103,7 +103,7 @@ export default function Settings() {
       </section>
 
       <section className="card">
-        <h3>Sauvegarde</h3>
+        <h3>💾 Sauvegarde</h3>
         <p className="muted small">Tes données ne sont stockées que dans ce navigateur. Exporte-les régulièrement.</p>
         <div className="row">
           <button className="btn" onClick={() => exportData()} title="Télécharger un fichier avec tes réponses et classements">

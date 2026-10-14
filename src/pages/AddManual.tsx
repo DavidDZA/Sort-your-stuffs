@@ -43,7 +43,7 @@ export default function AddManual() {
 
   return (
     <main className="page">
-      <TopBar title="Ajout manuel" />
+      <TopBar title="🔍 Ajout manuel" />
       <input
         className="input"
         type="search"
