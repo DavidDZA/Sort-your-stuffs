@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, getMeta, requestPersistentStorage } from '../db';
+import { clearDatabase, db, getMeta, requestPersistentStorage } from '../db';
 import { getMinVotes, getToken, setMinVotes, setToken, type MinVotes } from '../settings';
 import { syncCatalogue } from '../sync';
 import { tmdb } from '../tmdb';
@@ -14,6 +14,7 @@ export default function Settings() {
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [backupMsg, setBackupMsg] = useState<string | null>(null);
+  const [clearMsg, setClearMsg] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const info = useLiveQuery(async () => ({
@@ -45,6 +46,23 @@ export default function Settings() {
       setSyncMsg(`✕ ${(e as Error).message}`);
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const clear = async () => {
+    if (
+      !confirm(
+        'Êtes-vous sûr ? Toutes tes données (catalogue, titres vus, wishlist, classements) seront définitivement effacées.\n\nPense à exporter une sauvegarde avant si tu veux pouvoir les récupérer.',
+      )
+    )
+      return;
+    try {
+      await clearDatabase();
+      setClearMsg('✓ Base de données vidée. Tu peux retélécharger le catalogue.');
+      setSyncMsg(null);
+      setBackupMsg(null);
+    } catch (e) {
+      setClearMsg(`✕ ${(e as Error).message}`);
     }
   };
 
@@ -115,6 +133,15 @@ export default function Settings() {
           <input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={(e) => onImport(e.target.files?.[0])} />
         </div>
         {backupMsg && <p className="small">{backupMsg}</p>}
+      </section>
+
+      <section className="card danger-zone">
+        <h3>⚠️ Zone dangereuse</h3>
+        <p className="muted small">Efface le catalogue, tes réponses, tes classements et ta wishlist. Ta clé TMDB est conservée.</p>
+        <button className="btn danger" onClick={clear} title="Tout effacer (demande confirmation)">
+          🗑️ Vider la base de données
+        </button>
+        {clearMsg && <p className="small">{clearMsg}</p>}
       </section>
 
       <p className="muted small center">

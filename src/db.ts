@@ -72,6 +72,13 @@ export async function clearStatus(key: string): Promise<void> {
   await db.answers.delete(key);
 }
 
+/** Vide toute la base : catalogue, réponses, classements, activité. La clé TMDB (localStorage) est conservée. */
+export async function clearDatabase(): Promise<void> {
+  await db.transaction('rw', db.titles, db.answers, db.meta, async () => {
+    await Promise.all([db.titles.clear(), db.answers.clear(), db.meta.clear()]);
+  });
+}
+
 export async function requestPersistentStorage(): Promise<void> {
   try {
     if (navigator.storage?.persist && !(await navigator.storage.persisted())) {

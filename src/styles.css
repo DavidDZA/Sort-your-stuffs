@@ -388,6 +388,15 @@ h3,
   color: #fff;
   box-shadow: 0 4px 14px rgb(255 95 162 / 0.3);
 }
+.btn.danger {
+  background: linear-gradient(135deg, #ff7a85, var(--red));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 14px rgb(255 95 109 / 0.35);
+}
+.danger-zone {
+  border-color: rgb(255 95 109 / 0.45);
+}
 .btn.small {
   padding: 6px 12px;
   font-size: 0.85rem;
