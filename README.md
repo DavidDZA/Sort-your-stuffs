@@ -17,7 +17,9 @@ Exclus : documentaires, courts métrages (< 40 min), émissions (télé-réalit�
 
 - Catalogue : [TMDB](https://www.themoviedb.org/) (`/discover`), filtré par un nombre minimum de votes (réglable). Mise à jour manuelle depuis les réglages.
 - Tout est stocké dans le navigateur (IndexedDB). Penser à **exporter** régulièrement (Réglages → Sauvegarde).
-- La clé TMDB est saisie dans les réglages et reste dans le navigateur ; elle n'est jamais dans le code.
+- La clé TMDB n'est jamais dans le code : elle est injectée au déploiement depuis le secret GitHub `TMDB_TOKEN`
+  (Settings → Secrets and variables → Actions). Une autre clé peut être saisie dans les réglages (prioritaire).
+  En local, sans secret, il faut la saisir dans les réglages.
 
 ## Développement
 

@@ -1,14 +1,14 @@
 import { useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { clearChoices, db, getMeta, requestPersistentStorage } from '../db';
-import { getMinVotes, getToken, setMinVotes, setToken, type MinVotes } from '../settings';
+import { getMinVotes, getToken, getUserToken, hasBuiltInToken, setMinVotes, setToken, type MinVotes } from '../settings';
 import { syncCatalogue } from '../sync';
 import { tmdb } from '../tmdb';
 import { exportData, importData } from '../backup';
 import { TopBar } from '../components/common';
 
 export default function Settings() {
-  const [token, setTokenInput] = useState(getToken() ?? '');
+  const [token, setTokenInput] = useState(getUserToken() ?? '');
   const [tokenMsg, setTokenMsg] = useState<string | null>(null);
   const [votes, setVotes] = useState<MinVotes>(getMinVotes());
   const [syncing, setSyncing] = useState(false);
@@ -85,7 +85,10 @@ export default function Settings() {
         <p className="muted small">
           Le « jeton d’accès en lecture » de ton compte themoviedb.org (Paramètres → API). Il reste uniquement dans ce navigateur.
         </p>
-        <input className="input" type="password" value={token} onChange={(e) => setTokenInput(e.target.value)} placeholder="eyJhbGciOi…" autoComplete="off" />
+        {hasBuiltInToken && (
+          <p className="small">✓ Une clé est intégrée au site : rien à saisir. Remplis ce champ seulement pour utiliser une autre clé.</p>
+        )}
+        <input className="input" type="password" value={token} onChange={(e) => setTokenInput(e.target.value)} placeholder={hasBuiltInToken ? 'Clé intégrée utilisée' : 'eyJhbGciOi…'} autoComplete="off" />
         <button className="btn primary" onClick={saveToken} disabled={!token.trim()} title="Vérifier la clé auprès de TMDB puis l’enregistrer">
           Enregistrer
         </button>

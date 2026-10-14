@@ -27,6 +27,7 @@ jobs:
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
