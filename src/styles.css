@@ -1513,3 +1513,124 @@ body.rate-phase .swipe-card:not(.card-behind) {
     transform: perspective(900px) rotateY(-90deg);
   }
 }
+
+/* ---------- Swipe compact (mobile) ---------- */
+
+.swipe-page {
+  gap: 8px;
+}
+.swipe-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.swipe-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.theme-icon {
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+.theme-icon.active {
+  background: var(--grad-cool);
+  border-color: transparent;
+}
+.theme-strip {
+  align-self: center;
+  max-width: 100%;
+  padding: 2px 12px;
+  border: none;
+  border-radius: 999px;
+  background: rgb(139 124 255 / 0.2);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* La carte occupe toute la hauteur disponible : largeur = (hauteur - texte) × 2/3. */
+.card-area {
+  container-type: size;
+}
+.swipe-card,
+.swipe-page.corners .swipe-card {
+  width: min(100%, calc((100cqh - 112px) * 2 / 3 + 20px));
+}
+
+.card-overview {
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  padding-top: 34px;
+}
+.overview-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  background: rgb(255 255 255 / 0.1);
+  font-size: 0.85rem;
+}
+
+.swipe-actions {
+  gap: 10px;
+  align-items: flex-start;
+}
+.swipe-actions .round-btn {
+  width: 56px;
+  height: 56px;
+  font-size: 1.5rem;
+}
+.swipe-actions .round-btn.small {
+  width: 42px;
+  height: 42px;
+  margin-top: 7px;
+  font-size: 1.1rem;
+}
+.swipe-actions.corners {
+  gap: 6px;
+}
+.swipe-actions.corners .round-btn.corner {
+  width: 50px;
+  height: 50px;
+  font-size: 1.35rem;
+}
+.swipe-actions.corners .round-btn.small {
+  width: 38px;
+  height: 38px;
+  margin-top: 6px;
+}
+.round-btn {
+  position: relative;
+}
+.btn-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  font-size: 0.7rem;
+  line-height: 16px;
+  color: var(--text);
+}
+.action-caption {
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+/* Les repères de coins passent sous la carte quand elle prend toute la largeur. */
+.corner-hints {
+  z-index: 0;
+}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { clearStatus, db, setStatus, type MediaType, type Status, type Tier, type Title } from '../db';
 import { ensureDetails, fetchSaga, posterUrl } from '../tmdb';
-import { Poster, Sheet, TitleText, TopBar } from '../components/common';
+import { Poster, Sheet, TitleText } from '../components/common';
 import SwipeCard, { type Dir, type Tone } from '../components/SwipeCard';
 import { openFiche } from '../components/Fiche';
 import { burst, centerOf, MILESTONES, pick, toast } from '../fun';
@@ -329,23 +329,45 @@ export default function Swipe({ type }: { type: MediaType }) {
     />
   );
   const skipButton = <ActionButton className="small" icon="⤼" caption="Passer" tip="Je ne sais pas : le titre reviendra plus tard (flèche ↓)" onClick={skip} />;
+  const ARROWS: Record<Corner, string> = { ul: '↖', ur: '↗', dl: '↙', dr: '↘' };
   const cornerButton = (c: Corner) => (
-    <ActionButton className={`corner tone-${CORNERS[c].tone}`} icon={CORNERS[c].icon} caption={CORNERS[c].caption} tip={CORNERS[c].tip} onClick={() => press(c)} />
+    <ActionButton
+      className={`corner tone-${CORNERS[c].tone}`}
+      icon={CORNERS[c].icon}
+      badge={ARROWS[c]}
+      caption={CORNERS[c].caption}
+      tip={CORNERS[c].tip}
+      onClick={() => press(c)}
+    />
   );
+  const typeTitle = type === 'movie' ? '🎬 Films' : '📺 Séries';
 
   return (
     <main className={`page swipe-page ${mode}`}>
-      <TopBar
-        title={type === 'movie' ? '🎬 Films' : '📺 Séries'}
-        right={
-          <span className="pill" title="Titres triés pendant cette session">
-            🔥 {count}
-          </span>
-        }
-      />
-      <button className={`chip theme-btn ${isNoTheme(theme) ? '' : 'active'}`} onClick={() => setShowThemes(true)} title="Choisir un thème pour cette session">
-        🎯 {themeLabel(type, theme)} ▾
-      </button>
+      <header className="swipe-top">
+        <a className="icon-btn" href="#/" aria-label="Retour" title="Retour à l’accueil">
+          ‹
+        </a>
+        <h2 className={`swipe-title ${mode === 'horizontal' && current ? `question ${phase}` : ''}`}>
+          {mode === 'horizontal' && current ? p.question : typeTitle}
+        </h2>
+        <button
+          className={`icon-btn theme-icon ${isNoTheme(theme) ? '' : 'active'}`}
+          onClick={() => setShowThemes(true)}
+          aria-label="Thème de la session"
+          title={`Thème : ${themeLabel(type, theme)} · ${remaining.toLocaleString('fr-FR')} titres restants`}
+        >
+          🎯
+        </button>
+        <span className="pill" title="Titres triés pendant cette session">
+          🔥 {count}
+        </span>
+      </header>
+      {!isNoTheme(theme) && (
+        <button className="theme-strip" onClick={() => setShowThemes(true)} title="Changer de thème">
+          🎯 {themeLabel(type, theme)} · {remaining.toLocaleString('fr-FR')} restants
+        </button>
+      )}
 
       {queue === null ? (
         <p className="muted center">Chargement…</p>
@@ -376,17 +398,7 @@ export default function Swipe({ type }: { type: MediaType }) {
         </div>
       ) : (
         <>
-          <p className={`question ${phase}`}>{mode === 'corners' ? 'Tu l’as vu ? Swipe vers un coin' : p.question}</p>
           <div className="card-area" ref={cardArea}>
-            {mode === 'corners' && (
-              <div className="corner-hints" aria-hidden>
-                {(Object.keys(CORNERS) as Corner[]).map((c) => (
-                  <span key={c} className={`corner-hint hint-${c} tone-${CORNERS[c].tone}`}>
-                    {CORNERS[c].icon}
-                  </span>
-                ))}
-              </div>
-            )}
             {behind && (
               <div key={behind.key} className="swipe-card card-behind" aria-hidden>
                 <Poster title={behind} size="w500" className="card-poster" />
@@ -412,14 +424,12 @@ export default function Swipe({ type }: { type: MediaType }) {
             >
               <Poster title={current} size="w500" className="card-poster" />
               {showInfo && (
-                <div className="card-overview">
+                <div className="card-overview" onPointerDown={(e) => e.stopPropagation()}>
+                  <button className="overview-close" onClick={() => setShowInfo(false)} aria-label="Fermer le résumé" title="Fermer le résumé">
+                    ✕
+                  </button>
                   <p>{current.overview || 'Pas de résumé disponible.'}</p>
-                  <button
-                    className="btn small"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={() => openFiche(current)}
-                    title="Durée, note, bande-annonce, où regarder…"
-                  >
+                  <button className="btn small" onClick={() => openFiche(current)} title="Durée, note, bande-annonce, où regarder…">
                     📄 Fiche complète
                   </button>
                 </div>
@@ -428,12 +438,12 @@ export default function Swipe({ type }: { type: MediaType }) {
             </SwipeCard>
           </div>
           {mode === 'corners' ? (
-            <div className="corner-actions">
+            <div className="swipe-actions corners">
+              {cornerButton('dl')}
               {cornerButton('ul')}
               {undoButton}
-              {cornerButton('ur')}
-              {cornerButton('dl')}
               {skipButton}
+              {cornerButton('ur')}
               {cornerButton('dr')}
             </div>
           ) : (
@@ -444,9 +454,6 @@ export default function Swipe({ type }: { type: MediaType }) {
               <ActionButton className={`yes ${phase}`} icon={p.rightBtn} caption={p.rightCap} tip={p.rightTip} onClick={() => press('right')} />
             </div>
           )}
-          <p className="muted small center">
-            Touche l’affiche pour le résumé · {remaining.toLocaleString('fr-FR')} restants
-          </p>
         </>
       )}
 
@@ -521,11 +528,20 @@ function ThemeSheet(props: {
   );
 }
 
-function ActionButton(props: { className: string; icon: string; caption: string; tip: string; onClick: () => void; disabled?: boolean }) {
+function ActionButton(props: {
+  className: string;
+  icon: string;
+  badge?: string;
+  caption: string;
+  tip: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   return (
     <div className="action">
       <button className={`round-btn ${props.className}`} onClick={props.onClick} disabled={props.disabled} title={props.tip} aria-label={props.caption}>
         {props.icon}
+        {props.badge && <span className="btn-badge">{props.badge}</span>}
       </button>
       <span className="action-caption">{props.caption}</span>
     </div>
