@@ -1,7 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, TYPE_LABEL, type Title } from '../db';
-import { ensureCredits, posterUrl } from '../tmdb';
+import { ensureDetails, posterUrl, providerLogo } from '../tmdb';
+import { getMyProviders } from '../settings';
+import { useLongPress } from '../hooks';
+import { openFiche } from './Fiche';
 
 export function TopBar({ title, right }: { title: string; right?: ReactNode }) {
   return (
@@ -39,31 +42,73 @@ export function TitleText({ title, showType = false, credits = false }: { title:
   );
 }
 
-/** Réalisateur (ou créateur) et 2 acteurs principaux, chargés depuis TMDB au premier affichage. */
-function CreditsLines({ title }: { title: Title }) {
-  const stored = useLiveQuery(() => db.titles.get(title.key).then((t) => t?.credits ?? null), [title.key]);
+/** Fiche détaillée à jour du titre (depuis la base), chargée depuis TMDB si besoin. */
+export function useDetails(title: Title, maxAge = Infinity) {
+  const stored = useLiveQuery(() => db.titles.get(title.key).then((t) => t?.details ?? null), [title.key]);
+  const [fetched, setFetched] = useState<Title['details'] | null>(null);
   useEffect(() => {
-    ensureCredits(title);
+    let alive = true;
+    ensureDetails(title, maxAge).then((d) => alive && setFetched(d));
+    return () => {
+      alive = false;
+    };
   }, [title.key]);
+  return stored ?? fetched ?? title.details ?? null;
+}
 
-  const c = stored ?? title.credits;
+/** Réalisateur (ou créateur) et 2 acteurs principaux. */
+function CreditsLines({ title }: { title: Title }) {
+  const d = useDetails(title);
   return (
     <div className="title-credits">
-      {c?.directors.length ? (
+      {d?.directors.length ? (
         <div>
-          {title.type === 'movie' ? 'De' : 'Créée par'} {c.directors.join(', ')}
+          {title.type === 'movie' ? 'De' : 'Créée par'} {d.directors.join(', ')}
         </div>
       ) : null}
-      {c?.cast.length ? <div>Avec {c.cast.join(', ')}</div> : null}
+      {d?.cast.length ? <div>Avec {d.cast.join(', ')}</div> : null}
     </div>
   );
 }
 
-/** Options : [valeur, libellé, tooltip]. */
-/** Ligne de liste : toucher l'affiche ou le titre affiche le résumé en dessous. */
-export function TitleRow({ title, prefix, showType = false, children }: { title: Title; prefix?: ReactNode; showType?: boolean; children?: ReactNode }) {
+/** Logos des plateformes d'abonnement où le titre est disponible en France. */
+export function ProviderLine({ title, maxAge }: { title: Title; maxAge?: number }) {
+  const d = useDetails(title, maxAge);
+  if (!d) return null;
+  const mine = new Set(getMyProviders());
+  const { flatrate, rent, buy } = d.providers;
+  if (!flatrate.length) {
+    return rent.length || buy.length ? <div className="providers muted small">💰 Location / achat</div> : null;
+  }
+  return (
+    <div className="providers">
+      {flatrate.slice(0, 5).map((p) => (
+        <img key={p.id} className={`provider-logo ${mine.has(p.id) ? 'mine' : ''}`} src={providerLogo(p.logo) ?? ''} alt={p.name} title={p.name} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Ligne de liste : toucher l'affiche ou le titre affiche le résumé,
+ * un appui long ouvre la fiche complète.
+ */
+export function TitleRow({
+  title,
+  prefix,
+  below,
+  showType = false,
+  children,
+}: {
+  title: Title;
+  prefix?: ReactNode;
+  below?: ReactNode;
+  showType?: boolean;
+  children?: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const toggle = () => setOpen((o) => !o);
+  const longPress = useLongPress(() => openFiche(title));
   return (
     <li className="list-item">
       {prefix}
@@ -71,19 +116,31 @@ export function TitleRow({ title, prefix, showType = false, children }: { title:
         className="row-main"
         role="button"
         tabIndex={0}
+        {...longPress}
         onClick={toggle}
         onKeyDown={(e) => e.key === 'Enter' && toggle()}
-        title={open ? 'Masquer le résumé' : 'Afficher le résumé'}
+        title="Toucher : résumé · Appui long : fiche complète"
       >
         <Poster title={title} size="w92" className="thumb" />
-        <TitleText title={title} showType={showType} />
+        <div className="row-text">
+          <TitleText title={title} showType={showType} />
+          {below}
+        </div>
       </div>
       {children && <div className="item-actions">{children}</div>}
-      {open && <p className="row-overview">{title.overview || 'Pas de résumé disponible.'}</p>}
+      {open && (
+        <div className="row-overview">
+          <p>{title.overview || 'Pas de résumé disponible.'}</p>
+          <button className="btn small" onClick={() => openFiche(title)} title="Ouvrir la fiche complète">
+            📄 Fiche complète
+          </button>
+        </div>
+      )}
     </li>
   );
 }
 
+/** Options : [valeur, libellé, tooltip]. */
 export function TypeFilter<T extends string>({ value, options, onChange }: { value: T; options: [T, string, string][]; onChange: (v: T) => void }) {
   return (
     <div className="chips">
@@ -92,6 +149,29 @@ export function TypeFilter<T extends string>({ value, options, onChange }: { val
           {label}
         </button>
       ))}
+    </div>
+  );
+}
+
+export function SearchBox({ value, onChange, placeholder = 'Rechercher un titre…' }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return <input className="input" type="search" placeholder={`🔍 ${placeholder}`} value={value} onChange={(e) => onChange(e.target.value)} />;
+}
+
+/** Fenêtre modale qui monte du bas de l'écran. */
+export function Sheet({ onClose, children, label }: { onClose: () => void; children: ReactNode; label: string }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    addEventListener('keydown', onKey);
+    return () => removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="sheet-backdrop" onClick={onClose}>
+      <div className="sheet" role="dialog" aria-label={label} onClick={(e) => e.stopPropagation()}>
+        <button className="sheet-close icon-btn" onClick={onClose} aria-label="Fermer" title="Fermer">
+          ✕
+        </button>
+        {children}
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { db, type Answer, type Meta, type Title } from './db';
+import { db, setMeta, type Answer, type Meta, type Title } from './db';
 
 interface Backup {
   app: 'sort-my-stuffs';
@@ -13,7 +13,7 @@ interface Backup {
 export async function exportData(): Promise<void> {
   const answers = await db.answers.toArray();
   const titles = (await db.titles.bulkGet(answers.map((a) => a.key))).filter((t): t is Title => !!t);
-  const meta = (await db.meta.toArray()).filter((m) => m.key.startsWith('ranking:'));
+  const meta = (await db.meta.toArray()).filter((m) => /^(ranking:|saga:)/.test(m.key) || m.key === 'activity' || m.key === 'badges');
   const backup: Backup = { app: 'sort-my-stuffs', version: 1, exportedAt: new Date().toISOString(), titles, answers, meta };
 
   const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' });
@@ -22,6 +22,7 @@ export async function exportData(): Promise<void> {
   a.download = `sort-my-stuffs-${backup.exportedAt.slice(0, 10)}.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  await setMeta('lastExport', Date.now());
 }
 
 /** Restaure une sauvegarde : remplace toutes les réponses et classements actuels. */

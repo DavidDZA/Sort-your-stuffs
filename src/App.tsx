@@ -1,14 +1,19 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type MediaType } from './db';
+import { db, getMeta, type MediaType } from './db';
 import { readRanking } from './ranking';
 import { getToken } from './settings';
 import { loadActivity, streak, todayCount } from './activity';
-import { pick } from './fun';
+import { exportData } from './backup';
+import { BADGES, checkBadges, checkBadgesSoon } from './badges';
+import { pick, toast } from './fun';
+import { FicheHost } from './components/Fiche';
 import Swipe from './pages/Swipe';
 import Rank from './pages/Rank';
 import AddManual from './pages/AddManual';
 import Wishlist from './pages/Wishlist';
+import Lists from './pages/Lists';
+import StatsPage from './pages/Stats';
 import Settings from './pages/Settings';
 
 function useRoute(): string[] {
@@ -27,6 +32,13 @@ export default function App() {
   const [page, arg] = useRoute();
   useEffect(() => window.scrollTo(0, 0), [page, arg]);
 
+  // Vérifie les badges au démarrage puis au fil des swipes et des duels.
+  useEffect(() => {
+    checkBadges().catch(() => undefined);
+    addEventListener('activity', checkBadgesSoon);
+    return () => removeEventListener('activity', checkBadgesSoon);
+  }, []);
+
   let content: ReactNode;
   switch (page) {
     case 'swipe':
@@ -41,6 +53,12 @@ export default function App() {
     case 'wishlist':
       content = <Wishlist />;
       break;
+    case 'lists':
+      content = <Lists />;
+      break;
+    case 'stats':
+      content = <StatsPage />;
+      break;
     case 'settings':
       content = <Settings />;
       break;
@@ -50,6 +68,7 @@ export default function App() {
   return (
     <>
       {content}
+      <FicheHost />
       <Toaster />
     </>
   );
@@ -63,7 +82,7 @@ function Toaster() {
     const onToast = (e: Event) => {
       setMsg({ text: (e as CustomEvent<string>).detail, id: Date.now() });
       clearTimeout(timer);
-      timer = setTimeout(() => setMsg(null), 2400);
+      timer = setTimeout(() => setMsg(null), 2600);
     };
     addEventListener('app-toast', onToast);
     return () => {
@@ -79,6 +98,8 @@ function Toaster() {
 }
 
 const fmt = (n: number) => Math.max(0, n).toLocaleString('fr-FR');
+const DAY = 86_400_000;
+const daysAgo = (t: number) => Math.floor((Date.now() - t) / DAY);
 
 const TAGLINES = [
   'Popcorn prêt ? 🍿',
@@ -100,18 +121,29 @@ function Home() {
       ]);
       return { total, answered, toSwipe: total - answered, seen, ranked: ranking.length, unranked: seen - ranking.length };
     };
-    const [movie, tv, wish, activity] = await Promise.all([
+    const [movie, tv, wish, activity, lastSync, lastExport, badges] = await Promise.all([
       byType('movie'),
       byType('tv'),
       db.answers.where('status').equals('wish').count(),
       loadActivity(),
+      getMeta<number | null>('lastSync', null),
+      getMeta<number | null>('lastExport', null),
+      getMeta<string[]>('badges', []),
     ]);
-    return { movie, tv, wish, today: todayCount(activity), streak: streak(activity) };
+    return { movie, tv, wish, today: todayCount(activity), streak: streak(activity), lastSync, lastExport, badges: badges.length };
   });
 
   const noToken = !getToken();
   const emptyCatalogue = stats && stats.movie.total + stats.tv.total === 0;
   const ratio = (a: number, b: number) => (b > 0 ? a / b : 0);
+  const answered = stats ? stats.movie.answered + stats.tv.answered : 0;
+  const backupDue = stats && answered >= 20 && (!stats.lastExport || daysAgo(stats.lastExport) >= 14);
+  const catalogueOld = stats?.lastSync && daysAgo(stats.lastSync) >= 30;
+
+  const backupNow = async () => {
+    await exportData();
+    toast('💾 Sauvegarde téléchargée !');
+  };
 
   return (
     <main className="page">
@@ -121,7 +153,7 @@ function Home() {
           <h1>Sort my stuffs</h1>
           <p className="tagline">{tagline}</p>
         </div>
-        <a className="icon-btn" href="#/settings" aria-label="Réglages" title="Réglages : clé TMDB, catalogue, sauvegarde">
+        <a className="icon-btn" href="#/settings" aria-label="Réglages" title="Réglages : clé TMDB, abonnements, catalogue, sauvegarde">
           ⚙️
         </a>
       </header>
@@ -129,6 +161,22 @@ function Home() {
       {(noToken || emptyCatalogue) && (
         <a className="banner" href="#/settings">
           {noToken ? '🔑 Commence par renseigner ta clé TMDB dans les réglages →' : '📦 Télécharge le catalogue des films et séries →'}
+        </a>
+      )}
+
+      {backupDue && (
+        <div className="banner-soft row-banner">
+          <span>💾 {stats.lastExport ? `Dernière sauvegarde il y a ${daysAgo(stats.lastExport)} jours` : 'Aucune sauvegarde pour l’instant'}</span>
+          <button className="btn small primary" onClick={backupNow} title="Télécharger une sauvegarde de tes données">
+            Exporter
+          </button>
+        </div>
+      )}
+
+      {catalogueOld && (
+        <a className="banner-soft row-banner" href="#/settings" title="Récupérer les nouveaux films et séries">
+          <span>🔄 Catalogue mis à jour il y a {daysAgo(stats.lastSync!)} jours</span>
+          <span className="btn small">Mettre à jour</span>
         </a>
       )}
 
@@ -186,8 +234,18 @@ function Home() {
           sub={stats && `${fmt(stats.tv.unranked)} non classées`}
           progress={stats && ratio(stats.tv.ranked, stats.tv.seen)}
         />
-        <Tile color="green" href="#/add" icon="🔍" label="Ajout manuel" tip="Chercher un titre précis pour l’ajouter" sub="Rechercher un titre" />
         <Tile color="red" href="#/wishlist" icon="💖" label="Wishlist" tip="Consulter et prioriser ta wishlist" sub={stats && `${fmt(stats.wish)} titres`} />
+        <Tile color="green" href="#/add" icon="🔍" label="Ajout manuel" tip="Chercher un titre précis pour l’ajouter" sub="Rechercher un titre" />
+        <Tile color="yellow" href="#/lists" icon="📚" label="Mes listes" tip="Tous tes titres vus et pas vus, pour corriger une erreur" sub="Vus · Pas vus" />
+        <Tile
+          color="blue"
+          href="#/stats"
+          icon="📊"
+          label="Stats & badges"
+          tip="Tes statistiques et tes badges"
+          sub={stats && `${stats.badges}/${BADGES.length} badges`}
+          progress={stats && ratio(stats.badges, BADGES.length)}
+        />
       </div>
 
       {stats && (

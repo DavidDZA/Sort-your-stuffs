@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { clearChoices, db, getMeta, requestPersistentStorage } from '../db';
-import { getMinVotes, getToken, getUserToken, hasBuiltInToken, setMinVotes, setToken, type MinVotes } from '../settings';
+import { getMinVotes, getMyProviders, getToken, getUserToken, hasBuiltInToken, setMinVotes, setMyProviders, setToken, type MinVotes } from '../settings';
 import { syncCatalogue } from '../sync';
-import { tmdb } from '../tmdb';
+import { fetchProviderOptions, providerLogo, tmdb, type ProviderOption } from '../tmdb';
 import { exportData, importData } from '../backup';
 import { TopBar } from '../components/common';
 
@@ -95,6 +95,8 @@ export default function Settings() {
         {tokenMsg && <p className="small">{tokenMsg}</p>}
       </section>
 
+      <MyProviders />
+
       <section className="card">
         <h3>📦 Catalogue</h3>
         <p className="muted small">
@@ -152,5 +154,58 @@ export default function Settings() {
         This product uses the TMDB API but is not endorsed or certified by TMDB.
       </p>
     </main>
+  );
+}
+
+/** Choix des plateformes auxquelles on est abonné (pour filtrer la wishlist). */
+function MyProviders() {
+  const [options, setOptions] = useState<ProviderOption[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [mine, setMine] = useState<number[]>(getMyProviders());
+  const [showAll, setShowAll] = useState(false);
+
+  useEffect(() => {
+    if (!getToken()) return;
+    fetchProviderOptions()
+      .then(setOptions)
+      .catch((e) => setError((e as Error).message));
+  }, []);
+
+  const toggle = (id: number) => {
+    const next = mine.includes(id) ? mine.filter((x) => x !== id) : [...mine, id];
+    setMine(next);
+    setMyProviders(next);
+  };
+
+  const shown = options && (showAll ? options : options.filter((o, i) => i < 16 || mine.includes(o.id)));
+
+  return (
+    <section className="card">
+      <h3>📺 Mes abonnements</h3>
+      <p className="muted small">Coche tes plateformes : la wishlist pourra n’afficher que ce qui est dispo chez toi.</p>
+      {error && <p className="error small">{error}</p>}
+      {!getToken() && <p className="muted small">Renseigne d’abord ta clé TMDB.</p>}
+      {getToken() && !options && !error && <p className="muted small">Chargement…</p>}
+      {shown && (
+        <div className="provider-picker">
+          {shown.map((p) => (
+            <button
+              key={p.id}
+              className={`provider-option ${mine.includes(p.id) ? 'active' : ''}`}
+              onClick={() => toggle(p.id)}
+              title={mine.includes(p.id) ? `Retirer ${p.name}` : `Je suis abonné à ${p.name}`}
+            >
+              {p.logo && <img src={providerLogo(p.logo) ?? ''} alt="" />}
+              <span>{p.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {options && options.length > 16 && (
+        <button className="btn small" onClick={() => setShowAll((v) => !v)} title="Afficher toutes les plateformes disponibles en France">
+          {showAll ? 'Moins de plateformes' : `Toutes les plateformes (${options.length})`}
+        </button>
+      )}
+    </section>
   );
 }

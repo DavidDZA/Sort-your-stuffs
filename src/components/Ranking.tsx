@@ -12,7 +12,9 @@ import {
   type InsertState,
   type Scope,
 } from '../ranking';
-import { Poster, TitleRow, TitleText } from './common';
+import { Poster, SearchBox, TitleRow, TitleText } from './common';
+import { openFiche } from './Fiche';
+import { matchesSearch, useLongPress } from '../hooks';
 import { burst, centerOf, toast } from '../fun';
 import { recordActivity } from '../activity';
 
@@ -161,48 +163,14 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
           VS
         </span>
         {[left, right].map((t) => (
-          <div
+          <DuelCard
             key={t.key}
-            role="button"
-            tabIndex={0}
-            className={`duel-card ${picked === t.key ? 'winner' : picked ? 'loser' : ''}`}
-            onClick={(e) => pick(t, e.currentTarget)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                pick(t, e.currentTarget);
-              }
-            }}
-            title={`Choisir « ${t.title} »`}
-          >
-            <div className="duel-poster">
-              <Poster title={t} size="w342" />
-              {showInfo && (
-                <div
-                  className="duel-overview"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowInfo(false);
-                  }}
-                  title="Toucher pour masquer les résumés"
-                >
-                  {t.overview || 'Pas de résumé disponible.'}
-                </div>
-              )}
-              <button
-                className="info-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowInfo((s) => !s);
-                }}
-                title={showInfo ? 'Masquer les résumés' : 'Afficher les résumés des deux titres'}
-                aria-label={showInfo ? 'Masquer les résumés' : 'Afficher les résumés'}
-              >
-                {showInfo ? '✕' : 'ℹ'}
-              </button>
-            </div>
-            <TitleText title={t} credits />
-          </div>
+            title={t}
+            state={picked === t.key ? 'winner' : picked ? 'loser' : ''}
+            showInfo={showInfo}
+            onPick={(el) => pick(t, el)}
+            onToggleInfo={() => setShowInfo((s) => !s)}
+          />
         ))}
       </div>
       <div className="row center">
@@ -225,8 +193,88 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
   );
 }
 
-/** Classement numéroté, suivi des titres pas encore classés. */
-export function RankedList({ scope, empty, actions }: { scope: Scope; empty: string; actions: (t: Title, ranked: boolean) => ReactNode }) {
+function DuelCard(props: {
+  title: Title;
+  state: string;
+  showInfo: boolean;
+  onPick: (el: HTMLElement) => void;
+  onToggleInfo: () => void;
+}) {
+  const { title: t, showInfo } = props;
+  const longPress = useLongPress(() => openFiche(t));
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      className={`duel-card ${props.state}`}
+      {...longPress}
+      onClick={(e) => props.onPick(e.currentTarget)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          props.onPick(e.currentTarget);
+        }
+      }}
+      title={`Choisir « ${t.title} » · Appui long : fiche complète`}
+    >
+      <div className="duel-poster">
+        <Poster title={t} size="w342" />
+        {showInfo && (
+          <div
+            className="duel-overview"
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onToggleInfo();
+            }}
+            title="Toucher pour masquer les résumés"
+          >
+            <p>{t.overview || 'Pas de résumé disponible.'}</p>
+            <button
+              className="btn small"
+              onClick={(e) => {
+                e.stopPropagation();
+                openFiche(t);
+              }}
+              title="Ouvrir la fiche complète"
+            >
+              📄 Fiche
+            </button>
+          </div>
+        )}
+        <button
+          className="info-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onToggleInfo();
+          }}
+          title={showInfo ? 'Masquer les résumés' : 'Afficher les résumés des deux titres'}
+          aria-label={showInfo ? 'Masquer les résumés' : 'Afficher les résumés'}
+        >
+          {showInfo ? '✕' : 'ℹ'}
+        </button>
+      </div>
+      <TitleText title={t} credits />
+    </div>
+  );
+}
+
+const MEDALS = ['🥇', '🥈', '🥉'];
+
+/** Classement numéroté, suivi des titres pas encore classés ; recherche et filtre optionnel. */
+export function RankedList({
+  scope,
+  empty,
+  actions,
+  filter,
+  below,
+}: {
+  scope: Scope;
+  empty: string;
+  actions: (t: Title, ranked: boolean) => ReactNode;
+  filter?: (t: Title) => boolean;
+  below?: (t: Title) => ReactNode;
+}) {
+  const [query, setQuery] = useState('');
   const data = useLiveQuery(async () => {
     const ranking = await readRanking(scope);
     const unranked = await unrankedKeys(scope, ranking);
@@ -238,21 +286,33 @@ export function RankedList({ scope, empty, actions }: { scope: Scope; empty: str
   if (!data) return <p className="muted center">Chargement…</p>;
   if (!data.ranked.length && !data.unranked.length) return <p className="muted center">{empty}</p>;
 
+  const keep = (t: Title) => matchesSearch(t, query) && (!filter || filter(t));
+  // Le rang affiché reste celui du classement complet, même filtré.
+  const ranked = data.ranked.map((t, i) => ({ t, rank: i + 1 })).filter(({ t }) => keep(t));
+  const unranked = data.unranked.filter(keep);
+
   return (
     <>
+      {data.ranked.length + data.unranked.length > 8 && <SearchBox value={query} onChange={setQuery} />}
+      {!ranked.length && !unranked.length && <p className="muted center">Aucun titre ne correspond.</p>}
       <ol className="list">
-        {data.ranked.map((t, i) => (
-          <TitleRow key={t.key} title={t} prefix={<span className={`rank-num ${i < 3 ? 'medal' : ''}`}>{i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</span>}>
+        {ranked.map(({ t, rank }) => (
+          <TitleRow
+            key={t.key}
+            title={t}
+            below={below?.(t)}
+            prefix={<span className={`rank-num ${rank <= 3 ? 'medal' : ''}`}>{rank <= 3 ? MEDALS[rank - 1] : rank}</span>}
+          >
             {actions(t, true)}
           </TitleRow>
         ))}
       </ol>
-      {data.unranked.length > 0 && (
+      {unranked.length > 0 && (
         <>
-          <h3 className="section-title">Non classés ({data.unranked.length})</h3>
+          <h3 className="section-title">Non classés ({unranked.length})</h3>
           <ul className="list">
-            {data.unranked.map((t) => (
-              <TitleRow key={t.key} title={t}>
+            {unranked.map((t) => (
+              <TitleRow key={t.key} title={t} below={below?.(t)}>
                 {actions(t, false)}
               </TitleRow>
             ))}

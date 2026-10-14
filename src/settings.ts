@@ -25,7 +25,7 @@ function write(key: string, value: string): void {
 }
 
 /** Clé intégrée au site lors du déploiement (secret GitHub TMDB_TOKEN), vide en local. */
-const BUILT_IN_TOKEN: string = (import.meta.env.VITE_TMDB_TOKEN ?? '').trim();
+const BUILT_IN_TOKEN: string = (import.meta.env?.VITE_TMDB_TOKEN ?? '').trim();
 export const hasBuiltInToken = BUILT_IN_TOKEN !== '';
 
 /** Clé saisie dans les réglages, prioritaire sur la clé intégrée. */
@@ -42,3 +42,29 @@ export function getMinVotes(): MinVotes {
 }
 
 export const setMinVotes = (v: MinVotes) => write(VOTES_KEY, JSON.stringify(v));
+
+const PROVIDERS_KEY = 'my-providers';
+
+/** Plateformes auxquelles l'utilisateur est abonné (identifiants TMDB). */
+export function getMyProviders(): number[] {
+  try {
+    const v = JSON.parse(read(PROVIDERS_KEY) ?? '[]');
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+
+export const setMyProviders = (ids: number[]) => write(PROVIDERS_KEY, JSON.stringify(ids));
+
+/** Lecture / écriture JSON générique pour les petites préférences (thème de swipe…). */
+export function readPref<T>(key: string, fallback: T): T {
+  try {
+    const raw = read(key);
+    return raw ? { ...fallback, ...JSON.parse(raw) } : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export const writePref = (key: string, value: unknown) => write(key, JSON.stringify(value));

@@ -14,13 +14,31 @@ export interface Title {
   overview: string;
   voteCount: number;
   popularity: number;
+  genreIds?: number[];
+  originalLanguage?: string;
   manual?: boolean; // ajouté via la recherche, hors catalogue
-  credits?: Credits; // chargé à la demande, puis gardé en cache
+  details?: Details; // chargé à la demande, puis gardé en cache
 }
 
-export interface Credits {
+export interface Provider {
+  id: number;
+  name: string;
+  logo: string | null;
+}
+
+/** Fiche détaillée TMDB, chargée au premier affichage. */
+export interface Details {
+  fetchedAt: number;
   directors: string[]; // réalisateur(s) pour un film, créateur(s) pour une série
   cast: string[]; // acteurs principaux
+  genres: string[];
+  rating: number | null; // note moyenne TMDB sur 10
+  runtime: number | null; // durée du film, ou d'un épisode pour une série (minutes)
+  seasons?: number;
+  episodes?: number;
+  collection?: { id: number; name: string } | null; // saga
+  trailer?: string | null; // clé YouTube
+  providers: { flatrate: Provider[]; rent: Provider[]; buy: Provider[]; link: string | null }; // France
 }
 
 export interface Answer {
