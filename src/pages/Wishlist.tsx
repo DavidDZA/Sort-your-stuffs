@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type MediaType, type Title } from '../db';
 import { changeStatus, scopeId, unrank, type Scope } from '../ranking';
-import { Poster, TitleText, TopBar, TypeFilter } from '../components/common';
+import { TitleRow, TopBar, TypeFilter } from '../components/common';
 import { Duel, RankedList } from '../components/Ranking';
 
 type View = 'list' | 'duel';
@@ -89,13 +89,9 @@ function AllWishes() {
   return (
     <ul className="list">
       {items.map((t) => (
-        <li key={t.key} className="list-item">
-          <Poster title={t} size="w92" className="thumb" />
-          <TitleText title={t} showType />
-          <div className="item-actions">
-            <WishActions title={t} />
-          </div>
-        </li>
+        <TitleRow key={t.key} title={t} showType>
+          <WishActions title={t} />
+        </TitleRow>
       ))}
     </ul>
   );

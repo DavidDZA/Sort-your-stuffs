@@ -229,7 +229,11 @@ export default function Swipe({ type }: { type: MediaType }) {
                 <Poster title={queue[1]} size="w500" className="card-poster" />
               </div>
             )}
-            <SwipeCard key={`${current.key}-${phase}`} labels={{ left: p.left, right: p.right }} fling={fling} onSwipe={onSwipe} onTap={() => setShowInfo((s) => !s)}>
+            <SwipeCard key={`${current.key}-${phase}`} labels={{ left: p.left, right: p.right }} fling={fling}
+              onSwipe={onSwipe}
+              stay={phase === 'seen' ? 'left' : null}
+              className={phase === 'wish' ? 'flip-in' : ''}
+              onTap={() => setShowInfo((s) => !s)}>
               <Poster title={current} size="w500" className="card-poster" />
               {showInfo && <div className="card-overview">{current.overview || 'Pas de résumé disponible.'}</div>}
               <TitleText title={current} credits />

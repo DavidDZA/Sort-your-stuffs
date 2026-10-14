@@ -605,6 +605,16 @@ body.wish-phase .swipe-card:not(.card-behind) {
   pointer-events: none;
 }
 
+/* Retournement de la carte pour la question « wishlist ? ». */
+.swipe-card.flip-in {
+  animation: flip-in 0.35s ease-out;
+}
+@keyframes flip-in {
+  from {
+    transform: perspective(900px) rotateY(-75deg) scale(0.95);
+  }
+}
+
 .card-poster {
   flex: 1;
   min-height: 0;
@@ -757,6 +767,40 @@ body.wish-phase .stamp-right {
   text-align: center;
   transition: transform 0.25s, opacity 0.25s, border-color 0.25s, box-shadow 0.25s;
 }
+.duel-card {
+  cursor: pointer;
+}
+.duel-poster {
+  position: relative;
+}
+.duel-overview {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgb(10 6 25 / 0.92);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  text-align: left;
+  animation: pop 0.2s;
+}
+.info-btn {
+  position: absolute;
+  z-index: 1;
+  top: 6px;
+  right: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  background: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  font-size: 0.95rem;
+  display: grid;
+  place-items: center;
+}
 .duel-card:active {
   transform: scale(0.97);
 }
@@ -789,8 +833,27 @@ body.wish-phase .stamp-right {
   border-radius: 16px;
   padding: 8px;
 }
-.list-item .title-text {
+.list-item {
+  flex-wrap: wrap;
+}
+.row-main {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+.row-main .title-text {
+  flex: 1;
+}
+.row-overview {
+  flex-basis: 100%;
+  margin: 2px 4px 4px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--text) 85%, transparent);
+  animation: pop 0.2s;
 }
 .thumb {
   width: 46px;

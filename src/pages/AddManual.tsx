@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Status, type Title } from '../db';
 import { changeStatus } from '../ranking';
 import { search } from '../tmdb';
-import { Poster, TitleText, TopBar } from '../components/common';
+import { TitleRow, TopBar } from '../components/common';
 
 export default function AddManual() {
   const [query, setQuery] = useState('');
@@ -57,14 +57,10 @@ export default function AddManual() {
       {!loading && query.trim().length >= 2 && !results.length && !error && <p className="muted center">Aucun résultat.</p>}
       <ul className="list">
         {results.map((t) => (
-          <li key={t.key} className="list-item">
-            <Poster title={t} size="w92" className="thumb" />
-            <TitleText title={t} showType />
-            <div className="item-actions">
-              <StatusButton title={t} status="seen" current={statuses?.get(t.key)} label="Vu" tip="Ajouter aux titres vus" />
-              <StatusButton title={t} status="wish" current={statuses?.get(t.key)} label="♥" tip="Ajouter à la wishlist" />
-            </div>
-          </li>
+          <TitleRow key={t.key} title={t} showType>
+            <StatusButton title={t} status="seen" current={statuses?.get(t.key)} label="Vu" tip="Ajouter aux titres vus" />
+            <StatusButton title={t} status="wish" current={statuses?.get(t.key)} label="♥" tip="Ajouter à la wishlist" />
+          </TitleRow>
         ))}
       </ul>
     </main>

@@ -11,16 +11,24 @@ interface Props {
   fling: Dir | null;
   onSwipe: (dir: Dir) => void;
   onTap?: () => void;
+  /** Direction qui ne jette pas la carte : elle revient au centre (ex. « Pas vu » → question wishlist). */
+  stay?: Dir | null;
+  className?: string;
   children: ReactNode;
 }
 
-export default function SwipeCard({ labels, fling, onSwipe, onTap, children }: Props) {
+export default function SwipeCard({ labels, fling, onSwipe, onTap, stay, className = '', children }: Props) {
   const start = useRef<{ x: number; y: number } | null>(null);
   const [delta, setDelta] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const [leaving, setLeaving] = useState<Dir | null>(null);
 
   const leave = (dir: Dir) => {
+    if (dir === stay) {
+      setDelta({ x: 0, y: 0 });
+      onSwipe(dir);
+      return;
+    }
     setLeaving(dir);
     setTimeout(() => onSwipe(dir), FLY_MS);
   };
@@ -56,7 +64,7 @@ export default function SwipeCard({ labels, fling, onSwipe, onTap, children }: P
 
   return (
     <div
-      className={`swipe-card ${dragging ? 'dragging' : ''}`}
+      className={`swipe-card ${dragging ? 'dragging' : ''} ${className}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, TYPE_LABEL, type Title } from '../db';
 import { ensureCredits, posterUrl } from '../tmdb';
@@ -60,6 +60,30 @@ function CreditsLines({ title }: { title: Title }) {
 }
 
 /** Options : [valeur, libellé, tooltip]. */
+/** Ligne de liste : toucher l'affiche ou le titre affiche le résumé en dessous. */
+export function TitleRow({ title, prefix, showType = false, children }: { title: Title; prefix?: ReactNode; showType?: boolean; children?: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const toggle = () => setOpen((o) => !o);
+  return (
+    <li className="list-item">
+      {prefix}
+      <div
+        className="row-main"
+        role="button"
+        tabIndex={0}
+        onClick={toggle}
+        onKeyDown={(e) => e.key === 'Enter' && toggle()}
+        title={open ? 'Masquer le résumé' : 'Afficher le résumé'}
+      >
+        <Poster title={title} size="w92" className="thumb" />
+        <TitleText title={title} showType={showType} />
+      </div>
+      {children && <div className="item-actions">{children}</div>}
+      {open && <p className="row-overview">{title.overview || 'Pas de résumé disponible.'}</p>}
+    </li>
+  );
+}
+
 export function TypeFilter<T extends string>({ value, options, onChange }: { value: T; options: [T, string, string][]; onChange: (v: T) => void }) {
   return (
     <div className="chips">

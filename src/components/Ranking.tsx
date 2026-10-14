@@ -12,7 +12,7 @@ import {
   type InsertState,
   type Scope,
 } from '../ranking';
-import { Poster, TitleText } from './common';
+import { Poster, TitleRow, TitleText } from './common';
 import { burst, centerOf, toast } from '../fun';
 import { recordActivity } from '../activity';
 
@@ -33,6 +33,7 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
   const [st, setSt] = useState<DuelState | null>(null);
   const [placed, setPlaced] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
+  const [showInfo, setShowInfo] = useState(false);
   const skipped = useRef(new Set<string>());
   const undoStack = useRef<{ ranking: string[]; ins: InsertState }[]>([]);
   const busy = useRef(false);
@@ -160,15 +161,48 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
           VS
         </span>
         {[left, right].map((t) => (
-          <button
+          <div
             key={t.key}
+            role="button"
+            tabIndex={0}
             className={`duel-card ${picked === t.key ? 'winner' : picked ? 'loser' : ''}`}
             onClick={(e) => pick(t, e.currentTarget)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                pick(t, e.currentTarget);
+              }
+            }}
             title={`Choisir « ${t.title} »`}
           >
-            <Poster title={t} size="w342" />
+            <div className="duel-poster">
+              <Poster title={t} size="w342" />
+              {showInfo && (
+                <div
+                  className="duel-overview"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowInfo(false);
+                  }}
+                  title="Toucher pour masquer les résumés"
+                >
+                  {t.overview || 'Pas de résumé disponible.'}
+                </div>
+              )}
+              <button
+                className="info-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowInfo((s) => !s);
+                }}
+                title={showInfo ? 'Masquer les résumés' : 'Afficher les résumés des deux titres'}
+                aria-label={showInfo ? 'Masquer les résumés' : 'Afficher les résumés'}
+              >
+                {showInfo ? '✕' : 'ℹ'}
+              </button>
+            </div>
             <TitleText title={t} credits />
-          </button>
+          </div>
         ))}
       </div>
       <div className="row center">
@@ -208,12 +242,9 @@ export function RankedList({ scope, empty, actions }: { scope: Scope; empty: str
     <>
       <ol className="list">
         {data.ranked.map((t, i) => (
-          <li key={t.key} className="list-item">
-            <span className={`rank-num ${i < 3 ? 'medal' : ''}`}>{i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</span>
-            <Poster title={t} size="w92" className="thumb" />
-            <TitleText title={t} />
-            <div className="item-actions">{actions(t, true)}</div>
-          </li>
+          <TitleRow key={t.key} title={t} prefix={<span className={`rank-num ${i < 3 ? 'medal' : ''}`}>{i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</span>}>
+            {actions(t, true)}
+          </TitleRow>
         ))}
       </ol>
       {data.unranked.length > 0 && (
@@ -221,11 +252,9 @@ export function RankedList({ scope, empty, actions }: { scope: Scope; empty: str
           <h3 className="section-title">Non classés ({data.unranked.length})</h3>
           <ul className="list">
             {data.unranked.map((t) => (
-              <li key={t.key} className="list-item">
-                <Poster title={t} size="w92" className="thumb" />
-                <TitleText title={t} />
-                <div className="item-actions">{actions(t, false)}</div>
-              </li>
+              <TitleRow key={t.key} title={t}>
+                {actions(t, false)}
+              </TitleRow>
             ))}
           </ul>
         </>
