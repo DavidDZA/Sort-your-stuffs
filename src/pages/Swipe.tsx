@@ -53,7 +53,8 @@ async function sagaFollowUps(title: Title): Promise<{ name: string; parts: Title
   return parts.length ? { name: saga.name, parts } : null;
 }
 
-type Phase = 'seen' | 'wish';
+/** Mode 2 directions : vu / pas vu, puis « aimé ou bof ? » (vu) ou « envie ? » (pas vu). */
+type Phase = 'seen' | 'wish' | 'rate';
 
 interface PhaseText {
   question: string;
@@ -81,15 +82,32 @@ const PHASES: Record<Phase, PhaseText> = {
   },
   wish: {
     question: 'Pas vu… envie de le voir ?',
-    left: 'BOF 💤',
+    left: 'PAS ENVIE 💤',
     right: 'ENVIE 💖',
     leftBtn: '✕',
     rightBtn: '♥',
-    leftCap: 'Non',
+    leftCap: 'Pas envie',
     rightCap: 'Wishlist',
     leftTip: 'Pas envie : il ne sera plus proposé (swipe à gauche ou flèche ←)',
     rightTip: 'Ajouter à la wishlist (swipe à droite ou flèche →)',
   },
+  rate: {
+    question: 'Vu ! Tu as aimé ?',
+    left: 'BOF 😐',
+    right: 'AIMÉ 👍',
+    leftBtn: '😐',
+    rightBtn: '👍',
+    leftCap: 'Bof',
+    rightCap: 'Aimé',
+    leftTip: 'Vu, mais bof : classé avec les « bof » (swipe à gauche ou flèche ←)',
+    rightTip: 'Vu et aimé : classé avec les « bien » (swipe à droite ou flèche →)',
+  },
+};
+
+const TONES: Record<Phase, { left: Tone; right: Tone }> = {
+  seen: { left: 'no', right: 'yes' },
+  wish: { left: 'no', right: 'wish' },
+  rate: { left: 'meh', right: 'yes' },
 };
 
 type Corner = 'ul' | 'ur' | 'dl' | 'dr';
@@ -171,14 +189,17 @@ export default function Swipe({ type }: { type: MediaType }) {
   const onSwipe = async (dir: Dir) => {
     setFling(null);
     if (!current || !queue) return;
-    if (phase === 'seen' && dir === 'left') {
-      setPhase('wish');
+    if (phase === 'seen' && (dir === 'left' || dir === 'right')) {
+      setPhase(dir === 'left' ? 'wish' : 'rate');
       return;
     }
     let status: Status;
     let tier: Tier | undefined;
     if (isCorner(dir)) ({ status, tier } = CORNERS[dir]);
-    else status = phase === 'seen' ? 'seen' : dir === 'right' ? 'wish' : 'unseen';
+    else if (phase === 'rate') {
+      status = 'seen';
+      tier = dir === 'right' ? 'good' : 'meh';
+    } else status = dir === 'right' ? 'wish' : 'unseen';
     await setStatus(current, status, tier);
     answered.current.add(current.key);
     recordActivity();
@@ -214,7 +235,7 @@ export default function Swipe({ type }: { type: MediaType }) {
 
   const undo = async () => {
     if (busy || !queue) return;
-    if (phase === 'wish') {
+    if (phase !== 'seen') {
       setPhase('seen');
       return;
     }
@@ -242,7 +263,8 @@ export default function Swipe({ type }: { type: MediaType }) {
   // Fond différent pendant la question « wishlist ? ».
   useEffect(() => {
     document.body.classList.toggle('wish-phase', phase === 'wish');
-    return () => document.body.classList.remove('wish-phase');
+    document.body.classList.toggle('rate-phase', phase === 'rate');
+    return () => document.body.classList.remove('wish-phase', 'rate-phase');
   }, [phase]);
 
   useEffect(() => {
@@ -264,7 +286,7 @@ export default function Swipe({ type }: { type: MediaType }) {
   const labels: Partial<Record<Dir, { text: string; tone: Tone }>> =
     mode === 'corners'
       ? Object.fromEntries((Object.keys(CORNERS) as Corner[]).map((c) => [c, { text: CORNERS[c].text, tone: CORNERS[c].tone }]))
-      : { left: { text: p.left, tone: 'no' }, right: { text: p.right, tone: phase === 'seen' ? 'yes' : 'wish' } };
+      : { left: { text: p.left, tone: TONES[phase].left }, right: { text: p.right, tone: TONES[phase].right } };
   const undoButton = (
     <ActionButton
       className="small"
@@ -347,8 +369,8 @@ export default function Swipe({ type }: { type: MediaType }) {
               fling={fling}
               onSwipe={onSwipe}
               onAmbiguous={() => toast('↖ ↗ ↙ ↘ Swipe en diagonale, vers un coin')}
-              stay={mode === 'horizontal' && phase === 'seen' ? 'left' : null}
-              className={phase === 'wish' ? 'flip-in' : ''}
+              stay={mode === 'horizontal' && phase === 'seen' ? ['left', 'right'] : []}
+              className={phase !== 'seen' ? 'flip-in' : ''}
               onTap={() => setShowInfo((s) => !s)}
             >
               <Poster title={current} size="w500" className="card-poster" />
@@ -379,7 +401,7 @@ export default function Swipe({ type }: { type: MediaType }) {
             </div>
           ) : (
             <div className="swipe-actions">
-              <ActionButton className="no" icon={p.leftBtn} caption={p.leftCap} tip={p.leftTip} onClick={() => press('left')} />
+              <ActionButton className={phase === 'rate' ? 'meh' : 'no'} icon={p.leftBtn} caption={p.leftCap} tip={p.leftTip} onClick={() => press('left')} />
               {undoButton}
               {skipButton}
               <ActionButton className={`yes ${phase}`} icon={p.rightBtn} caption={p.rightCap} tip={p.rightTip} onClick={() => press('right')} />

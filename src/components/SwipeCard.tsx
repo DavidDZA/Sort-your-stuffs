@@ -40,20 +40,20 @@ interface Props {
   onTap?: () => void;
   /** Glissement assez long mais sans direction claire (mode 4 coins). */
   onAmbiguous?: () => void;
-  /** Direction qui ne jette pas la carte : elle revient au centre (ex. « Pas vu » → question wishlist). */
-  stay?: Dir | null;
+  /** Directions qui ne jettent pas la carte : elle revient au centre pour une 2e question. */
+  stay?: Dir[];
   className?: string;
   children: ReactNode;
 }
 
-export default function SwipeCard({ mode, labels, fling, onSwipe, onTap, onAmbiguous, stay, className = '', children }: Props) {
+export default function SwipeCard({ mode, labels, fling, onSwipe, onTap, onAmbiguous, stay = [], className = '', children }: Props) {
   const start = useRef<{ x: number; y: number } | null>(null);
   const [delta, setDelta] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const [leaving, setLeaving] = useState<Dir | null>(null);
 
   const leave = (dir: Dir) => {
-    if (dir === stay) {
+    if (stay.includes(dir)) {
       setDelta({ x: 0, y: 0 });
       onSwipe(dir);
       return;

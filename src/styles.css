@@ -1469,3 +1469,23 @@ body.wish-phase .stamp-right {
 .mode-diagram span:nth-child(even) {
   text-align: right;
 }
+
+/* ---------- 2 directions : question « aimé ou bof ? » ---------- */
+
+body.rate-phase::after {
+  opacity: 1;
+  background: radial-gradient(circle at 50% 35%, rgb(62 224 143 / 0.3), rgb(8 45 35 / 0.75));
+}
+body.rate-phase .swipe-card:not(.card-behind) {
+  background: #173a33;
+  border-color: var(--green);
+  box-shadow: 0 18px 40px rgb(62 224 143 / 0.25);
+}
+.question.rate {
+  color: var(--green);
+  animation: pop 0.3s;
+}
+.round-btn.meh {
+  background: linear-gradient(135deg, #ffe08a, #f2b632);
+  box-shadow: 0 6px 20px rgb(255 209 102 / 0.4);
+}
