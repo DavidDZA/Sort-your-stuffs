@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Title } from '../db';
+import { db, type Tier, type Title } from '../db';
 import {
   duelsLeft,
+  initialBounds,
   loadInsert,
   loadRanking,
   readRanking,
@@ -25,6 +26,7 @@ interface DuelState {
   opponent?: Title;
   candidateLeft: boolean;
   unranked: number;
+  tier?: Tier;
 }
 
 /**
@@ -42,8 +44,8 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
 
   const show = async (ranking: string[], ins: InsertState, unranked: number) => {
     const mid = Math.floor((ins.lo + ins.hi) / 2);
-    const [candidate, opponent] = await db.titles.bulkGet([ins.key, ranking[mid]]);
-    setSt({ ranking, ins, candidate, opponent, candidateLeft: Math.random() < 0.5, unranked });
+    const [[candidate, opponent], answer] = await Promise.all([db.titles.bulkGet([ins.key, ranking[mid]]), db.answers.get(ins.key)]);
+    setSt({ ranking, ins, candidate, opponent, candidateLeft: Math.random() < 0.5, unranked, tier: scope.list === 'seen' ? answer?.tier : undefined });
   };
 
   /** Choisit le prochain titre à placer (le premier entre directement dans le classement). */
@@ -62,7 +64,18 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
         await saveRanking(scope, r);
         continue;
       }
-      const ins = { key, lo: 0, hi: r.length };
+      // Avec un avis « bien » / « bof », l'intervalle de départ est réduit (parfois à une seule place).
+      const { lo, hi } = await initialBounds(scope, r, key);
+      if (lo >= hi) {
+        r = [...r];
+        r.splice(lo, 0, key);
+        await saveRanking(scope, r);
+        setPlaced((n) => n + 1);
+        const t = await db.titles.get(key);
+        toast(`🏆 « ${t?.title ?? ''} » classé n°${lo + 1} sans duel`);
+        continue;
+      }
+      const ins = { key, lo, hi };
       await saveInsert(scope, ins);
       await show(r, ins, pool.length);
       return;
@@ -186,6 +199,7 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
       </div>
       <p className="muted small center">
         Encore ~{duelsLeft(st.ins)} duel(s) pour placer « {st.candidate.title} »
+        {st.tier && (st.tier === 'good' ? ' · 👍 parmi tes titres « bien »' : ' · 😐 parmi tes titres « bof »')}
         <br />
         {st.ranking.length} classés · {st.unranked} non classés · {placed} placés cette session
       </p>

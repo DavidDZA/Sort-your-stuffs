@@ -2,6 +2,8 @@ import Dexie, { type EntityTable } from 'dexie';
 
 export type MediaType = 'movie' | 'tv';
 export type Status = 'seen' | 'unseen' | 'wish';
+/** Avis rapide donné au swipe en mode 4 coins : sert à pré-classer les titres vus. */
+export type Tier = 'good' | 'meh';
 
 export interface Title {
   key: string; // "movie:550" ou "tv:1399"
@@ -45,6 +47,7 @@ export interface Answer {
   key: string;
   type: MediaType;
   status: Status;
+  tier?: Tier;
   updatedAt: number;
 }
 
@@ -79,10 +82,10 @@ export async function setMeta(key: string, value: unknown): Promise<void> {
 }
 
 /** Enregistre une réponse ; ajoute le titre à la base s'il n'y est pas encore (ajout manuel). */
-export async function setStatus(title: Title, status: Status): Promise<void> {
+export async function setStatus(title: Title, status: Status, tier?: Tier): Promise<void> {
   await db.transaction('rw', db.titles, db.answers, async () => {
     if (!(await db.titles.get(title.key))) await db.titles.put(title);
-    await db.answers.put({ key: title.key, type: title.type, status, updatedAt: Date.now() });
+    await db.answers.put({ key: title.key, type: title.type, status, ...(tier ? { tier } : {}), updatedAt: Date.now() });
   });
 }
 

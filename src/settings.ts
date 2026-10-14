@@ -68,3 +68,10 @@ export function readPref<T>(key: string, fallback: T): T {
 }
 
 export const writePref = (key: string, value: unknown) => write(key, JSON.stringify(value));
+
+export type SwipeMode = 'horizontal' | 'corners';
+const MODE_KEY = 'swipe-mode';
+
+/** « 2 directions » (vu / pas vu puis wishlist) ou « 4 coins » (un seul geste). */
+export const getSwipeMode = (): SwipeMode => (read(MODE_KEY) === 'corners' ? 'corners' : 'horizontal');
+export const setSwipeMode = (mode: SwipeMode) => write(MODE_KEY, mode);

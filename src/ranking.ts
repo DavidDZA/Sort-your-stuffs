@@ -70,5 +70,24 @@ export async function changeStatus(title: Title, status: Status): Promise<void> 
   await setStatus(title, status);
 }
 
+/**
+ * Intervalle de départ pour placer un titre vu. Avec l'avis donné au swipe (mode 4 coins),
+ * un titre « bien » se place au-dessus de tous les « bof », et inversement : moins de duels.
+ */
+export async function initialBounds(s: Scope, ranking: string[], key: string): Promise<{ lo: number; hi: number }> {
+  const full = { lo: 0, hi: ranking.length };
+  if (s.list !== 'seen') return full;
+  const [answer, ...ranked] = await db.answers.bulkGet([key, ...ranking]);
+  const tiers = ranked.map((a) => a?.tier);
+  let bounds = full;
+  if (answer?.tier === 'good') {
+    const firstMeh = tiers.indexOf('meh');
+    bounds = { lo: 0, hi: firstMeh === -1 ? ranking.length : firstMeh };
+  } else if (answer?.tier === 'meh') {
+    bounds = { lo: tiers.lastIndexOf('good') + 1, hi: ranking.length };
+  }
+  return bounds.lo <= bounds.hi ? bounds : full;
+}
+
 /** Nombre de duels restants (au pire) pour placer le titre. */
 export const duelsLeft = (s: InsertState) => Math.ceil(Math.log2(s.hi - s.lo + 1));

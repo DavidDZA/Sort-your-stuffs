@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { clearStatus, db, setStatus, type MediaType, type Title } from '../db';
+import { clearStatus, db, setStatus, type MediaType, type Status, type Tier, type Title } from '../db';
 import { ensureDetails, fetchSaga, posterUrl } from '../tmdb';
 import { Poster, Sheet, TitleText, TopBar } from '../components/common';
-import SwipeCard, { type Dir } from '../components/SwipeCard';
+import SwipeCard, { type Dir, type Tone } from '../components/SwipeCard';
 import { openFiche } from '../components/Fiche';
 import { burst, centerOf, MILESTONES, pick, toast } from '../fun';
 import { recordActivity } from '../activity';
-import { readPref, writePref } from '../settings';
+import { getSwipeMode, readPref, writePref } from '../settings';
 import { genreOptions, isNoTheme, LANGS, matchesTheme, NO_THEME, PERIODS, themeLabel, type Theme } from '../themes';
 
 /**
@@ -92,7 +92,20 @@ const PHASES: Record<Phase, PhaseText> = {
   },
 };
 
+type Corner = 'ul' | 'ur' | 'dl' | 'dr';
+
+/** Mode 4 coins : haut = positif. Les boutons reprennent la même disposition. */
+const CORNERS: Record<Corner, { status: Status; tier?: Tier; text: string; tone: Tone; icon: string; caption: string; tip: string; key: string }> = {
+  ul: { status: 'wish', text: 'ENVIE 💖', tone: 'wish', icon: '💖', caption: 'Envie', tip: 'Pas vu, envie de le voir : wishlist (↖ ou touche 7)', key: '7' },
+  ur: { status: 'seen', tier: 'good', text: 'VU 👍', tone: 'yes', icon: '👍', caption: 'Vu · bien', tip: 'Vu, et j’ai aimé (↗ ou touche 9)', key: '9' },
+  dl: { status: 'unseen', text: 'PAS ENVIE 💤', tone: 'no', icon: '💤', caption: 'Pas envie', tip: 'Pas vu, pas envie : il ne sera plus proposé (↙ ou touche 1)', key: '1' },
+  dr: { status: 'seen', tier: 'meh', text: 'VU 😐', tone: 'meh', icon: '😐', caption: 'Vu · bof', tip: 'Vu, mais bof (↘ ou touche 3)', key: '3' },
+};
+
+const isCorner = (d: Dir): d is Corner => d in CORNERS;
+
 export default function Swipe({ type }: { type: MediaType }) {
+  const [mode] = useState(getSwipeMode);
   const themeKey = `swipe-theme:${type}`;
   const pool = useRef<Pool>({ items: [], total: 0 });
   const catalogue = useRef<Title[]>([]);
@@ -162,8 +175,11 @@ export default function Swipe({ type }: { type: MediaType }) {
       setPhase('wish');
       return;
     }
-    const status = phase === 'seen' ? 'seen' : dir === 'right' ? 'wish' : 'unseen';
-    await setStatus(current, status);
+    let status: Status;
+    let tier: Tier | undefined;
+    if (isCorner(dir)) ({ status, tier } = CORNERS[dir]);
+    else status = phase === 'seen' ? 'seen' : dir === 'right' ? 'wish' : 'unseen';
+    await setStatus(current, status, tier);
     answered.current.add(current.key);
     recordActivity();
     const origin = centerOf(cardArea.current);
@@ -232,8 +248,10 @@ export default function Swipe({ type }: { type: MediaType }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (showThemes) return;
-      if (e.key === 'ArrowRight') press('right');
-      else if (e.key === 'ArrowLeft') press('left');
+      const corner = (Object.keys(CORNERS) as Corner[]).find((c) => CORNERS[c].key === e.key);
+      if (mode === 'corners' && corner) press(corner);
+      else if (mode === 'horizontal' && e.key === 'ArrowRight') press('right');
+      else if (mode === 'horizontal' && e.key === 'ArrowLeft') press('left');
       else if (e.key === 'ArrowDown') skip();
       else if (e.key === 'Backspace') undo();
     };
@@ -243,9 +261,27 @@ export default function Swipe({ type }: { type: MediaType }) {
 
   const remaining = pool.current.items.length + (queue?.length ?? 0);
   const p = PHASES[phase];
+  const labels: Partial<Record<Dir, { text: string; tone: Tone }>> =
+    mode === 'corners'
+      ? Object.fromEntries((Object.keys(CORNERS) as Corner[]).map((c) => [c, { text: CORNERS[c].text, tone: CORNERS[c].tone }]))
+      : { left: { text: p.left, tone: 'no' }, right: { text: p.right, tone: phase === 'seen' ? 'yes' : 'wish' } };
+  const undoButton = (
+    <ActionButton
+      className="small"
+      icon="↶"
+      caption="Annuler"
+      tip="Revenir au titre précédent (touche Retour arrière)"
+      onClick={undo}
+      disabled={phase === 'seen' && !history.length}
+    />
+  );
+  const skipButton = <ActionButton className="small" icon="⤼" caption="Passer" tip="Je ne sais pas : le titre reviendra plus tard (flèche ↓)" onClick={skip} />;
+  const cornerButton = (c: Corner) => (
+    <ActionButton className={`corner tone-${CORNERS[c].tone}`} icon={CORNERS[c].icon} caption={CORNERS[c].caption} tip={CORNERS[c].tip} onClick={() => press(c)} />
+  );
 
   return (
-    <main className="page swipe-page">
+    <main className={`page swipe-page ${mode}`}>
       <TopBar
         title={type === 'movie' ? '🎬 Films' : '📺 Séries'}
         right={
@@ -287,8 +323,17 @@ export default function Swipe({ type }: { type: MediaType }) {
         </div>
       ) : (
         <>
-          <p className={`question ${phase}`}>{p.question}</p>
+          <p className={`question ${phase}`}>{mode === 'corners' ? 'Tu l’as vu ? Swipe vers un coin' : p.question}</p>
           <div className="card-area" ref={cardArea}>
+            {mode === 'corners' && (
+              <div className="corner-hints" aria-hidden>
+                {(Object.keys(CORNERS) as Corner[]).map((c) => (
+                  <span key={c} className={`corner-hint hint-${c} tone-${CORNERS[c].tone}`}>
+                    {CORNERS[c].icon}
+                  </span>
+                ))}
+              </div>
+            )}
             {queue[1] && (
               <div key={queue[1].key} className="swipe-card card-behind" aria-hidden>
                 <Poster title={queue[1]} size="w500" className="card-poster" />
@@ -297,10 +342,12 @@ export default function Swipe({ type }: { type: MediaType }) {
             )}
             <SwipeCard
               key={`${current.key}-${phase}`}
-              labels={{ left: p.left, right: p.right }}
+              mode={mode}
+              labels={labels}
               fling={fling}
               onSwipe={onSwipe}
-              stay={phase === 'seen' ? 'left' : null}
+              onAmbiguous={() => toast('↖ ↗ ↙ ↘ Swipe en diagonale, vers un coin')}
+              stay={mode === 'horizontal' && phase === 'seen' ? 'left' : null}
               className={phase === 'wish' ? 'flip-in' : ''}
               onTap={() => setShowInfo((s) => !s)}
             >
@@ -321,19 +368,23 @@ export default function Swipe({ type }: { type: MediaType }) {
               <TitleText title={current} credits />
             </SwipeCard>
           </div>
-          <div className="swipe-actions">
-            <ActionButton className="no" icon={p.leftBtn} caption={p.leftCap} tip={p.leftTip} onClick={() => press('left')} />
-            <ActionButton
-              className="small"
-              icon="↶"
-              caption="Annuler"
-              tip="Revenir au titre précédent (touche Retour arrière)"
-              onClick={undo}
-              disabled={phase === 'seen' && !history.length}
-            />
-            <ActionButton className="small" icon="⤼" caption="Passer" tip="Je ne sais pas : le titre reviendra plus tard (flèche ↓)" onClick={skip} />
-            <ActionButton className={`yes ${phase}`} icon={p.rightBtn} caption={p.rightCap} tip={p.rightTip} onClick={() => press('right')} />
-          </div>
+          {mode === 'corners' ? (
+            <div className="corner-actions">
+              {cornerButton('ul')}
+              {undoButton}
+              {cornerButton('ur')}
+              {cornerButton('dl')}
+              {skipButton}
+              {cornerButton('dr')}
+            </div>
+          ) : (
+            <div className="swipe-actions">
+              <ActionButton className="no" icon={p.leftBtn} caption={p.leftCap} tip={p.leftTip} onClick={() => press('left')} />
+              {undoButton}
+              {skipButton}
+              <ActionButton className={`yes ${phase}`} icon={p.rightBtn} caption={p.rightCap} tip={p.rightTip} onClick={() => press('right')} />
+            </div>
+          )}
           <p className="muted small center">
             Touche l’affiche pour le résumé · {remaining.toLocaleString('fr-FR')} restants
           </p>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { clearChoices, db, getMeta, requestPersistentStorage } from '../db';
-import { getMinVotes, getMyProviders, getToken, getUserToken, hasBuiltInToken, setMinVotes, setMyProviders, setToken, type MinVotes } from '../settings';
+import { getMinVotes, getMyProviders, getSwipeMode, getToken, getUserToken, hasBuiltInToken, setMinVotes, setMyProviders, setSwipeMode, setToken, type MinVotes, type SwipeMode } from '../settings';
 import { syncCatalogue } from '../sync';
 import { fetchProviderOptions, providerLogo, tmdb, type ProviderOption } from '../tmdb';
 import { exportData, importData } from '../backup';
@@ -94,6 +94,8 @@ export default function Settings() {
         </button>
         {tokenMsg && <p className="small">{tokenMsg}</p>}
       </section>
+
+      <SwipeModeSetting />
 
       <MyProviders />
 
@@ -206,6 +208,40 @@ function MyProviders() {
           {showAll ? 'Moins de plateformes' : `Toutes les plateformes (${options.length})`}
         </button>
       )}
+    </section>
+  );
+}
+
+/** Choix du mode de swipe, avec un petit schéma de chaque geste. */
+function SwipeModeSetting() {
+  const [mode, setMode] = useState<SwipeMode>(getSwipeMode());
+  const choose = (m: SwipeMode) => {
+    setMode(m);
+    setSwipeMode(m);
+  };
+  return (
+    <section className="card">
+      <h3>🕹️ Mode de swipe</h3>
+      <div className="mode-options">
+        <button className={`mode-option ${mode === 'horizontal' ? 'active' : ''}`} onClick={() => choose('horizontal')} title="Vu / pas vu, puis une 2e question pour la wishlist">
+          <span className="mode-name">2 directions</span>
+          <span className="mode-diagram two">
+            <span className="tone-no">← Pas vu</span>
+            <span className="tone-yes">Vu →</span>
+          </span>
+          <span className="muted tiny">Pas vu → 2e swipe : wishlist ou non</span>
+        </button>
+        <button className={`mode-option ${mode === 'corners' ? 'active' : ''}`} onClick={() => choose('corners')} title="Un seul geste en diagonale, avec un avis bien / bof sur les titres vus">
+          <span className="mode-name">4 coins</span>
+          <span className="mode-diagram four">
+            <span className="tone-wish">↖ Envie</span>
+            <span className="tone-yes">Vu 👍 ↗</span>
+            <span className="tone-no">↙ Pas envie</span>
+            <span className="tone-meh">Vu 😐 ↘</span>
+          </span>
+          <span className="muted tiny">Un seul geste · 👍/😐 réduit les duels</span>
+        </button>
+      </div>
     </section>
   );
 }

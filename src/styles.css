@@ -1332,3 +1332,140 @@ body.wish-phase .stamp-right {
   font-size: 0.7rem;
   color: var(--muted);
 }
+
+/* ---------- Mode 4 coins ---------- */
+
+.tone-yes {
+  color: var(--green);
+}
+.tone-no {
+  color: var(--red);
+}
+.tone-wish {
+  color: var(--pink);
+}
+.tone-meh {
+  color: var(--yellow);
+}
+
+/* Tampons : couleur selon le sens, position selon la direction. */
+.stamp-ul,
+.stamp-ur {
+  top: 30px;
+}
+.stamp-dl,
+.stamp-dr {
+  top: auto;
+  bottom: 120px;
+}
+.stamp-ur,
+.stamp-dr {
+  left: 22px;
+  transform: rotate(-14deg);
+}
+.stamp-ul,
+.stamp-dl {
+  right: 22px;
+  transform: rotate(14deg);
+}
+
+.swipe-page.corners .swipe-card {
+  width: min(100%, calc((100dvh - 500px) * 2 / 3 + 20px));
+}
+
+.corner-hints {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.corner-hint {
+  position: absolute;
+  font-size: 1.3rem;
+  opacity: 0.55;
+}
+.hint-ul {
+  top: 0;
+  left: 0;
+}
+.hint-ur {
+  top: 0;
+  right: 0;
+}
+.hint-dl {
+  bottom: 0;
+  left: 0;
+}
+.hint-dr {
+  bottom: 0;
+  right: 0;
+}
+
+.corner-actions {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  justify-items: center;
+  row-gap: 6px;
+  column-gap: 12px;
+}
+.round-btn.corner {
+  width: 54px;
+  height: 54px;
+  font-size: 1.45rem;
+  background: var(--surface-2);
+  border: 2px solid currentColor;
+}
+.round-btn.corner.tone-yes {
+  box-shadow: 0 4px 16px rgb(62 224 143 / 0.35);
+}
+.round-btn.corner.tone-meh {
+  box-shadow: 0 4px 16px rgb(255 209 102 / 0.3);
+}
+.round-btn.corner.tone-wish {
+  box-shadow: 0 4px 16px rgb(255 95 162 / 0.35);
+}
+.round-btn.corner.tone-no {
+  box-shadow: 0 4px 16px rgb(255 95 109 / 0.35);
+}
+.corner-actions .round-btn.small {
+  margin-top: 3px;
+}
+
+.mode-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.mode-option {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  text-align: left;
+}
+.mode-option.active {
+  border-color: var(--violet);
+  background: rgb(139 124 255 / 0.15);
+}
+.mode-name {
+  font-family: var(--display);
+  font-weight: 600;
+}
+.mode-diagram {
+  display: grid;
+  gap: 4px 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.mode-diagram.two {
+  grid-template-columns: 1fr 1fr;
+}
+.mode-diagram.four {
+  grid-template-columns: 1fr 1fr;
+}
+.mode-diagram span:nth-child(even) {
+  text-align: right;
+}
