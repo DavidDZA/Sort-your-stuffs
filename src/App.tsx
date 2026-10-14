@@ -50,7 +50,7 @@ function Home() {
         db.titles.where('type').equals(type).count(),
         db.answers.where('type').equals(type).count(),
         db.answers.where('[type+status]').equals([type, 'seen']).count(),
-        readRanking(type),
+        readRanking({ type, list: 'seen' }),
       ]);
       return { total, toSwipe: total - answered, seen, unranked: seen - ranking.length };
     };
@@ -65,7 +65,7 @@ function Home() {
     <main className="page">
       <header className="home-header">
         <h1>Sort my stuffs</h1>
-        <a className="icon-btn" href="#/settings" aria-label="Réglages">
+        <a className="icon-btn" href="#/settings" aria-label="Réglages" title="Réglages : clé TMDB, catalogue, sauvegarde">
           ⚙
         </a>
       </header>
@@ -77,12 +77,12 @@ function Home() {
       )}
 
       <div className="tiles">
-        <Tile href="#/swipe/movie" icon="🎬" label="Swiper les films" sub={stats && `${fmt(stats.movie.toSwipe)} à découvrir`} />
-        <Tile href="#/swipe/tv" icon="📺" label="Swiper les séries" sub={stats && `${fmt(stats.tv.toSwipe)} à découvrir`} />
-        <Tile href="#/rank/movie" icon="🏆" label="Classer les films" sub={stats && `${fmt(stats.movie.unranked)} non classés`} />
-        <Tile href="#/rank/tv" icon="🥇" label="Classer les séries" sub={stats && `${fmt(stats.tv.unranked)} non classées`} />
-        <Tile href="#/add" icon="🔍" label="Ajout manuel" sub="Rechercher un titre" />
-        <Tile href="#/wishlist" icon="♥" label="Wishlist" sub={stats && `${fmt(stats.wish)} titres`} />
+        <Tile href="#/swipe/movie" icon="🎬" label="Swiper les films" tip="Dire si tu as vu des films, un par un" sub={stats && `${fmt(stats.movie.toSwipe)} à découvrir`} />
+        <Tile href="#/swipe/tv" icon="📺" label="Swiper les séries" tip="Dire si tu as vu des séries, une par une" sub={stats && `${fmt(stats.tv.toSwipe)} à découvrir`} />
+        <Tile href="#/rank/movie" icon="🏆" label="Classer les films" tip="Classer les films vus par duels" sub={stats && `${fmt(stats.movie.unranked)} non classés`} />
+        <Tile href="#/rank/tv" icon="🥇" label="Classer les séries" tip="Classer les séries vues par duels" sub={stats && `${fmt(stats.tv.unranked)} non classées`} />
+        <Tile href="#/add" icon="🔍" label="Ajout manuel" tip="Chercher un titre précis pour l’ajouter" sub="Rechercher un titre" />
+        <Tile href="#/wishlist" icon="♥" label="Wishlist" tip="Consulter et prioriser ta wishlist" sub={stats && `${fmt(stats.wish)} titres`} />
       </div>
 
       {stats && (
@@ -94,9 +94,9 @@ function Home() {
   );
 }
 
-function Tile({ href, icon, label, sub }: { href: string; icon: string; label: string; sub?: string | false }) {
+function Tile({ href, icon, label, tip, sub }: { href: string; icon: string; label: string; tip: string; sub?: string | false }) {
   return (
-    <a className="tile" href={href}>
+    <a className="tile" href={href} title={tip}>
       <span className="tile-icon">{icon}</span>
       <span className="tile-label">{label}</span>
       <span className="tile-sub">{sub || ' '}</span>

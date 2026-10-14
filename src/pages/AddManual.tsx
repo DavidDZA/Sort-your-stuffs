@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, setStatus, type Status, type Title } from '../db';
+import { db, type Status, type Title } from '../db';
+import { changeStatus } from '../ranking';
 import { search } from '../tmdb';
 import { Poster, TitleText, TopBar } from '../components/common';
 
@@ -60,8 +61,8 @@ export default function AddManual() {
             <Poster title={t} size="w92" className="thumb" />
             <TitleText title={t} showType />
             <div className="item-actions">
-              <StatusButton title={t} status="seen" current={statuses?.get(t.key)} label="Vu" />
-              <StatusButton title={t} status="wish" current={statuses?.get(t.key)} label="♥" />
+              <StatusButton title={t} status="seen" current={statuses?.get(t.key)} label="Vu" tip="Ajouter aux titres vus" />
+              <StatusButton title={t} status="wish" current={statuses?.get(t.key)} label="♥" tip="Ajouter à la wishlist" />
             </div>
           </li>
         ))}
@@ -70,10 +71,15 @@ export default function AddManual() {
   );
 }
 
-function StatusButton({ title, status, current, label }: { title: Title; status: Status; current?: Status; label: string }) {
+function StatusButton({ title, status, current, label, tip }: { title: Title; status: Status; current?: Status; label: string; tip: string }) {
   const active = current === status;
   return (
-    <button className={`btn small ${active ? 'primary' : ''}`} onClick={() => setStatus(title, status)} disabled={active}>
+    <button
+      className={`btn small ${active ? 'primary' : ''}`}
+      onClick={() => changeStatus(title, status)}
+      disabled={active}
+      title={active ? (status === 'seen' ? 'Déjà dans les titres vus' : 'Déjà dans la wishlist') : tip}
+    >
       {active && status === 'seen' ? '✓ Vu' : label}
     </button>
   );

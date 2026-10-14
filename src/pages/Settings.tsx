@@ -69,7 +69,7 @@ export default function Settings() {
           Le « jeton d’accès en lecture » de ton compte themoviedb.org (Paramètres → API). Il reste uniquement dans ce navigateur.
         </p>
         <input className="input" type="password" value={token} onChange={(e) => setTokenInput(e.target.value)} placeholder="eyJhbGciOi…" autoComplete="off" />
-        <button className="btn primary" onClick={saveToken} disabled={!token.trim()}>
+        <button className="btn primary" onClick={saveToken} disabled={!token.trim()} title="Vérifier la clé auprès de TMDB puis l’enregistrer">
           Enregistrer
         </button>
         {tokenMsg && <p className="small">{tokenMsg}</p>}
@@ -95,7 +95,7 @@ export default function Settings() {
             <input className="input" type="number" min={1} value={votes.tv} onChange={(e) => setVotes({ ...votes, tv: Number(e.target.value) || 1 })} />
           </label>
         </div>
-        <button className="btn primary" onClick={sync} disabled={syncing || !getToken()}>
+        <button className="btn primary" onClick={sync} disabled={syncing || !getToken()} title="Récupérer les films et séries depuis TMDB (environ 1 minute)">
           {syncing ? 'Mise à jour en cours…' : info?.lastSync ? 'Mettre à jour le catalogue' : 'Télécharger le catalogue'}
         </button>
         {syncMsg && <p className="small">{syncMsg}</p>}
@@ -106,10 +106,10 @@ export default function Settings() {
         <h3>Sauvegarde</h3>
         <p className="muted small">Tes données ne sont stockées que dans ce navigateur. Exporte-les régulièrement.</p>
         <div className="row">
-          <button className="btn" onClick={() => exportData()}>
+          <button className="btn" onClick={() => exportData()} title="Télécharger un fichier avec tes réponses et classements">
             Exporter
           </button>
-          <button className="btn" onClick={() => fileInput.current?.click()}>
+          <button className="btn" onClick={() => fileInput.current?.click()} title="Restaurer une sauvegarde (remplace les données actuelles)">
             Importer
           </button>
           <input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={(e) => onImport(e.target.files?.[0])} />

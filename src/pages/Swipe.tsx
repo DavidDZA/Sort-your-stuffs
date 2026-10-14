@@ -33,9 +33,41 @@ function preload(title: Title) {
 
 type Phase = 'seen' | 'wish';
 
-const PHASES: Record<Phase, { question: string; left: string; right: string; leftBtn: string; rightBtn: string }> = {
-  seen: { question: 'Tu l’as vu ?', left: 'PAS VU', right: 'VU', leftBtn: '✕', rightBtn: '✓' },
-  wish: { question: 'Pas vu… envie de le voir ?', left: 'NON', right: 'WISHLIST', leftBtn: '✕', rightBtn: '♥' },
+interface PhaseText {
+  question: string;
+  left: string;
+  right: string;
+  leftBtn: string;
+  rightBtn: string;
+  leftCap: string;
+  rightCap: string;
+  leftTip: string;
+  rightTip: string;
+}
+
+const PHASES: Record<Phase, PhaseText> = {
+  seen: {
+    question: 'Tu l’as vu ?',
+    left: 'PAS VU',
+    right: 'VU',
+    leftBtn: '✕',
+    rightBtn: '✓',
+    leftCap: 'Pas vu',
+    rightCap: 'Vu',
+    leftTip: 'Je ne l’ai pas vu (swipe à gauche ou flèche ←)',
+    rightTip: 'Je l’ai vu (swipe à droite ou flèche →)',
+  },
+  wish: {
+    question: 'Pas vu… envie de le voir ?',
+    left: 'NON',
+    right: 'WISHLIST',
+    leftBtn: '✕',
+    rightBtn: '♥',
+    leftCap: 'Non',
+    rightCap: 'Wishlist',
+    leftTip: 'Pas envie : il ne sera plus proposé (swipe à gauche ou flèche ←)',
+    rightTip: 'Ajouter à la wishlist (swipe à droite ou flèche →)',
+  },
 };
 
 export default function Swipe({ type }: { type: MediaType }) {
@@ -175,24 +207,34 @@ export default function Swipe({ type }: { type: MediaType }) {
             </SwipeCard>
           </div>
           <div className="swipe-actions">
-            <button className="round-btn no" onClick={() => press('left')} aria-label={p.left}>
-              {p.leftBtn}
-            </button>
-            <button className="round-btn small" onClick={undo} disabled={phase === 'seen' && !history.length} aria-label="Annuler">
-              ↶
-            </button>
-            <button className="round-btn small" onClick={skip} aria-label="Passer (je ne sais pas)">
-              ⤼
-            </button>
-            <button className={`round-btn yes ${phase}`} onClick={() => press('right')} aria-label={p.right}>
-              {p.rightBtn}
-            </button>
+            <ActionButton className="no" icon={p.leftBtn} caption={p.leftCap} tip={p.leftTip} onClick={() => press('left')} />
+            <ActionButton
+              className="small"
+              icon="↶"
+              caption="Annuler"
+              tip="Revenir au titre précédent (touche Retour arrière)"
+              onClick={undo}
+              disabled={phase === 'seen' && !history.length}
+            />
+            <ActionButton className="small" icon="⤼" caption="Passer" tip="Je ne sais pas : le titre reviendra plus tard (flèche ↓)" onClick={skip} />
+            <ActionButton className={`yes ${phase}`} icon={p.rightBtn} caption={p.rightCap} tip={p.rightTip} onClick={() => press('right')} />
           </div>
           <p className="muted small center">
-            Touche l’affiche pour le résumé · ⤼ passer · {remaining.toLocaleString('fr-FR')} restants
+            Touche l’affiche pour le résumé · {remaining.toLocaleString('fr-FR')} restants
           </p>
         </>
       )}
     </main>
+  );
+}
+
+function ActionButton(props: { className: string; icon: string; caption: string; tip: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <div className="action">
+      <button className={`round-btn ${props.className}`} onClick={props.onClick} disabled={props.disabled} title={props.tip} aria-label={props.caption}>
+        {props.icon}
+      </button>
+      <span className="action-caption">{props.caption}</span>
+    </div>
   );
 }

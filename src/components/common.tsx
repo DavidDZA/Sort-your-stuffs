@@ -6,7 +6,7 @@ import { ensureCredits, posterUrl } from '../tmdb';
 export function TopBar({ title, right }: { title: string; right?: ReactNode }) {
   return (
     <header className="topbar">
-      <a className="icon-btn" href="#/" aria-label="Retour">
+      <a className="icon-btn" href="#/" aria-label="Retour" title="Retour à l’accueil">
         ‹
       </a>
       <h2>{title}</h2>
@@ -59,11 +59,12 @@ function CreditsLines({ title }: { title: Title }) {
   );
 }
 
-export function TypeFilter<T extends string>({ value, options, onChange }: { value: T; options: [T, string][]; onChange: (v: T) => void }) {
+/** Options : [valeur, libellé, tooltip]. */
+export function TypeFilter<T extends string>({ value, options, onChange }: { value: T; options: [T, string, string][]; onChange: (v: T) => void }) {
   return (
     <div className="chips">
-      {options.map(([v, label]) => (
-        <button key={v} className={`chip ${v === value ? 'active' : ''}`} onClick={() => onChange(v)}>
+      {options.map(([v, label, tooltip]) => (
+        <button key={v} className={`chip ${v === value ? 'active' : ''}`} onClick={() => onChange(v)} title={tooltip}>
           {label}
         </button>
       ))}
