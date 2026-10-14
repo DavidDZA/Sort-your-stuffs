@@ -594,14 +594,13 @@ body.wish-phase .swipe-card:not(.card-behind) {
   text-align: center;
 }
 
-/* La carte suivante, visible derrière la carte courante. */
+/* La carte suivante, identique et à la même place que la carte courante : aucun saut quand elle passe devant. */
 .card-behind {
   position: absolute;
   z-index: 0;
   left: 50%;
   top: 0;
-  transform: translateX(-50%) translateY(12px) scale(0.93);
-  opacity: 0.5;
+  transform: translateX(-50%);
   pointer-events: none;
 }
 

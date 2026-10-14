@@ -225,8 +225,9 @@ export default function Swipe({ type }: { type: MediaType }) {
           <p className={`question ${phase}`}>{p.question}</p>
           <div className="card-area" ref={cardArea}>
             {queue[1] && (
-              <div className="swipe-card card-behind" aria-hidden>
+              <div key={queue[1].key} className="swipe-card card-behind" aria-hidden>
                 <Poster title={queue[1]} size="w500" className="card-poster" />
+                <TitleText title={queue[1]} credits />
               </div>
             )}
             <SwipeCard key={`${current.key}-${phase}`} labels={{ left: p.left, right: p.right }} fling={fling}

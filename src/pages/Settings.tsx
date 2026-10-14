@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { clearDatabase, db, getMeta, requestPersistentStorage } from '../db';
+import { clearChoices, db, getMeta, requestPersistentStorage } from '../db';
 import { getMinVotes, getToken, setMinVotes, setToken, type MinVotes } from '../settings';
 import { syncCatalogue } from '../sync';
 import { tmdb } from '../tmdb';
@@ -52,14 +52,13 @@ export default function Settings() {
   const clear = async () => {
     if (
       !confirm(
-        'Êtes-vous sûr ? Toutes tes données (catalogue, titres vus, wishlist, classements) seront définitivement effacées.\n\nPense à exporter une sauvegarde avant si tu veux pouvoir les récupérer.',
+        'Êtes-vous sûr ? Tous tes choix (titres vus et pas vus, wishlist, classements, activité) seront définitivement effacés. Le catalogue est conservé.\n\nPense à exporter une sauvegarde avant si tu veux pouvoir les récupérer.',
       )
     )
       return;
     try {
-      await clearDatabase();
-      setClearMsg('✓ Base de données vidée. Tu peux retélécharger le catalogue.');
-      setSyncMsg(null);
+      await clearChoices();
+      setClearMsg('✓ Tous tes choix ont été effacés. Le catalogue est intact : tu peux recommencer à swiper.');
       setBackupMsg(null);
     } catch (e) {
       setClearMsg(`✕ ${(e as Error).message}`);
@@ -137,9 +136,9 @@ export default function Settings() {
 
       <section className="card danger-zone">
         <h3>⚠️ Zone dangereuse</h3>
-        <p className="muted small">Efface le catalogue, tes réponses, tes classements et ta wishlist. Ta clé TMDB est conservée.</p>
-        <button className="btn danger" onClick={clear} title="Tout effacer (demande confirmation)">
-          🗑️ Vider la base de données
+        <p className="muted small">Efface tous tes choix : titres vus et pas vus, wishlist, classements et activité. Le catalogue et ta clé TMDB sont conservés.</p>
+        <button className="btn danger" onClick={clear} title="Effacer tous tes choix sans toucher au catalogue (demande confirmation)">
+          🗑️ Effacer tous mes choix
         </button>
         {clearMsg && <p className="small">{clearMsg}</p>}
       </section>
