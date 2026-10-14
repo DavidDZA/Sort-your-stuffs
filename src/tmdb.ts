@@ -1,4 +1,4 @@
-import { titleKey, type MediaType, type Title } from './db';
+import { db, titleKey, type Credits, type MediaType, type Title } from './db';
 import { getToken } from './settings';
 
 const API = 'https://api.themoviedb.org/3';
@@ -99,6 +99,53 @@ export function toTitle(type: MediaType, r: RawResult): Title {
     voteCount: r.vote_count ?? 0,
     popularity: r.popularity ?? 0,
   };
+}
+
+interface Person {
+  name: string;
+  job?: string;
+  order?: number;
+}
+
+interface CreditsResponse {
+  created_by?: Person[];
+  credits?: { cast: Person[]; crew: Person[] };
+  cast?: Person[];
+  crew?: Person[];
+}
+
+const pending = new Map<string, Promise<Credits | null>>();
+
+/** Réalisateur (ou créateur pour une série) et 2 acteurs principaux, mis en cache dans la base. */
+export function ensureCredits(title: Title): Promise<Credits | null> {
+  if (title.credits) return Promise.resolve(title.credits);
+  let p = pending.get(title.key);
+  if (!p) {
+    p = (async () => {
+      try {
+        const stored = await db.titles.get(title.key);
+        if (stored?.credits) return stored.credits;
+        const res =
+          title.type === 'movie'
+            ? await tmdb<CreditsResponse>(`/movie/${title.tmdbId}/credits`)
+            : await tmdb<CreditsResponse>(`/tv/${title.tmdbId}`, { append_to_response: 'credits' });
+        const cast = res.cast ?? res.credits?.cast ?? [];
+        const crew = res.crew ?? res.credits?.crew ?? [];
+        const credits: Credits = {
+          directors: (title.type === 'movie' ? crew.filter((c) => c.job === 'Director') : (res.created_by ?? [])).slice(0, 2).map((c) => c.name),
+          cast: [...cast].sort((a, b) => (a.order ?? 99) - (b.order ?? 99)).slice(0, 2).map((c) => c.name),
+        };
+        await db.titles.update(title.key, { credits });
+        return credits;
+      } catch {
+        return null; // hors ligne ou erreur : on réessaiera au prochain affichage
+      } finally {
+        pending.delete(title.key);
+      }
+    })();
+    pending.set(title.key, p);
+  }
+  return p;
 }
 
 /** Recherche films + séries ; renvoie les titres non exclus. */

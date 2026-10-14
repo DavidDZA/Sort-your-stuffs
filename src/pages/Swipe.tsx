@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { clearStatus, db, setStatus, type MediaType, type Title } from '../db';
-import { posterUrl } from '../tmdb';
+import { ensureCredits, posterUrl } from '../tmdb';
 import { Poster, TitleText, TopBar } from '../components/common';
 import SwipeCard, { type Dir } from '../components/SwipeCard';
 
@@ -54,6 +54,7 @@ export default function Swipe({ type }: { type: MediaType }) {
       const t = draw(pool.current);
       if (!t) break;
       preload(t);
+      ensureCredits(t);
       next.push(t);
     }
     return next;
@@ -123,6 +124,12 @@ export default function Swipe({ type }: { type: MediaType }) {
     if (!busy && current) setFling(dir);
   };
 
+  // Fond différent pendant la question « wishlist ? ».
+  useEffect(() => {
+    document.body.classList.toggle('wish-phase', phase === 'wish');
+    return () => document.body.classList.remove('wish-phase');
+  }, [phase]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight') press('right');
@@ -164,7 +171,7 @@ export default function Swipe({ type }: { type: MediaType }) {
             <SwipeCard key={`${current.key}-${phase}`} labels={{ left: p.left, right: p.right }} fling={fling} onSwipe={onSwipe} onTap={() => setShowInfo((s) => !s)}>
               <Poster title={current} size="w500" className="card-poster" />
               {showInfo && <div className="card-overview">{current.overview || 'Pas de résumé disponible.'}</div>}
-              <TitleText title={current} />
+              <TitleText title={current} credits />
             </SwipeCard>
           </div>
           <div className="swipe-actions">

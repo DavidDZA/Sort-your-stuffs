@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react';
-import { TYPE_LABEL, type Title } from '../db';
-import { posterUrl } from '../tmdb';
+import { useEffect, type ReactNode } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db, TYPE_LABEL, type Title } from '../db';
+import { ensureCredits, posterUrl } from '../tmdb';
 
 export function TopBar({ title, right }: { title: string; right?: ReactNode }) {
   return (
@@ -23,8 +24,8 @@ export function Poster({ title, size = 'w342', className = '' }: { title: Title;
   );
 }
 
-/** Titre français, titre original en dessous s'il est différent, et année. */
-export function TitleText({ title, showType = false }: { title: Title; showType?: boolean }) {
+/** Titre français, titre original en dessous s'il est différent, année et (option) casting. */
+export function TitleText({ title, showType = false, credits = false }: { title: Title; showType?: boolean; credits?: boolean }) {
   return (
     <div className="title-text">
       <div className="title-main">{title.title}</div>
@@ -33,6 +34,27 @@ export function TitleText({ title, showType = false }: { title: Title; showType?
         {showType && <span className="badge">{TYPE_LABEL[title.type]}</span>}
         {title.year ?? ''}
       </div>
+      {credits && <CreditsLines title={title} />}
+    </div>
+  );
+}
+
+/** Réalisateur (ou créateur) et 2 acteurs principaux, chargés depuis TMDB au premier affichage. */
+function CreditsLines({ title }: { title: Title }) {
+  const stored = useLiveQuery(() => db.titles.get(title.key).then((t) => t?.credits ?? null), [title.key]);
+  useEffect(() => {
+    ensureCredits(title);
+  }, [title.key]);
+
+  const c = stored ?? title.credits;
+  return (
+    <div className="title-credits">
+      {c?.directors.length ? (
+        <div>
+          {title.type === 'movie' ? 'De' : 'Créée par'} {c.directors.join(', ')}
+        </div>
+      ) : null}
+      {c?.cast.length ? <div>Avec {c.cast.join(', ')}</div> : null}
     </div>
   );
 }

@@ -22,6 +22,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
+  transition: background-color 0.25s;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
@@ -271,8 +272,22 @@ button:disabled {
   color: var(--muted);
   font-size: 0.85rem;
 }
+.title-credits {
+  color: var(--muted);
+  font-size: 0.8rem;
+  min-height: 2.4em; /* évite que la carte saute quand le casting arrive */
+  line-height: 1.2;
+}
 
 /* ---------- Swipe ---------- */
+
+body.wish-phase {
+  background: #3a1534;
+}
+body.wish-phase .swipe-card {
+  background: #4a1d43;
+  border-color: var(--wish);
+}
 
 .swipe-page {
   height: 100dvh;
@@ -301,7 +316,7 @@ button:disabled {
   position: relative;
   height: 100%;
   /* Largeur déduite de la hauteur disponible pour garder une affiche au format 2:3. */
-  width: min(100%, calc((100dvh - 330px) * 2 / 3 + 20px));
+  width: min(100%, calc((100dvh - 370px) * 2 / 3 + 20px));
   display: flex;
   flex-direction: column;
   gap: 8px;

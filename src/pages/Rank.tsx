@@ -157,7 +157,7 @@ function Duel({ type }: { type: MediaType }) {
         {[left, right].map((t) => (
           <button key={t.key} className="duel-card" onClick={() => pick(t)}>
             <Poster title={t} size="w342" />
-            <TitleText title={t} />
+            <TitleText title={t} credits />
           </button>
         ))}
       </div>

@@ -15,6 +15,12 @@ export interface Title {
   voteCount: number;
   popularity: number;
   manual?: boolean; // ajouté via la recherche, hors catalogue
+  credits?: Credits; // chargé à la demande, puis gardé en cache
+}
+
+export interface Credits {
+  directors: string[]; // réalisateur(s) pour un film, créateur(s) pour une série
+  cast: string[]; // acteurs principaux
 }
 
 export interface Answer {

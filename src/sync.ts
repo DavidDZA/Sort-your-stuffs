@@ -63,6 +63,11 @@ async function syncType(type: MediaType, minVotes: number, onProgress: Progress)
     const batch = buffer;
     buffer = [];
     count += batch.length;
+    // Conserve le casting déjà mis en cache.
+    const existing = await db.titles.bulkGet(batch.map((t) => t.key));
+    batch.forEach((t, i) => {
+      if (existing[i]?.credits) t.credits = existing[i]!.credits;
+    });
     await db.titles.bulkPut(batch);
     onProgress(`${count.toLocaleString('fr-FR')} ${label} récupérés…`);
   };
