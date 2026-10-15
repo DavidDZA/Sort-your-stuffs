@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 /** Gauche / droite (mode 2 directions) ou l'un des 4 coins : haut-gauche, haut-droite, bas-gauche, bas-droite. */
 export type Dir = 'left' | 'right' | 'ul' | 'ur' | 'dl' | 'dr';
@@ -46,41 +46,92 @@ interface Props {
   children: ReactNode;
 }
 
+/**
+ * Carte à swiper. Pendant le glissement, la position et le tampon sont modifiés directement
+ * dans le DOM (une fois par image) : aucun rendu React, pour rester fluide sur téléphone.
+ */
 export default function SwipeCard({ mode, labels, fling, onSwipe, onTap, onAmbiguous, stay = [], className = '', children }: Props) {
+  const card = useRef<HTMLDivElement>(null);
+  const stamp = useRef<HTMLSpanElement>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
-  const [delta, setDelta] = useState({ x: 0, y: 0 });
-  const [dragging, setDragging] = useState(false);
-  const [leaving, setLeaving] = useState<Dir | null>(null);
+  const delta = useRef({ x: 0, y: 0 });
+  const frame = useRef(0);
+  const leaving = useRef(false);
+
+  const place = (x: number, y: number, animate: boolean) => {
+    const el = card.current;
+    if (!el) return;
+    el.style.transition = animate ? `transform ${FLY_MS}ms ease-out` : 'none';
+    el.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${x / 18}deg)`;
+  };
+
+  const showStamp = (dir: Dir | null, opacity: number) => {
+    const el = stamp.current;
+    if (!el) return;
+    const label = dir ? labels[dir] : undefined;
+    if (!label) {
+      el.style.opacity = '0';
+      return;
+    }
+    // Texte et classe ne changent que quand la direction change (évite de recalculer la mise en page).
+    if (el.dataset.dir !== dir) {
+      el.dataset.dir = dir!;
+      el.textContent = label.text;
+      el.className = `stamp stamp-${dir} tone-${label.tone}`;
+    }
+    el.style.opacity = String(opacity);
+  };
 
   const leave = (dir: Dir) => {
     if (stay.includes(dir)) {
-      setDelta({ x: 0, y: 0 });
+      place(0, 0, false);
+      showStamp(null, 0);
       onSwipe(dir);
       return;
     }
-    setLeaving(dir);
+    leaving.current = true;
+    const [vx, vy] = VECTOR[dir];
+    const x = vx * window.innerWidth * 1.2;
+    const y = vy ? vy * window.innerHeight * 0.7 : mode === 'horizontal' ? delta.current.y * 0.3 : delta.current.y;
+    place(x, y, true);
+    showStamp(dir, 1);
     setTimeout(() => onSwipe(dir), FLY_MS);
   };
 
   useEffect(() => {
-    if (fling && !leaving) leave(fling);
+    if (fling && !leaving.current) leave(fling);
   }, [fling]);
 
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+
   const onPointerDown = (e: React.PointerEvent) => {
-    if (leaving) return;
+    if (leaving.current) return;
     start.current = { x: e.clientX, y: e.clientY };
-    setDragging(true);
+    delta.current = { x: 0, y: 0 };
+    card.current?.classList.add('dragging');
     e.currentTarget.setPointerCapture(e.pointerId);
   };
+
   const onPointerMove = (e: React.PointerEvent) => {
     if (!start.current) return;
-    setDelta({ x: e.clientX - start.current.x, y: e.clientY - start.current.y });
+    delta.current = { x: e.clientX - start.current.x, y: e.clientY - start.current.y };
+    if (frame.current) return;
+    frame.current = requestAnimationFrame(() => {
+      frame.current = 0;
+      if (!start.current) return;
+      const { x, y } = delta.current;
+      place(x, mode === 'horizontal' ? y * 0.3 : y, false);
+      showStamp(aim(mode, x, y), progressOf(mode, x, y));
+    });
   };
+
   const onPointerUp = () => {
     if (!start.current) return;
     start.current = null;
-    setDragging(false);
-    const { x: dx, y: dy } = delta;
+    cancelAnimationFrame(frame.current);
+    frame.current = 0;
+    card.current?.classList.remove('dragging');
+    const { x: dx, y: dy } = delta.current;
     const target = aim(mode, dx, dy);
     const valid = mode === 'horizontal' ? Math.abs(dx) > THRESHOLD : Math.abs(dx) > CORNER_X && Math.abs(dy) > CORNER_Y;
     if (target && valid) {
@@ -89,39 +140,21 @@ export default function SwipeCard({ mode, labels, fling, onSwipe, onTap, onAmbig
     }
     if (Math.abs(dx) < 6 && Math.abs(dy) < 6) onTap?.();
     else if (mode === 'corners' && Math.hypot(dx, dy) > THRESHOLD) onAmbiguous?.();
-    setDelta({ x: 0, y: 0 });
+    place(0, 0, true);
+    showStamp(null, 0);
   };
-
-  let x = delta.x;
-  let y = mode === 'horizontal' ? delta.y * 0.3 : delta.y;
-  if (leaving) {
-    const [vx, vy] = VECTOR[leaving];
-    x = vx * window.innerWidth * 1.2;
-    y = vy ? vy * window.innerHeight * 0.7 : y;
-  }
-
-  const target = leaving ?? aim(mode, delta.x, delta.y);
-  const label = target ? labels[target] : undefined;
-  const opacity = leaving ? 1 : progressOf(mode, delta.x, delta.y);
 
   return (
     <div
-      className={`swipe-card ${dragging ? 'dragging' : ''} ${className}`}
+      ref={card}
+      className={`swipe-card ${className}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
-      style={{
-        transform: `translate(${x}px, ${y}px) rotate(${x / 18}deg)`,
-        transition: dragging ? 'none' : `transform ${FLY_MS}ms ease-out`,
-      }}
     >
       {children}
-      {label && target && (
-        <span className={`stamp stamp-${target} tone-${label.tone}`} style={{ opacity }}>
-          {label.text}
-        </span>
-      )}
+      <span ref={stamp} className="stamp" style={{ opacity: 0 }} aria-hidden />
     </div>
   );
 }

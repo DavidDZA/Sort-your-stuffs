@@ -35,7 +35,12 @@ function draw(pool: Pool): Title | null {
 /** Précharge l'affiche, la fiche détaillée et, pour un film de saga, la liste de ses suites. */
 function prefetch(title: Title) {
   const src = posterUrl(title.posterPath, 'w500');
-  if (src) new Image().src = src;
+  if (src) {
+    // Téléchargée ET décodée à l'avance : pas d'accroc quand la carte arrive à l'écran.
+    const img = new Image();
+    img.src = src;
+    img.decode?.().catch(() => undefined);
+  }
   ensureDetails(title).then((d) => {
     if (d?.collection) fetchSaga(d.collection.id);
   });

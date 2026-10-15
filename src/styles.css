@@ -588,7 +588,7 @@ h3,
 body.wish-phase .swipe-card:not(.card-behind) {
   background: #4a1d43;
   border-color: var(--pink);
-  box-shadow: 0 18px 40px rgb(255 95 162 / 0.3);
+  box-shadow: 0 10px 24px rgb(255 95 162 / 0.3);
 }
 .swipe-card .title-text {
   text-align: center;
@@ -1479,7 +1479,7 @@ body.rate-phase::after {
 body.rate-phase .swipe-card:not(.card-behind) {
   background: #173a33;
   border-color: var(--green);
-  box-shadow: 0 18px 40px rgb(62 224 143 / 0.25);
+  box-shadow: 0 10px 24px rgb(62 224 143 / 0.25);
 }
 .question.rate {
   color: var(--green);
@@ -1633,4 +1633,38 @@ body.rate-phase .swipe-card:not(.card-behind) {
 /* Les repères de coins passent sous la carte quand elle prend toute la largeur. */
 .corner-hints {
   z-index: 0;
+}
+
+/* ---------- Fluidité du swipe (surtout sur téléphone) ---------- */
+
+/* Le fond animé est figé sur l'écran de swipe : il ne se recalcule plus pendant le glissement. */
+body:has(.swipe-page)::before {
+  animation: none;
+}
+
+/* La carte a sa propre couche graphique : la déplacer ne redessine rien. */
+.swipe-card:not(.card-behind) {
+  will-change: transform;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.4);
+}
+.card-behind {
+  box-shadow: none;
+}
+.swipe-card .poster {
+  box-shadow: none;
+}
+.stamp {
+  will-change: opacity;
+}
+
+/* Pas d'effets de flou sur les écrans tactiles (coûteux sur mobile). */
+@media (pointer: coarse) {
+  .card,
+  .sheet-backdrop,
+  .info-btn {
+    backdrop-filter: none;
+  }
+  .sheet-backdrop {
+    background: rgb(5 3 15 / 0.82);
+  }
 }
