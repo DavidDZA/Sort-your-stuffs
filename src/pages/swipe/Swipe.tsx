@@ -9,9 +9,9 @@ import { BackLink, Poster, RatingBadge, TitleText } from '../../components/commo
 import SwipeCard, { type Dir, type Tone } from '../../components/SwipeCard';
 import { openFiche } from '../../components/Fiche';
 import { ARROWS, CORNERS, isCorner, PHASES, TONES, type Corner, type Phase } from './config';
-import { chainSaga, draw, prefetch, QUEUE_SIZE, removeFromPool, sagaOf, WEIGHT_EXP, type Pool } from './pool';
+import { chainSaga, draw, prefetch, QUEUE_SIZE, removeFromPool, sagaOf, sagaTags, WEIGHT_EXP, type Pool, type SagaInfo, type SagaTag } from './pool';
 import { ThemeSheet } from './ThemeSheet';
-import { ActionButton, BoostTag } from './controls';
+import { ActionButton, CardTag } from './controls';
 
 const FLIP_MS = 350; // durée du retournement de la carte (animation flip-in)
 
@@ -39,9 +39,9 @@ export default function Swipe({ type }: { type: MediaType }) {
   const [history, setHistory] = useState<Title[]>([]);
   const [count, setCount] = useState(0);
   const [showInfo, setShowInfo] = useState(false);
-  // Sagas déjà enchaînées, et premier film de chaque saga (pour l'annoncer quand il arrive).
+  // Sagas déjà enchaînées, et étiquette « 🎞️ saga · n/N » de chacun de leurs films.
   const chainedSagas = useRef(new Set<number>());
-  const sagaStarts = useRef(new Map<string, { name: string; count: number }>());
+  const [tags, setTags] = useState<Record<string, SagaTag>>({});
   // Mode 2 directions : la carte de derrière attend la fin du retournement pour la 2e question.
   const [flipping, setFlipping] = useState(false);
   const cardArea = useRef<HTMLDivElement>(null);
@@ -59,15 +59,14 @@ export default function Swipe({ type }: { type: MediaType }) {
   };
 
   /** Met une saga dans la file à la place du titre tiré (à `index`), du 1er film à trier au dernier. */
-  const insertSaga = (q: Title[], index: number, saga: { id: number; name: string; parts: Title[] }, keepFirst: boolean): Title[] | null => {
+  const insertSaga = (q: Title[], index: number, saga: SagaInfo, keepFirst: boolean): Title[] | null => {
     chainedSagas.current.add(saga.id);
+    setTags((prev) => ({ ...prev, ...sagaTags(saga) }));
     const parts = saga.parts.filter((p) => !answered.current.has(p.key));
     if (parts.length < 2) return null;
     removeFromPool(pool.current, new Set(parts.map((p) => p.key)));
     parts.forEach(prefetch);
-    const next = chainSaga(q, index, parts, keepFirst);
-    sagaStarts.current.set(next[index].key, { name: saga.name, count: parts.length });
-    return next;
+    return chainSaga(q, index, parts, keepFirst);
   };
 
   /**
@@ -134,14 +133,6 @@ export default function Swipe({ type }: { type: MediaType }) {
   const busy = fling !== null;
   // Carte de derrière : aucune au 1er swipe du mode 2 directions (la carte va revenir pour la 2e question).
   const behind = !queue || flipping || (mode === 'horizontal' && phase === 'seen') ? undefined : queue[1];
-
-  // Annonce la saga quand son premier film arrive à l'écran.
-  useEffect(() => {
-    const start = current && sagaStarts.current.get(current.key);
-    if (!start) return;
-    sagaStarts.current.delete(current.key);
-    toast(`🎞️ ${start.name} : ${start.count} films à la suite`);
-  }, [current?.key]);
 
   const advance = (rest: Title[]) => {
     setPhase('seen');
@@ -341,7 +332,7 @@ export default function Swipe({ type }: { type: MediaType }) {
             {behind && (
               <div key={behind.key} className="swipe-card card-behind" aria-hidden>
                 <Poster title={behind} size="w500" className="card-poster" />
-                <BoostTag boost={boosts.current[behind.key]} />
+                <CardTag saga={tags[behind.key]} boost={boosts.current[behind.key]} />
                 <RatingBadge title={behind} />
                 <TitleText title={behind} credits />
               </div>
@@ -358,7 +349,7 @@ export default function Swipe({ type }: { type: MediaType }) {
               onTap={() => setShowInfo((s) => !s)}
             >
               <Poster title={current} size="w500" className="card-poster" />
-              <BoostTag boost={boosts.current[current.key]} />
+              <CardTag saga={tags[current.key]} boost={boosts.current[current.key]} />
               <RatingBadge title={current} />
               {showInfo && (
                 <div className="card-overview" onPointerDown={(e) => e.stopPropagation()}>

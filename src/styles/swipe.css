@@ -160,8 +160,8 @@ body.rate-phase .swipe-card:not(.card-behind) {
   font-size: 0.85rem;
 }
 
-/* « ✨ Comme … » : titre recommandé grâce à un titre aimé. */
-.boost-tag {
+/* Étiquette en haut à gauche de l'affiche : saga du film, ou « ✨ Comme … » (titre recommandé). */
+.card-tag {
   position: absolute;
   top: 16px;
   left: 16px;
@@ -169,14 +169,20 @@ body.rate-phase .swipe-card:not(.card-behind) {
   padding: 3px 10px;
   border-radius: 999px;
   background: rgb(16 13 31 / 0.82);
-  border: 1px solid rgb(255 209 102 / 0.5);
-  color: var(--yellow);
+  border: 1px solid currentColor;
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
+}
+.saga-tag {
+  color: var(--cyan);
+}
+.boost-tag {
+  color: var(--yellow);
+  border-color: rgb(255 209 102 / 0.5);
 }
 
 /* ---------- Tampons (couleur : tone-*, position : direction visée) ---------- */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chainSaga, draw, removeFromPool, type Pool } from '../src/pages/swipe/pool';
+import { chainSaga, draw, removeFromPool, sagaTags, shortSagaName, type Pool } from '../src/pages/swipe/pool';
 import { makeTitle } from './helpers';
 
 const t = (id: number) => makeTitle(id);
@@ -28,6 +28,21 @@ describe('sagas enchaînées', () => {
     // Le film 1 est déjà affiché (index 0), on enchaîne la saga détectée sur le film 3 (index 2).
     const queue = [t(1), t(10), t(3)];
     expect(keys(chainSaga(queue, 2, saga))).toEqual([1, 10, 2, 3]);
+  });
+});
+
+describe('étiquettes de saga', () => {
+  it('raccourcit le nom donné par TMDB', () => {
+    expect(shortSagaName('Harry Potter - Saga')).toBe('Harry Potter');
+    expect(shortSagaName('Star Wars – Collection')).toBe('Star Wars');
+    expect(shortSagaName('Saga Matrix')).toBe('Matrix');
+    expect(shortSagaName('Toy Story')).toBe('Toy Story');
+  });
+
+  it('donne à chaque film sa place dans la saga complète', () => {
+    const tags = sagaTags({ id: 1, name: 'Harry Potter - Saga', parts: [t(1), t(2), t(3)] });
+    expect(tags['movie:2']).toEqual({ name: 'Harry Potter', position: 2, total: 3 });
+    expect(Object.keys(tags)).toEqual(['movie:1', 'movie:2', 'movie:3']);
   });
 });
 

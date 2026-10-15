@@ -1,3 +1,5 @@
+import type { SagaTag } from './pool';
+
 /** Bouton rond du swipe, avec sa légende et (option) la flèche de son coin. */
 export function ActionButton(props: {
   className: string;
@@ -19,11 +21,21 @@ export function ActionButton(props: {
   );
 }
 
-/** Petite étiquette sur l'affiche quand le titre est proposé grâce à un titre aimé. */
-export function BoostTag({ boost }: { boost?: { from: string } }) {
+/**
+ * Étiquette en haut à gauche de l'affiche : la saga du film (« 🎞️ Harry Potter · 2/8 ») ou, à défaut,
+ * le titre aimé qui l'a fait recommander (« ✨ Comme … »). Jamais les deux.
+ */
+export function CardTag({ saga, boost }: { saga?: SagaTag; boost?: { from: string } }) {
+  if (saga) {
+    return (
+      <span className="card-tag saga-tag" title={`Saga ${saga.name} : film ${saga.position} sur ${saga.total}`}>
+        🎞️ {saga.name} · {saga.position}/{saga.total}
+      </span>
+    );
+  }
   if (!boost) return null;
   return (
-    <span className="boost-tag" title={`Recommandé parce que tu as aimé « ${boost.from} »`}>
+    <span className="card-tag boost-tag" title={`Recommandé parce que tu as aimé « ${boost.from} »`}>
       ✨ Comme « {boost.from} »
     </span>
   );

@@ -73,3 +73,23 @@ export function chainSaga(queue: Title[], index: number, parts: Title[], keepFir
   const inChain = new Set(chain.map((t) => t.key));
   return [...before, ...chain, ...queue.slice(index).filter((t) => !inChain.has(t.key))];
 }
+
+/** Étiquette affichée sur l'affiche d'un film de saga : « 🎞️ Harry Potter · 2/8 ». */
+export interface SagaTag {
+  name: string;
+  position: number; // place du film dans la saga complète (ordre de sortie)
+  total: number;
+}
+
+/** Nom de saga sans le mot « Saga » / « Collection » ajouté par TMDB (« Harry Potter - Saga » → « Harry Potter »). */
+export const shortSagaName = (name: string) =>
+  name
+    .replace(/\s*[-–:]\s*(saga|collection)$/i, '')
+    .replace(/^(saga|collection)\s+/i, '')
+    .trim();
+
+/** Étiquettes de tous les films d'une saga, par clé de titre. */
+export function sagaTags(saga: SagaInfo): Record<string, SagaTag> {
+  const name = shortSagaName(saga.name);
+  return Object.fromEntries(saga.parts.map((p, i) => [p.key, { name, position: i + 1, total: saga.parts.length }]));
+}
