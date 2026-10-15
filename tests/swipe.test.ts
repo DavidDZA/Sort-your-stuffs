@@ -44,6 +44,10 @@ describe('étiquettes de saga', () => {
     expect(tags['movie:2']).toEqual({ name: 'Harry Potter', position: 2, total: 3 });
     expect(Object.keys(tags)).toEqual(['movie:1', 'movie:2', 'movie:3']);
   });
+
+  it('pas d’étiquette pour une « saga » d’un seul film sorti', () => {
+    expect(sagaTags({ id: 2, name: 'Dune - Saga', parts: [t(1)] })).toEqual({});
+  });
 });
 
 describe('tirage', () => {

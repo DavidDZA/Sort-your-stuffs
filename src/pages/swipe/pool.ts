@@ -48,13 +48,16 @@ export interface SagaInfo {
   parts: Title[]; // films sortis, par ordre de sortie
 }
 
-/** Saga d'un film (ou null), avec ses films dans la version enregistrée dans la base. */
+/**
+ * Saga d'un film (ou null), avec ses films dans la version enregistrée dans la base.
+ * Il faut au moins 2 films sortis : une « saga » dont la suite n'est pas encore sortie n'en est pas une.
+ */
 export async function sagaOf(title: Title): Promise<SagaInfo | null> {
   if (title.type !== 'movie') return null;
   const d = await ensureDetails(title);
   if (!d?.collection) return null;
   const saga = await fetchSaga(d.collection.id);
-  if (!saga) return null;
+  if (!saga || saga.parts.length < 2) return null;
   const stored = await db.titles.bulkGet(saga.parts.map((p) => p.key));
   return { id: saga.id, name: saga.name, parts: saga.parts.map((p, i) => stored[i] ?? p) };
 }
@@ -90,6 +93,7 @@ export const shortSagaName = (name: string) =>
 
 /** Étiquettes de tous les films d'une saga, par clé de titre. */
 export function sagaTags(saga: SagaInfo): Record<string, SagaTag> {
+  if (saga.parts.length < 2) return {};
   const name = shortSagaName(saga.name);
   return Object.fromEntries(saga.parts.map((p, i) => [p.key, { name, position: i + 1, total: saga.parts.length }]));
 }
