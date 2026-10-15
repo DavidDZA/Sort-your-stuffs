@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { clearStatus, db, type MediaType, type Title } from '../db';
-import { changeStatus } from '../ranking';
-import { matchesSearch } from '../hooks';
+import { clearStatus, db, type MediaType, type Title } from '../lib/db';
+import { changeStatus } from '../lib/ranking';
+import { matchesSearch } from '../lib/hooks';
 import { SearchBox, TitleRow, TopBar, TypeFilter } from '../components/common';
 
 type ListId = 'seen' | 'unseen';

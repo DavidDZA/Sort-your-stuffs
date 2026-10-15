@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isExcluded, parseDetails, pickTrailer, toTitle, type RawResult } from '../src/tmdb';
+import { isExcluded, parseDetails, pickTrailer, toTitle, type RawResult } from '../src/lib/tmdb';
 
 const raw = (extra: Partial<RawResult>): RawResult => ({ id: 1, poster_path: null, ...extra });
 

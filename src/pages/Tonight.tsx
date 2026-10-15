@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Title } from '../db';
-import { changeStatus, readRanking } from '../ranking';
-import { prefetchDetails, WEEK } from '../tmdb';
-import { getMyProviders, readPref, writePref } from '../settings';
-import { matchesTonight, NO_FILTERS, pickWeighted, priorityWeight, type TonightFilters } from '../tonight';
-import { burst, toast } from '../fun';
+import { db, type Title } from '../lib/db';
+import { changeStatus, readRanking } from '../lib/ranking';
+import { prefetchDetails, WEEK } from '../lib/tmdb';
+import { getMyProviders, readPref, writePref } from '../lib/settings';
+import { matchesTonight, NO_FILTERS, pickWeighted, priorityWeight, type TonightFilters } from '../lib/tonight';
+import { burst, toast } from '../lib/fun';
 import { Poster, ProviderLine, RatingBadge, TitleText, TopBar, TypeFilter } from '../components/common';
 import { openFiche } from '../components/Fiche';
 

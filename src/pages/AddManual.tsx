@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Status, type Title } from '../db';
-import { changeStatus } from '../ranking';
-import { search } from '../tmdb';
+import { db, type Status, type Title } from '../lib/db';
+import { changeStatus } from '../lib/ranking';
+import { search } from '../lib/tmdb';
 import { TitleRow, TopBar } from '../components/common';
 
 export default function AddManual() {

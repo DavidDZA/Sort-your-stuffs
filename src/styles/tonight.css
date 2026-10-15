@@ -1,0 +1,44 @@
+/* ---------- Ce soir, je regarde quoi ? ---------- */
+
+.genre-chips {
+  max-height: 84px;
+  overflow-y: auto;
+}
+.roll-btn {
+  align-self: center;
+  font-size: 1.15rem;
+  padding: 12px 28px;
+}
+.tonight-card {
+  display: flex;
+  gap: 14px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.tonight-card.revealed {
+  border-color: rgb(255 209 102 / 0.6);
+  box-shadow: 0 0 30px rgb(255 209 102 / 0.2);
+  animation: pop 0.35s;
+}
+.tonight-poster {
+  position: relative;
+  width: 130px;
+  flex-shrink: 0;
+}
+.tonight-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.tonight-overview {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

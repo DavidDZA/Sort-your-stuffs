@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, TYPE_LABEL, type Title } from '../db';
-import { ensureDetails, posterUrl, providerLogo } from '../tmdb';
-import { getMyProviders } from '../settings';
-import { useLongPress } from '../hooks';
+import { db, TYPE_LABEL, type Title } from '../lib/db';
+import { ensureDetails, posterUrl, providerLogo } from '../lib/tmdb';
+import { getMyProviders } from '../lib/settings';
+import { useLongPress } from '../lib/hooks';
 import { openFiche } from './Fiche';
 
 /** Bouton retour à l'accueil : chevron dessiné (centré exactement, contrairement au caractère « ‹ »). */

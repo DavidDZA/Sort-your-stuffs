@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type MediaType, type Title } from '../db';
-import { readRanking } from '../ranking';
-import { tierize } from '../tiers';
-import { shareTierList } from '../share';
-import { toast } from '../fun';
-import { useLongPress } from '../hooks';
+import { db, type MediaType, type Title } from '../lib/db';
+import { readRanking } from '../lib/ranking';
+import { tierize } from '../lib/tiers';
+import { shareTierList } from '../lib/share';
+import { toast } from '../lib/fun';
+import { useLongPress } from '../lib/hooks';
 import { Poster } from './common';
 import { openFiche } from './Fiche';
 

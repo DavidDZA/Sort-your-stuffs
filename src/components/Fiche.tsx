@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, TYPE_LABEL, type Provider, type Status, type Title } from '../db';
-import { changeStatus } from '../ranking';
-import { providerLogo, WEEK } from '../tmdb';
-import { getMyProviders } from '../settings';
+import { db, TYPE_LABEL, type Provider, type Status, type Title } from '../lib/db';
+import { changeStatus } from '../lib/ranking';
+import { providerLogo, WEEK } from '../lib/tmdb';
+import { getMyProviders } from '../lib/settings';
 import { Poster, Sheet, useDetails } from './common';
 
 /** Ouvre la fiche complète d'un titre (voir <FicheHost /> dans App). */

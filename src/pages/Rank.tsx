@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { db, type MediaType, type Title } from '../db';
-import { changeStatus, readRanking, unrank, type Scope } from '../ranking';
+import { db, type MediaType, type Title } from '../lib/db';
+import { changeStatus, readRanking, unrank, type Scope } from '../lib/ranking';
 import { TopBar, TypeFilter } from '../components/common';
-import { Duel, RankedList } from '../components/Ranking';
+import { Duel } from '../components/Duel';
+import { RankedList } from '../components/RankedList';
 import { TierList } from '../components/TierList';
-import { shareTop } from '../share';
-import { toast } from '../fun';
+import { shareTop } from '../lib/share';
+import { toast } from '../lib/fun';
 
 type View = 'duel' | 'list' | 'tiers';
 

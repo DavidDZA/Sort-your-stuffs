@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { getMeta, type MediaType } from '../db';
-import { computeStats, formatHours, TOP_SIZE, type Bar, type Stats } from '../stats';
-import { BADGES } from '../badges';
-import { prefetchDetails } from '../tmdb';
+import { getMeta, type MediaType } from '../lib/db';
+import { computeStats, formatHours, TOP_SIZE, type Bar, type Stats } from '../lib/stats';
+import { BADGES } from '../lib/badges';
+import { prefetchDetails } from '../lib/tmdb';
 import { TopBar, TypeFilter } from '../components/common';
 
 export default function StatsPage() {

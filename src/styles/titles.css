@@ -1,0 +1,106 @@
+/* Affiches, titres, note et plateformes : les briques communes à tous les écrans. */
+
+.poster {
+  aspect-ratio: 2 / 3;
+  background: linear-gradient(160deg, var(--surface-2), var(--surface));
+  border-radius: 12px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
+}
+.poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.poster-fallback {
+  padding: 10px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.title-text {
+  min-width: 0;
+}
+.title-main {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+.title-original {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+.title-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.title-credits {
+  color: var(--muted);
+  font-size: 0.8rem;
+  min-height: 2.4em; /* évite que la carte saute quand le casting arrive */
+  line-height: 1.2;
+}
+
+/* Note TMDB : en haut à droite d'une affiche (swipe), ou à gauche (duels, « Ce soir »). */
+.rating-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgb(16 13 31 / 0.85);
+  border: 1px solid currentColor;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+.rating-badge.high {
+  color: var(--green);
+}
+.rating-badge.mid {
+  color: var(--yellow);
+}
+.rating-badge.low {
+  color: #ff8a8a;
+}
+.rating-badge.corner-left {
+  top: 6px;
+  left: 6px;
+  right: auto;
+  font-size: 0.78rem;
+  padding: 2px 7px;
+}
+
+/* Logos des plateformes de streaming. */
+.providers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+.provider-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  opacity: 0.85;
+}
+.provider-logo.big {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+}
+.provider-logo.mine {
+  opacity: 1;
+  outline: 2px solid var(--green);
+  outline-offset: 1px;
+}
+.provider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

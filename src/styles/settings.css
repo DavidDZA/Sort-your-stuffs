@@ -1,0 +1,68 @@
+/* ---------- Réglages ---------- */
+
+.danger-zone {
+  border-color: rgb(255 95 109 / 0.45);
+}
+
+/* Mes abonnements. */
+.provider-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.provider-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 0.82rem;
+  text-align: left;
+}
+.provider-option img {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  flex-shrink: 0;
+}
+.provider-option.active {
+  border-color: var(--green);
+  background: rgb(62 224 143 / 0.15);
+}
+
+/* Mode de swipe, avec un petit schéma de chaque geste. */
+.mode-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.mode-option {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  text-align: left;
+}
+.mode-option.active {
+  border-color: var(--violet);
+  background: rgb(139 124 255 / 0.15);
+}
+.mode-name {
+  font-family: var(--display);
+  font-weight: 600;
+}
+.mode-diagram {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.mode-diagram span:nth-child(even) {
+  text-align: right;
+}

@@ -1,4 +1,4 @@
-import type { MediaType, Title } from '../src/db';
+import type { MediaType, Title } from '../src/lib/db';
 
 /** Titre minimal pour les tests. */
 export function makeTitle(id: number, extra: Partial<Title> = {}, type: MediaType = 'movie'): Title {

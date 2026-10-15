@@ -39,6 +39,27 @@ npm test         # tests automatiques (Vitest), aussi lancés avant chaque dépl
 
 Stack : Vite, React, TypeScript, Dexie (IndexedDB), vite-plugin-pwa.
 
+### Organisation du code
+
+```
+src/
+  App.tsx            routeur (#/swipe/movie…) + fenêtres globales (fiche, messages)
+  lib/               logique et données, sans affichage
+    db.ts              base locale (titres, réponses, réglages internes)
+    tmdb.ts            API TMDB : catalogue, fiches, sagas, plateformes
+    sync.ts            téléchargement / mise à jour du catalogue
+    ranking.ts         classement par insertion dichotomique, vérifications
+    stats.ts badges.ts activity.ts   statistiques, badges, séries de jours
+    themes.ts tonight.ts recommend.ts tiers.ts   thèmes de swipe, tirage du soir,
+                                                  recommandations, tier list
+    settings.ts backup.ts share.ts   préférences, sauvegarde, images à partager
+    fun.ts hooks.ts    confettis / messages, hooks React partagés
+  components/        briques d'interface réutilisées (carte de swipe, duels, listes, fiche…)
+  pages/             un fichier par écran ; swipe/ et settings/ découpés en sous-parties
+  styles/            un fichier CSS par écran, importés dans l'ordre par index.css
+tests/               tests Vitest (logique pure + base en mémoire)
+```
+
 ## Déploiement
 
 Chaque push sur `main` déploie sur GitHub Pages via `.github/workflows/deploy.yml`

@@ -1,0 +1,14 @@
+/*
+ * Styles de l'appli, un fichier par écran. L'ordre compte : les règles de base d'abord,
+ * puis les écrans, qui peuvent les préciser.
+ */
+@import './base.css';
+@import './titles.css';
+@import './home.css';
+@import './swipe.css';
+@import './duel.css';
+@import './lists.css';
+@import './sheet.css';
+@import './stats.css';
+@import './settings.css';
+@import './tonight.css';

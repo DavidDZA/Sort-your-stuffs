@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db, setStatus } from '../src/db';
+import { db, setStatus } from '../src/lib/db';
 import {
   changeStatus,
   duelsLeft,
@@ -14,7 +14,7 @@ import {
   swapAdjacent,
   unrankedKeys,
   type Scope,
-} from '../src/ranking';
+} from '../src/lib/ranking';
 import { makeTitle } from './helpers';
 
 const seen: Scope = { type: 'movie', list: 'seen' };

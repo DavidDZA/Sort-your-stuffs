@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { tierize } from '../src/tiers';
-import { matchesTonight, NO_FILTERS, pickWeighted, priorityWeight } from '../src/tonight';
-import { boostFactor, mergeBoosts } from '../src/recommend';
-import { matchesTheme, NO_THEME } from '../src/themes';
-import { bestStreak, lastDays, streak } from '../src/activity';
-import { matchesSearch, normalize } from '../src/hooks';
-import type { Details } from '../src/db';
+import { tierize } from '../src/lib/tiers';
+import { matchesTonight, NO_FILTERS, pickWeighted, priorityWeight } from '../src/lib/tonight';
+import { boostFactor, mergeBoosts } from '../src/lib/recommend';
+import { matchesTheme, NO_THEME } from '../src/lib/themes';
+import { bestStreak, lastDays, streak } from '../src/lib/activity';
+import { matchesSearch, normalize } from '../src/lib/hooks';
+import type { Details } from '../src/lib/db';
 import { makeTitle } from './helpers';
 
 describe('tier list', () => {

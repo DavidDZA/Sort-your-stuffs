@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { clearChoices, db, getMeta, requestPersistentStorage } from '../db';
-import { getMinVotes, getMyProviders, getSwipeMode, getToken, getUserToken, hasBuiltInToken, setMinVotes, setMyProviders, setSwipeMode, setToken, type MinVotes, type SwipeMode } from '../settings';
-import { syncCatalogue } from '../sync';
-import { fetchProviderOptions, providerLogo, tmdb, type ProviderOption } from '../tmdb';
-import { exportData, importData } from '../backup';
-import { TopBar } from '../components/common';
+import { clearChoices, db, getMeta, requestPersistentStorage } from '../../lib/db';
+import { getMinVotes, getToken, getUserToken, hasBuiltInToken, setMinVotes, setToken, type MinVotes } from '../../lib/settings';
+import { syncCatalogue } from '../../lib/sync';
+import { tmdb } from '../../lib/tmdb';
+import { exportData, importData } from '../../lib/backup';
+import { TopBar } from '../../components/common';
+import { MyProviders } from './MyProviders';
+import { SwipeModeSetting } from './SwipeModeSetting';
 
 export default function Settings() {
   const [token, setTokenInput] = useState(getUserToken() ?? '');
@@ -156,92 +158,5 @@ export default function Settings() {
         This product uses the TMDB API but is not endorsed or certified by TMDB.
       </p>
     </main>
-  );
-}
-
-/** Choix des plateformes auxquelles on est abonné (pour filtrer la wishlist). */
-function MyProviders() {
-  const [options, setOptions] = useState<ProviderOption[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [mine, setMine] = useState<number[]>(getMyProviders());
-  const [showAll, setShowAll] = useState(false);
-
-  useEffect(() => {
-    if (!getToken()) return;
-    fetchProviderOptions()
-      .then(setOptions)
-      .catch((e) => setError((e as Error).message));
-  }, []);
-
-  const toggle = (id: number) => {
-    const next = mine.includes(id) ? mine.filter((x) => x !== id) : [...mine, id];
-    setMine(next);
-    setMyProviders(next);
-  };
-
-  const shown = options && (showAll ? options : options.filter((o, i) => i < 16 || mine.includes(o.id)));
-
-  return (
-    <section className="card">
-      <h3>📺 Mes abonnements</h3>
-      <p className="muted small">Coche tes plateformes : la wishlist pourra n’afficher que ce qui est dispo chez toi.</p>
-      {error && <p className="error small">{error}</p>}
-      {!getToken() && <p className="muted small">Renseigne d’abord ta clé TMDB.</p>}
-      {getToken() && !options && !error && <p className="muted small">Chargement…</p>}
-      {shown && (
-        <div className="provider-picker">
-          {shown.map((p) => (
-            <button
-              key={p.id}
-              className={`provider-option ${mine.includes(p.id) ? 'active' : ''}`}
-              onClick={() => toggle(p.id)}
-              title={mine.includes(p.id) ? `Retirer ${p.name}` : `Je suis abonné à ${p.name}`}
-            >
-              {p.logo && <img src={providerLogo(p.logo) ?? ''} alt="" />}
-              <span>{p.name}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {options && options.length > 16 && (
-        <button className="btn small" onClick={() => setShowAll((v) => !v)} title="Afficher toutes les plateformes disponibles en France">
-          {showAll ? 'Moins de plateformes' : `Toutes les plateformes (${options.length})`}
-        </button>
-      )}
-    </section>
-  );
-}
-
-/** Choix du mode de swipe, avec un petit schéma de chaque geste. */
-function SwipeModeSetting() {
-  const [mode, setMode] = useState<SwipeMode>(getSwipeMode());
-  const choose = (m: SwipeMode) => {
-    setMode(m);
-    setSwipeMode(m);
-  };
-  return (
-    <section className="card">
-      <h3>🕹️ Mode de swipe</h3>
-      <div className="mode-options">
-        <button className={`mode-option ${mode === 'corners' ? 'active' : ''}`} onClick={() => choose('corners')} title="Un seul geste en diagonale, avec un avis bien / bof sur les titres vus">
-          <span className="mode-name">4 coins <span className="muted tiny">(par défaut)</span></span>
-          <span className="mode-diagram four">
-            <span className="tone-wish">↖ Envie</span>
-            <span className="tone-yes">Vu 👍 ↗</span>
-            <span className="tone-no">↙ Pas envie</span>
-            <span className="tone-meh">Vu 😐 ↘</span>
-          </span>
-          <span className="muted tiny">Un seul geste · 👍/😐 réduit les duels</span>
-        </button>
-        <button className={`mode-option ${mode === 'horizontal' ? 'active' : ''}`} onClick={() => choose('horizontal')} title="Vu / pas vu, puis une 2e question : aimé ou bof, ou envie de le voir">
-          <span className="mode-name">2 directions</span>
-          <span className="mode-diagram two">
-            <span className="tone-no">← Pas vu</span>
-            <span className="tone-yes">Vu →</span>
-          </span>
-          <span className="muted tiny">2e swipe : aimé / bof si vu, envie / pas envie sinon</span>
-        </button>
-      </div>
-    </section>
   );
 }

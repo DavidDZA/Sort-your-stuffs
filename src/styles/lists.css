@@ -1,0 +1,126 @@
+/* ---------- Listes (classement, wishlist, mes listes, ajout manuel) ---------- */
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.list-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 8px;
+}
+.row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+.row-main .title-text {
+  flex: 1;
+}
+.row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* Résumé déplié sous la ligne. */
+.row-overview {
+  flex-basis: 100%;
+  margin: 2px 4px 4px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--text) 85%, transparent);
+  animation: pop 0.2s;
+}
+.row-overview p {
+  margin: 0 0 8px;
+}
+.thumb {
+  width: 46px;
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+.section-title {
+  margin: 8px 0 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+.rank-num {
+  width: 30px;
+  text-align: center;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--violet);
+}
+.rank-num.medal {
+  font-size: 1.5rem;
+}
+.item-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* ---------- Tier list ---------- */
+
+.tier-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tier-row {
+  display: flex;
+  min-height: 84px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.tier-label {
+  flex: 0 0 52px;
+  display: grid;
+  place-items: center;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.6rem;
+  color: #15102a;
+}
+.tier-items {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding: 6px;
+}
+.tier-poster {
+  width: 48px;
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+.tier-poster:active {
+  transform: scale(0.94);
+}
+.tier-poster .poster {
+  border-radius: 6px;
+  box-shadow: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .tier-poster {
+    width: 64px;
+  }
+}

@@ -1,133 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { clearStatus, db, setStatus, type MediaType, type Status, type Tier, type Title } from '../db';
-import { ensureDetails, fetchSaga, posterUrl } from '../tmdb';
-import { BackLink, Poster, RatingBadge, Sheet, TitleText } from '../components/common';
-import SwipeCard, { type Dir, type Tone } from '../components/SwipeCard';
-import { openFiche } from '../components/Fiche';
-import { burst, centerOf, MILESTONES, pick, toast } from '../fun';
-import { recordActivity } from '../activity';
-import { boostFactor, boostFrom, loadBoosts, type Boosts } from '../recommend';
-import { getSwipeMode, readPref, writePref } from '../settings';
-import { genreOptions, isNoTheme, LANGS, matchesTheme, NO_THEME, PERIODS, themeLabel, type Theme } from '../themes';
+import { clearStatus, db, setStatus, type MediaType, type Status, type Tier, type Title } from '../../lib/db';
+import { burst, centerOf, MILESTONES, pick, toast } from '../../lib/fun';
+import { recordActivity } from '../../lib/activity';
+import { boostFactor, boostFrom, loadBoosts, type Boosts } from '../../lib/recommend';
+import { getSwipeMode, readPref, writePref } from '../../lib/settings';
+import { isNoTheme, matchesTheme, NO_THEME, themeLabel, type Theme } from '../../lib/themes';
+import { BackLink, Poster, RatingBadge, TitleText } from '../../components/common';
+import SwipeCard, { type Dir, type Tone } from '../../components/SwipeCard';
+import { openFiche } from '../../components/Fiche';
+import { ARROWS, CORNERS, isCorner, PHASES, TONES, type Corner, type Phase } from './config';
+import { draw, prefetch, QUEUE_SIZE, sagaFollowUps, WEIGHT_EXP, type Pool } from './pool';
+import { ThemeSheet } from './ThemeSheet';
+import { ActionButton, BoostTag } from './controls';
 
-/**
- * Tirage aléatoire pondéré par le nombre de votes TMDB : les titres connus sortent
- * plus souvent, donc on tombe vite sur des films qu'on a vus. 1 = proportionnel.
- */
-const WEIGHT_EXP = 0.9;
-const QUEUE_SIZE = 4;
 const FLIP_MS = 350; // durée du retournement de la carte (animation flip-in)
-
-interface Pool {
-  items: { title: Title; w: number }[];
-  total: number;
-}
-
-function draw(pool: Pool): Title | null {
-  if (!pool.items.length) return null;
-  let r = Math.random() * pool.total;
-  let i = 0;
-  while (i < pool.items.length - 1 && r >= pool.items[i].w) r -= pool.items[i++].w;
-  const [picked] = pool.items.splice(i, 1);
-  pool.total -= picked.w;
-  return picked.title;
-}
-
-/** Précharge l'affiche, la fiche détaillée et, pour un film de saga, la liste de ses suites. */
-function prefetch(title: Title) {
-  const src = posterUrl(title.posterPath, 'w500');
-  if (src) {
-    // Téléchargée ET décodée à l'avance : pas d'accroc quand la carte arrive à l'écran.
-    const img = new Image();
-    img.src = src;
-    img.decode?.().catch(() => undefined);
-  }
-  ensureDetails(title).then((d) => {
-    if (d?.collection) fetchSaga(d.collection.id);
-  });
-}
-
-/** Films de la même saga pas encore triés, dans l'ordre de sortie. */
-async function sagaFollowUps(title: Title): Promise<{ name: string; parts: Title[] } | null> {
-  if (title.type !== 'movie') return null;
-  const d = await ensureDetails(title);
-  if (!d?.collection) return null;
-  const saga = await fetchSaga(d.collection.id);
-  if (!saga) return null;
-  const others = saga.parts.filter((p) => p.key !== title.key);
-  const [answers, stored] = await Promise.all([db.answers.bulkGet(others.map((p) => p.key)), db.titles.bulkGet(others.map((p) => p.key))]);
-  const parts = others.map((p, i) => stored[i] ?? p).filter((_, i) => !answers[i]);
-  return parts.length ? { name: saga.name, parts } : null;
-}
-
-/** Mode 2 directions : vu / pas vu, puis « aimé ou bof ? » (vu) ou « envie ? » (pas vu). */
-type Phase = 'seen' | 'wish' | 'rate';
-
-interface PhaseText {
-  question: string;
-  left: string;
-  right: string;
-  leftBtn: string;
-  rightBtn: string;
-  leftCap: string;
-  rightCap: string;
-  leftTip: string;
-  rightTip: string;
-}
-
-const PHASES: Record<Phase, PhaseText> = {
-  seen: {
-    question: 'Tu l’as vu ?',
-    left: 'PAS VU 🙈',
-    right: 'VU ✅',
-    leftBtn: '✕',
-    rightBtn: '✓',
-    leftCap: 'Pas vu',
-    rightCap: 'Vu',
-    leftTip: 'Je ne l’ai pas vu (swipe à gauche ou flèche ←)',
-    rightTip: 'Je l’ai vu (swipe à droite ou flèche →)',
-  },
-  wish: {
-    question: 'Pas vu… envie de le voir ?',
-    left: 'PAS ENVIE 💤',
-    right: 'ENVIE 💖',
-    leftBtn: '✕',
-    rightBtn: '♥',
-    leftCap: 'Pas envie',
-    rightCap: 'Wishlist',
-    leftTip: 'Pas envie : il ne sera plus proposé (swipe à gauche ou flèche ←)',
-    rightTip: 'Ajouter à la wishlist (swipe à droite ou flèche →)',
-  },
-  rate: {
-    question: 'Vu ! Tu as aimé ?',
-    left: 'BOF 😐',
-    right: 'AIMÉ 👍',
-    leftBtn: '😐',
-    rightBtn: '👍',
-    leftCap: 'Bof',
-    rightCap: 'Aimé',
-    leftTip: 'Vu, mais bof : classé avec les « bof » (swipe à gauche ou flèche ←)',
-    rightTip: 'Vu et aimé : classé avec les « bien » (swipe à droite ou flèche →)',
-  },
-};
-
-const TONES: Record<Phase, { left: Tone; right: Tone }> = {
-  seen: { left: 'no', right: 'yes' },
-  wish: { left: 'no', right: 'wish' },
-  rate: { left: 'meh', right: 'yes' },
-};
-
-type Corner = 'ul' | 'ur' | 'dl' | 'dr';
-
-/** Mode 4 coins : haut = positif. Les boutons reprennent la même disposition. */
-const CORNERS: Record<Corner, { status: Status; tier?: Tier; text: string; tone: Tone; icon: string; caption: string; tip: string; key: string }> = {
-  ul: { status: 'wish', text: 'ENVIE 💖', tone: 'wish', icon: '💖', caption: 'Envie', tip: 'Pas vu, envie de le voir : wishlist (↖ ou touche 7)', key: '7' },
-  ur: { status: 'seen', tier: 'good', text: 'VU 👍', tone: 'yes', icon: '👍', caption: 'Vu · bien', tip: 'Vu, et j’ai aimé (↗ ou touche 9)', key: '9' },
-  dl: { status: 'unseen', text: 'PAS ENVIE 💤', tone: 'no', icon: '💤', caption: 'Pas envie', tip: 'Pas vu, pas envie : il ne sera plus proposé (↙ ou touche 1)', key: '1' },
-  dr: { status: 'seen', tier: 'meh', text: 'VU 😐', tone: 'meh', icon: '😐', caption: 'Vu · bof', tip: 'Vu, mais bof (↘ ou touche 3)', key: '3' },
-};
-
-const isCorner = (d: Dir): d is Corner => d in CORNERS;
 
 export default function Swipe({ type }: { type: MediaType }) {
   const [mode] = useState(getSwipeMode);
@@ -361,7 +247,6 @@ export default function Swipe({ type }: { type: MediaType }) {
     />
   );
   const skipButton = <ActionButton className="small" icon="⤼" caption="Passer" tip="Je ne sais pas : le titre reviendra plus tard (flèche ↓)" onClick={skip} />;
-  const ARROWS: Record<Corner, string> = { ul: '↖', ur: '↗', dl: '↙', dr: '↘' };
   const cornerButton = (c: Corner) => (
     <ActionButton
       className={`corner tone-${CORNERS[c].tone}`}
@@ -502,92 +387,5 @@ export default function Swipe({ type }: { type: MediaType }) {
         />
       )}
     </main>
-  );
-}
-
-function ThemeSheet(props: {
-  type: MediaType;
-  initial: Theme;
-  count: (t: Theme) => number;
-  hasGenres: boolean;
-  onApply: (t: Theme) => void;
-  onClose: () => void;
-}) {
-  const [draft, setDraft] = useState(props.initial);
-  const n = props.count(draft);
-  return (
-    <Sheet onClose={props.onClose} label="Thème de la session">
-      <h2 className="sheet-title">🎯 Thème de la session</h2>
-      {!props.hasGenres && <p className="banner-soft small">Mets à jour le catalogue (Réglages) pour activer les filtres par genre et par langue.</p>}
-
-      <h3 className="sheet-label">Période</h3>
-      <div className="chips">
-        {PERIODS.map((p) => (
-          <button key={p.id} className={`chip ${draft.period === p.id ? 'active' : ''}`} onClick={() => setDraft({ ...draft, period: p.id })}>
-            {p.label}
-          </button>
-        ))}
-      </div>
-
-      <h3 className="sheet-label">Genre</h3>
-      <div className="chips">
-        <button className={`chip ${draft.genre === null ? 'active' : ''}`} onClick={() => setDraft({ ...draft, genre: null })}>
-          Tous
-        </button>
-        {genreOptions(props.type).map((g) => (
-          <button key={g.id} className={`chip ${draft.genre === g.id ? 'active' : ''}`} onClick={() => setDraft({ ...draft, genre: g.id })}>
-            {g.label}
-          </button>
-        ))}
-      </div>
-
-      <h3 className="sheet-label">Langue originale</h3>
-      <div className="chips">
-        {LANGS.map((l) => (
-          <button key={l.id} className={`chip ${draft.lang === l.id ? 'active' : ''}`} onClick={() => setDraft({ ...draft, lang: l.id })}>
-            {l.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="row center sheet-actions">
-        <button className="btn" onClick={() => setDraft(NO_THEME)} title="Revenir à tout le catalogue">
-          Réinitialiser
-        </button>
-        <button className="btn primary" onClick={() => props.onApply(draft)} disabled={n === 0} title="Lancer la session avec ce thème">
-          C’est parti ({n.toLocaleString('fr-FR')})
-        </button>
-      </div>
-    </Sheet>
-  );
-}
-
-function ActionButton(props: {
-  className: string;
-  icon: string;
-  badge?: string;
-  caption: string;
-  tip: string;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="action">
-      <button className={`round-btn ${props.className}`} onClick={props.onClick} disabled={props.disabled} title={props.tip} aria-label={props.caption}>
-        {props.icon}
-        {props.badge && <span className="btn-badge">{props.badge}</span>}
-      </button>
-      <span className="action-caption">{props.caption}</span>
-    </div>
-  );
-}
-
-/** Petite étiquette sur l'affiche quand le titre est proposé grâce à un titre aimé. */
-function BoostTag({ boost }: { boost?: { from: string } }) {
-  if (!boost) return null;
-  return (
-    <span className="boost-tag" title={`Recommandé parce que tu as aimé « ${boost.from} »`}>
-      ✨ Comme « {boost.from} »
-    </span>
   );
 }

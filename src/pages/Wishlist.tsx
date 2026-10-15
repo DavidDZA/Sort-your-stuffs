@@ -1,12 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type MediaType, type Title } from '../db';
-import { changeStatus, scopeId, unrank, type Scope } from '../ranking';
-import { prefetchDetails, WEEK } from '../tmdb';
-import { getMyProviders } from '../settings';
-import { matchesSearch } from '../hooks';
+import { db, type MediaType, type Title } from '../lib/db';
+import { changeStatus, scopeId, unrank, type Scope } from '../lib/ranking';
+import { prefetchDetails, WEEK } from '../lib/tmdb';
+import { getMyProviders } from '../lib/settings';
+import { matchesSearch } from '../lib/hooks';
 import { ProviderLine, SearchBox, TitleRow, TopBar, TypeFilter } from '../components/common';
-import { Duel, RankedList } from '../components/Ranking';
+import { Duel } from '../components/Duel';
+import { RankedList } from '../components/RankedList';
 
 type View = 'list' | 'duel';
 type Filter = 'all' | MediaType;

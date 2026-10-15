@@ -1,0 +1,169 @@
+/* ---------- Duels (classement et priorisation de la wishlist) ---------- */
+
+.duel {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.vs {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 34%;
+  transform: translate(-50%, -50%);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.2rem;
+  background: var(--grad);
+  box-shadow: 0 0 0 4px var(--bg), 0 6px 20px rgb(255 95 162 / 0.5);
+  pointer-events: none;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}
+
+.duel-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.25s, opacity 0.25s, border-color 0.25s, box-shadow 0.25s;
+}
+.duel-card:active {
+  transform: scale(0.97);
+}
+.duel-card.winner {
+  transform: scale(1.05);
+  border-color: var(--yellow);
+  box-shadow: 0 0 28px rgb(255 209 102 / 0.55);
+}
+.duel-card.loser {
+  transform: scale(0.92);
+  opacity: 0.3;
+}
+.duel-poster {
+  position: relative;
+}
+.duel-overview {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgb(10 6 25 / 0.92);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  text-align: left;
+  animation: pop 0.2s;
+}
+.duel-overview p {
+  margin: 0 0 10px;
+}
+.info-btn {
+  position: absolute;
+  z-index: 1;
+  top: 6px;
+  right: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  background: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  font-size: 0.95rem;
+  display: grid;
+  place-items: center;
+}
+
+/* Duel de vérification entre deux voisins du classement. */
+.verify-tag {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgb(61 214 245 / 0.18);
+  color: var(--cyan);
+  font-size: 0.8rem;
+  vertical-align: middle;
+}
+
+@media (pointer: coarse) {
+  .info-btn {
+    backdrop-filter: none;
+  }
+  /* Pas de clavier sur téléphone : le rappel des raccourcis est masqué. */
+  .kbd-hint {
+    display: none;
+  }
+}
+
+/* ---------- PC (souris) : duels en grand ---------- */
+
+@media (hover: hover) and (pointer: fine) {
+  /* La page garde la largeur de l'accueil (en-tête, onglets, listes alignés) ;
+     seul le duel s'élargit et déborde de la même façon des deux côtés. */
+  .page.wide {
+    /* Hauteur prise par tout ce qui n'est pas l'affiche dans un duel. */
+    --duel-chrome: 460px;
+    /* Largeur d'une carte : limitée par la hauteur de la fenêtre et par sa largeur. */
+    --duel-col: min(calc((100dvh - var(--duel-chrome)) * 2 / 3 + 20px), calc((100vw - 68px) / 2));
+  }
+  .page.wide.wishlist-page {
+    --duel-chrome: 520px;
+  }
+  .page.wide .duel {
+    grid-template-columns: repeat(2, var(--duel-col));
+    width: calc(var(--duel-col) * 2 + 36px);
+    align-self: center;
+    gap: 36px;
+  }
+  .page.wide .duel-card {
+    padding: 10px;
+  }
+  .page.wide .duel .title-main {
+    font-size: 1.25rem;
+  }
+  .page.wide .duel .title-original,
+  .page.wide .duel .title-meta {
+    font-size: 0.95rem;
+  }
+  .page.wide .duel .title-credits {
+    font-size: 0.9rem;
+  }
+  .page.wide .vs {
+    width: 70px;
+    height: 70px;
+    font-size: 1.55rem;
+  }
+  .page.wide .info-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.15rem;
+  }
+  .page.wide .duel-overview {
+    font-size: 0.95rem;
+    padding: 14px;
+  }
+  .page.wide .question {
+    font-size: 1.6rem;
+  }
+  .page.wide .row.center .btn {
+    padding: 12px 22px;
+    font-size: 1.05rem;
+  }
+}
