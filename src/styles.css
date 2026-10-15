@@ -1959,3 +1959,118 @@ body:has(.swipe-page)::before {
 .boost-tag {
   max-width: calc(100% - 110px);
 }
+
+/* ---------- Note dans les duels et « Ce soir » ---------- */
+
+.rating-badge.corner-left {
+  top: 6px;
+  left: 6px;
+  right: auto;
+  font-size: 0.78rem;
+  padding: 2px 7px;
+}
+.tonight-poster {
+  position: relative;
+}
+
+/* ---------- Accueil compact : les tuiles visibles sans défiler ---------- */
+
+.page:has(.tiles) {
+  gap: 10px;
+}
+.home-header {
+  margin-top: 2px;
+  gap: 10px;
+}
+.logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+}
+.home-header h1 {
+  font-size: 1.45rem;
+}
+.tagline {
+  font-size: 0.8rem;
+  margin: 0;
+}
+.home-header .icon-btn {
+  width: 40px;
+  height: 40px;
+  font-size: 1.25rem;
+}
+.banner-soft.row-banner {
+  padding: 6px 8px 6px 12px;
+  font-size: 0.85rem;
+}
+.banner {
+  padding: 10px 14px;
+  font-size: 0.9rem;
+}
+
+.activity-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgb(139 124 255 / 0.22), rgb(61 214 245 / 0.1));
+  border: 1px solid rgb(139 124 255 / 0.35);
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+.activity-strip .streak {
+  font-size: 0.95rem;
+}
+.activity-strip .activity-num {
+  font-size: 1.05rem;
+  line-height: 1;
+  background: linear-gradient(180deg, var(--yellow), var(--orange));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.activity-msg {
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.8rem;
+}
+
+.tonight-btn {
+  padding: 10px 14px;
+  gap: 10px;
+}
+.tonight-btn b {
+  flex: 1;
+  font-size: 1rem;
+}
+.tonight-emoji {
+  font-size: 1.5rem;
+}
+.tonight-arrow {
+  font-size: 1.4rem;
+  opacity: 0.7;
+}
+
+.tiles {
+  gap: 10px;
+}
+.tile {
+  min-height: 100px;
+  padding: 11px 12px 10px;
+  gap: 1px;
+}
+.tile-icon {
+  font-size: 1.65rem;
+}
+.tile-label {
+  font-size: 0.98rem;
+}
+.tile-sub {
+  font-size: 0.78rem;
+}
+.tile-progress {
+  height: 5px;
+  margin-top: 5px;
+}

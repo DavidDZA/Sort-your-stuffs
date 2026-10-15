@@ -15,7 +15,7 @@ import {
   type InsertState,
   type Scope,
 } from '../ranking';
-import { Poster, SearchBox, TitleRow, TitleText } from './common';
+import { Poster, RatingBadge, SearchBox, TitleRow, TitleText } from './common';
 import { openFiche } from './Fiche';
 import { matchesSearch, useLongPress } from '../hooks';
 import { burst, centerOf, toast } from '../fun';
@@ -339,6 +339,7 @@ function DuelCard(props: {
     >
       <div className="duel-poster">
         <Poster title={t} size="w342" />
+        <RatingBadge title={t} className="corner-left" />
         {showInfo && (
           <div
             className="duel-overview"

@@ -6,7 +6,7 @@ import { prefetchDetails, WEEK } from '../tmdb';
 import { getMyProviders, readPref, writePref } from '../settings';
 import { matchesTonight, NO_FILTERS, pickWeighted, priorityWeight, type TonightFilters } from '../tonight';
 import { burst, toast } from '../fun';
-import { Poster, ProviderLine, TitleText, TopBar, TypeFilter } from '../components/common';
+import { Poster, ProviderLine, RatingBadge, TitleText, TopBar, TypeFilter } from '../components/common';
 import { openFiche } from '../components/Fiche';
 
 const PREF = 'tonight-filters';
@@ -135,7 +135,10 @@ export default function Tonight() {
 
       {shownTitle && (
         <div className={`tonight-card ${rolling ? 'rolling' : 'revealed'}`}>
-          <Poster title={shownTitle} size="w342" className="tonight-poster" />
+          <div className="tonight-poster">
+            <Poster title={shownTitle} size="w342" />
+            {!rolling && <RatingBadge title={shownTitle} className="corner-left" />}
+          </div>
           <div className="tonight-info">
             <TitleText title={shownTitle} showType credits />
             {picked && !rolling && (
