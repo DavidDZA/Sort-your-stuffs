@@ -9,7 +9,7 @@ import { BackLink, Poster, RatingBadge, TitleText } from '../../components/commo
 import SwipeCard, { type Dir, type Tone } from '../../components/SwipeCard';
 import { openFiche } from '../../components/Fiche';
 import { ARROWS, CORNERS, isCorner, PHASES, TONES, type Corner, type Phase } from './config';
-import { draw, prefetch, QUEUE_SIZE, sagaFollowUps, WEIGHT_EXP, type Pool } from './pool';
+import { chainSaga, draw, prefetch, QUEUE_SIZE, removeFromPool, sagaOf, WEIGHT_EXP, type Pool } from './pool';
 import { ThemeSheet } from './ThemeSheet';
 import { ActionButton, BoostTag } from './controls';
 
@@ -27,16 +27,21 @@ export default function Swipe({ type }: { type: MediaType }) {
   const [loaded, setLoaded] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => readPref(themeKey, NO_THEME));
   const [showThemes, setShowThemes] = useState(false);
-  const [queue, setQueue] = useState<Title[] | null>(null);
+  const [queue, setQueueState] = useState<Title[] | null>(null);
+  // Copie de la file, lisible depuis les traitements asynchrones (détection des sagas).
+  const queueRef = useRef<Title[] | null>(null);
+  const setQueue = (q: Title[]) => {
+    queueRef.current = q;
+    setQueueState(q);
+  };
   const [phase, setPhase] = useState<Phase>('seen');
   const [fling, setFling] = useState<Dir | null>(null);
   const [history, setHistory] = useState<Title[]>([]);
   const [count, setCount] = useState(0);
   const [showInfo, setShowInfo] = useState(false);
-  // Suites de saga du titre affiché, calculées à l'avance pour mettre le bon titre derrière.
-  const [saga, setSaga] = useState<{ forKey: string; name: string; parts: Title[] } | null>(null);
-  // Pivot : l'ancien titre de derrière tourne pour laisser place au film de la saga.
-  const [flip, setFlip] = useState<{ out: Title; inKey: string } | null>(null);
+  // Sagas déjà enchaînées, et premier film de chaque saga (pour l'annoncer quand il arrive).
+  const chainedSagas = useRef(new Set<number>());
+  const sagaStarts = useRef(new Map<string, { name: string; count: number }>());
   // Mode 2 directions : la carte de derrière attend la fin du retournement pour la 2e question.
   const [flipping, setFlipping] = useState(false);
   const cardArea = useRef<HTMLDivElement>(null);
@@ -47,9 +52,37 @@ export default function Swipe({ type }: { type: MediaType }) {
       const t = draw(pool.current);
       if (!t) break;
       prefetch(t);
+      chainIfSaga(t);
       next.push(t);
     }
     return next;
+  };
+
+  /** Met une saga dans la file à la place du titre tiré (à `index`), du 1er film à trier au dernier. */
+  const insertSaga = (q: Title[], index: number, saga: { id: number; name: string; parts: Title[] }, keepFirst: boolean): Title[] | null => {
+    chainedSagas.current.add(saga.id);
+    const parts = saga.parts.filter((p) => !answered.current.has(p.key));
+    if (parts.length < 2) return null;
+    removeFromPool(pool.current, new Set(parts.map((p) => p.key)));
+    parts.forEach(prefetch);
+    const next = chainSaga(q, index, parts, keepFirst);
+    sagaStarts.current.set(next[index].key, { name: saga.name, count: parts.length });
+    return next;
+  };
+
+  /**
+   * Film de saga tiré : toute la saga le remplace dans la file, pour enchaîner ses films d'un coup
+   * (quelle que soit la réponse). Préparé pendant que la carte attend dans la file, donc invisible ;
+   * si la carte est déjà affichée, elle reste en premier.
+   */
+  const chainIfSaga = async (drawn: Title) => {
+    const saga = await sagaOf(drawn);
+    const q = queueRef.current;
+    if (!saga || !q || chainedSagas.current.has(saga.id)) return;
+    const index = q.findIndex((t) => t.key === drawn.key);
+    if (index === -1) return; // déjà trié ou passé
+    const next = insertSaga(q, index, saga, index === 0);
+    if (next) setQueue(next);
   };
 
   // Charge le catalogue de ce type une seule fois.
@@ -81,25 +114,33 @@ export default function Swipe({ type }: { type: MediaType }) {
     pool.current = { items, total: items.reduce((s, i) => s + i.w, 0) };
     setPhase('seen');
     setShowInfo(false);
-    setQueue(fill([]));
+    // Avant d'afficher la 1re carte, on regarde si c'est un film de saga, pour commencer par le 1er film.
+    let alive = true;
+    const first = fill([]);
+    const head = first[0];
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
+    (head ? Promise.race([sagaOf(head), timeout]) : Promise.resolve(null)).then((saga) => {
+      if (!alive) return;
+      const chained = saga && !chainedSagas.current.has(saga.id) ? insertSaga(first, 0, saga, false) : null;
+      setQueue(chained ?? first);
+      if (head && !saga) chainIfSaga(head); // fiche pas encore arrivée : on réessaiera quand elle sera là
+    });
+    return () => {
+      alive = false;
+    };
   }, [loaded, theme]);
 
   const current = queue?.[0];
   const busy = fling !== null;
-  const sagaNext = saga && current && saga.forKey === current.key ? saga.parts[0] : undefined;
-  // Carte de derrière : aucune au 1er swipe du mode 2 directions (la carte va revenir pour la 2e question) ;
-  // le film de la saga quand on sait déjà que le titre est vu.
-  const behind =
-    !queue || flip || flipping || (mode === 'horizontal' && phase === 'seen') ? undefined : phase === 'rate' && sagaNext ? sagaNext : queue[1];
+  // Carte de derrière : aucune au 1er swipe du mode 2 directions (la carte va revenir pour la 2e question).
+  const behind = !queue || flipping || (mode === 'horizontal' && phase === 'seen') ? undefined : queue[1];
 
+  // Annonce la saga quand son premier film arrive à l'écran.
   useEffect(() => {
-    setSaga(null);
-    if (!current || current.type !== 'movie') return;
-    let alive = true;
-    sagaFollowUps(current).then((s) => alive && s && setSaga({ forKey: current.key, ...s }));
-    return () => {
-      alive = false;
-    };
+    const start = current && sagaStarts.current.get(current.key);
+    if (!start) return;
+    sagaStarts.current.delete(current.key);
+    toast(`🎞️ ${start.name} : ${start.count} films à la suite`);
   }, [current?.key]);
 
   const advance = (rest: Title[]) => {
@@ -140,25 +181,8 @@ export default function Swipe({ type }: { type: MediaType }) {
     setHistory((h) => [...h.slice(-49), current]);
     setCount(n);
 
-    let rest = queue.slice(1);
-    const shownBehind = behind;
-    // Vu un film de saga ? Les suites pas encore triées passent en tête de file.
-    const follow = status === 'seen' ? (saga?.forKey === current.key ? saga : await sagaFollowUps(current)) : null;
-    if (follow) {
-      const keys = new Set(follow.parts.map((p) => p.key));
-      const added = follow.parts.filter((p) => !rest.slice(0, follow.parts.length).some((t) => t.key === p.key)).length;
-      rest = [...follow.parts, ...rest.filter((t) => !keys.has(t.key))];
-      pool.current.items = pool.current.items.filter((i) => !keys.has(i.title.key));
-      pool.current.total = pool.current.items.reduce((s, i) => s + i.w, 0);
-      follow.parts.forEach(prefetch);
-      if (added) toast(`🎞️ ${follow.name} : ${follow.parts.length} film${follow.parts.length > 1 ? 's' : ''} à suivre`);
-    }
-    // Le titre visible derrière n'est plus le suivant : il pivote pour devenir le bon.
-    if (shownBehind && rest[0] && shownBehind.key !== rest[0].key) {
-      setFlip({ out: shownBehind, inKey: rest[0].key });
-      setTimeout(() => setFlip(null), 420);
-    }
-    advance(rest);
+    // La file à jour : une saga a pu s'y enchaîner pendant que la carte était affichée.
+    advance((queueRef.current ?? queue).slice(1));
   };
 
   /** Titre aimé : ses recommandations TMDB sont tirées plus souvent (en arrière-plan). */
@@ -179,7 +203,7 @@ export default function Swipe({ type }: { type: MediaType }) {
   };
 
   const skip = () => {
-    if (!busy && queue?.length) advance(queue.slice(1));
+    if (!busy && queue?.length) advance((queueRef.current ?? queue).slice(1));
   };
 
   const undo = async () => {
@@ -322,12 +346,6 @@ export default function Swipe({ type }: { type: MediaType }) {
                 <TitleText title={behind} credits />
               </div>
             )}
-            {flip && (
-              <div key={`out-${flip.out.key}`} className="swipe-card card-behind flip-out" aria-hidden>
-                <Poster title={flip.out} size="w500" className="card-poster" />
-                <TitleText title={flip.out} credits />
-              </div>
-            )}
             <SwipeCard
               key={`${current.key}-${phase}`}
               mode={mode}
@@ -336,7 +354,7 @@ export default function Swipe({ type }: { type: MediaType }) {
               onSwipe={onSwipe}
               onAmbiguous={() => toast('↖ ↗ ↙ ↘ Swipe en diagonale, vers un coin')}
               stay={mode === 'horizontal' && phase === 'seen' ? ['left', 'right'] : []}
-              className={phase !== 'seen' ? 'flip-in' : flip?.inKey === current.key ? 'flip-in-late' : ''}
+              className={phase !== 'seen' ? 'flip-in' : ''}
               onTap={() => setShowInfo((s) => !s)}
             >
               <Poster title={current} size="w500" className="card-poster" />

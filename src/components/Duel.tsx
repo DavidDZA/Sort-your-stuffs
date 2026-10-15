@@ -6,9 +6,11 @@ import {
   loadInsert,
   loadRanking,
   pickVerifyPair,
+  priorityPool,
   saveInsert,
   saveRanking,
   swapAdjacent,
+  tiersOf,
   unrankedKeys,
   type InsertState,
   type Scope,
@@ -28,6 +30,8 @@ interface DuelState {
   opponent?: Title;
   candidateLeft: boolean;
   unranked: number;
+  /** Titres non classés par avis : les « bien » passent avant les « bof ». */
+  waiting: { good: number; meh: number };
   tier?: Tier;
 }
 
@@ -56,9 +60,23 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
   const placedCount = useRef(0);
   const verifyOnly = useRef(false); // « Affiner mon classement » : uniquement des vérifications
 
-  const show = async (ranking: string[], ins: InsertState, unranked: number) => {
+  /** Nombre de titres non classés, et combien sont « bien » / « bof ». */
+  const waitingFor = async (ranking: string[]) => {
+    const keys = await unrankedKeys(scope, ranking);
+    const tiers = await tiersOf(scope, keys);
+    return {
+      unranked: keys.length,
+      waiting: { good: tiers.filter((t) => t === 'good').length, meh: tiers.filter((t) => t === 'meh').length },
+    };
+  };
+
+  const show = async (ranking: string[], ins: InsertState) => {
     const mid = Math.floor((ins.lo + ins.hi) / 2);
-    const [[candidate, opponent], answer] = await Promise.all([db.titles.bulkGet([ins.key, ranking[mid]]), db.answers.get(ins.key)]);
+    const [[candidate, opponent], answer, counts] = await Promise.all([
+      db.titles.bulkGet([ins.key, ranking[mid]]),
+      db.answers.get(ins.key),
+      waitingFor(ranking),
+    ]);
     setSt({
       ranking,
       ins,
@@ -66,15 +84,17 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
       candidate,
       opponent,
       candidateLeft: Math.random() < 0.5,
-      unranked,
+      ...counts,
       tier: scope.list === 'seen' ? answer?.tier : undefined,
     });
   };
 
-  const showVerify = async (ranking: string[], i = pickVerifyPair(ranking.length)) => {
+  /** Duel de vérification entre ranking[i] et ranking[i + 1] (choisis en priorité parmi les « bien »). */
+  const showVerify = async (ranking: string[], index?: number | null) => {
+    const i = index === undefined ? pickVerifyPair(await tiersOf(scope, ranking)) : index;
     if (i === null) return next(ranking);
-    const [[upper, lower], unranked] = await Promise.all([db.titles.bulkGet([ranking[i], ranking[i + 1]]), unrankedKeys(scope, ranking)]);
-    setSt({ ranking, ins: null, verify: i, candidate: lower, opponent: upper, candidateLeft: Math.random() < 0.5, unranked: unranked.length });
+    const [[upper, lower], counts] = await Promise.all([db.titles.bulkGet([ranking[i], ranking[i + 1]]), waitingFor(ranking)]);
+    setSt({ ranking, ins: null, verify: i, candidate: lower, opponent: upper, candidateLeft: Math.random() < 0.5, ...counts });
   };
 
   /** Choisit le prochain titre à placer (le premier entre directement dans le classement). */
@@ -84,10 +104,12 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
       const pool = (await unrankedKeys(scope, r)).filter((k) => !skipped.current.has(k));
       if (!pool.length) {
         await saveInsert(scope, null);
-        setSt({ ranking: r, ins: null, verify: null, candidateLeft: true, unranked: 0 });
+        setSt({ ranking: r, ins: null, verify: null, candidateLeft: true, unranked: 0, waiting: { good: 0, meh: 0 } });
         return;
       }
-      const key = pool[Math.floor(Math.random() * pool.length)];
+      // Les « bien » d'abord : les « bof » attendent qu'ils soient tous classés.
+      const choices = priorityPool(pool, await tiersOf(scope, pool));
+      const key = choices[Math.floor(Math.random() * choices.length)];
       if (!r.length) {
         r = [key];
         await saveRanking(scope, r);
@@ -106,7 +128,7 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
       }
       const ins = { key, lo, hi };
       await saveInsert(scope, ins);
-      await show(r, ins, pool.length);
+      await show(r, ins);
       return;
     }
   };
@@ -125,7 +147,7 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
       const unranked = await unrankedKeys(scope, ranking);
       // Reprend le placement en cours s'il est toujours valide.
       if (ins && unranked.includes(ins.key) && ins.lo >= 0 && ins.lo < ins.hi && ins.hi <= ranking.length) {
-        await show(ranking, ins, unranked.length);
+        await show(ranking, ins);
       } else {
         await next(ranking);
       }
@@ -170,7 +192,7 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
       } else {
         const updated = { ...ins!, lo, hi };
         await saveInsert(scope, updated);
-        await show(ranking, updated, st.unranked);
+        await show(ranking, updated);
       }
     } finally {
       busy.current = false;
@@ -185,7 +207,7 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
     await saveRanking(scope, prev.ranking);
     await saveInsert(scope, prev.ins);
     if (prev.verify !== null) await showVerify(prev.ranking, prev.verify);
-    else if (prev.ins) await show(prev.ranking, prev.ins, (await unrankedKeys(scope, prev.ranking)).length);
+    else if (prev.ins) await show(prev.ranking, prev.ins);
   };
 
   const skip = async () => {
@@ -305,6 +327,11 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
         )}
         <br />
         {st.ranking.length} classés · {st.unranked} non classés · {placed} placés cette session
+        {st.waiting.good > 0 && st.waiting.meh > 0 && (
+          <>
+            <br />👍 {st.waiting.good} « bien » d’abord, puis 😐 {st.waiting.meh} « bof »
+          </>
+        )}
       </p>
       <p className="muted tiny center kbd-hint">Clavier : ← → choisir · ↓ égalité · ⌫ annuler</p>
     </>

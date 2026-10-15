@@ -218,31 +218,9 @@ body.rate-phase .swipe-card:not(.card-behind) {
 .swipe-card.flip-in {
   animation: flip-in 0.35s ease-out;
 }
-/* Pivot quand une saga remplace le titre suivant. */
-.swipe-card.flip-out {
-  z-index: 2;
-  animation: flip-out 0.2s ease-in forwards;
-}
-.swipe-card.flip-in-late {
-  animation: flip-in-late 0.42s ease-out;
-}
 @keyframes flip-in {
   from {
     transform: perspective(900px) rotateY(-75deg) scale(0.95);
-  }
-}
-@keyframes flip-out {
-  from {
-    transform: translateX(-50%) perspective(900px) rotateY(0deg);
-  }
-  to {
-    transform: translateX(-50%) perspective(900px) rotateY(90deg);
-  }
-}
-@keyframes flip-in-late {
-  0%,
-  48% {
-    transform: perspective(900px) rotateY(-90deg);
   }
 }
 

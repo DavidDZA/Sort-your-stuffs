@@ -13,10 +13,10 @@ Web app (PWA) pour construire petit à petit la liste des films et séries qu'on
 7. **Mes listes** : tous les titres vus / pas vus, avec recherche, pour corriger une erreur.
 8. **Stats & badges** : décennies, genres, réalisateurs, temps passé, couverture des titres populaires, activité, badges.
 
-Autres fonctions : sessions de swipe thématiques (période, genre, langue), suites de sagas proposées juste après un film vu,
+Autres fonctions : sessions de swipe thématiques (période, genre, langue), sagas enchaînées en entier dans l’ordre de sortie,
 fiche complète d'un titre (appui long : durée, note, bande-annonce, où regarder), partage de son top 10 en image,
 rappels de sauvegarde et de mise à jour du catalogue, « Ce soir, je regarde quoi ? » (tirage dans la wishlist),
-tier list partageable, duels de vérification, recommandations d'après les titres aimés, note TMDB sur les cartes.
+tier list partageable, duels de vérification (les titres « bien » classés en priorité), recommandations d'après les titres aimés, note TMDB sur les cartes.
 
 Exclus : documentaires, courts métrages (< 40 min), émissions (télé-réalité, talk-shows, infos), animes (séries d'animation japonaises) et dessins animés jeunesse. Les films d'animation et les séries animées adultes sont inclus.
 

@@ -24,29 +24,52 @@ export function draw(pool: Pool): Title | null {
   return picked.title;
 }
 
-/** Précharge l'affiche, la fiche détaillée et, pour un film de saga, la liste de ses suites. */
+/** Retire des titres du tirage (ils sont déjà dans la file). */
+export function removeFromPool(pool: Pool, keys: Set<string>) {
+  pool.items = pool.items.filter((i) => !keys.has(i.title.key));
+  pool.total = pool.items.reduce((s, i) => s + i.w, 0);
+}
+
+/** Précharge l'affiche (téléchargée et décodée) et la fiche détaillée. */
 export function prefetch(title: Title) {
   const src = posterUrl(title.posterPath, 'w500');
   if (src) {
-    // Téléchargée ET décodée à l'avance : pas d'accroc quand la carte arrive à l'écran.
+    // Décodée à l'avance : pas d'accroc quand la carte arrive à l'écran.
     const img = new Image();
     img.src = src;
     img.decode?.().catch(() => undefined);
   }
-  ensureDetails(title).then((d) => {
-    if (d?.collection) fetchSaga(d.collection.id);
-  });
+  ensureDetails(title);
 }
 
-/** Films de la même saga pas encore triés, dans l'ordre de sortie. */
-export async function sagaFollowUps(title: Title): Promise<{ name: string; parts: Title[] } | null> {
+export interface SagaInfo {
+  id: number;
+  name: string;
+  parts: Title[]; // films sortis, par ordre de sortie
+}
+
+/** Saga d'un film (ou null), avec ses films dans la version enregistrée dans la base. */
+export async function sagaOf(title: Title): Promise<SagaInfo | null> {
   if (title.type !== 'movie') return null;
   const d = await ensureDetails(title);
   if (!d?.collection) return null;
   const saga = await fetchSaga(d.collection.id);
   if (!saga) return null;
-  const others = saga.parts.filter((p) => p.key !== title.key);
-  const [answers, stored] = await Promise.all([db.answers.bulkGet(others.map((p) => p.key)), db.titles.bulkGet(others.map((p) => p.key))]);
-  const parts = others.map((p, i) => stored[i] ?? p).filter((_, i) => !answers[i]);
-  return parts.length ? { name: saga.name, parts } : null;
+  const stored = await db.titles.bulkGet(saga.parts.map((p) => p.key));
+  return { id: saga.id, name: saga.name, parts: saga.parts.map((p, i) => stored[i] ?? p) };
+}
+
+/**
+ * Enchaîne une saga dans la file : à la place du titre tiré (à `index`), tous les films
+ * à trier de la saga, dans l'ordre de sortie, sans doublon ailleurs dans la file.
+ * Les cartes avant `index` ne bougent pas ; si `keepFirst`, le titre tiré (déjà affiché) reste en premier.
+ */
+export function chainSaga(queue: Title[], index: number, parts: Title[], keepFirst = false): Title[] {
+  const before = queue.slice(0, index);
+  const fixed = new Set(before.map((t) => t.key));
+  const drawn = queue[index];
+  let chain = parts.filter((p) => !fixed.has(p.key));
+  if (keepFirst) chain = [drawn, ...chain.filter((p) => p.key !== drawn.key)];
+  const inChain = new Set(chain.map((t) => t.key));
+  return [...before, ...chain, ...queue.slice(index).filter((t) => !inChain.has(t.key))];
 }

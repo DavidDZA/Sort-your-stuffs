@@ -1,4 +1,4 @@
-import { db, getMeta, setMeta, setStatus, type MediaType, type Status, type Title } from './db';
+import { db, getMeta, setMeta, setStatus, type MediaType, type Status, type Tier, type Title } from './db';
 
 /** Une liste classable : les titres vus ou la wishlist, pour les films ou les séries. */
 export interface Scope {
@@ -89,9 +89,33 @@ export async function initialBounds(s: Scope, ranking: string[], key: string): P
   return bounds.lo <= bounds.hi ? bounds : full;
 }
 
-/** Duel de vérification : choisit deux titres voisins du classement (indices i et i + 1). */
-export function pickVerifyPair(length: number, random = Math.random): number | null {
-  return length >= 2 ? Math.floor(random() * (length - 1)) : null;
+/**
+ * Titres à placer en priorité : les « bien » d'abord, puis ceux sans avis,
+ * et les « bof » seulement quand il ne reste plus qu'eux.
+ */
+export function priorityPool(keys: string[], tiers: (Tier | undefined)[]): string[] {
+  const good = keys.filter((_, i) => tiers[i] === 'good');
+  if (good.length) return good;
+  const unrated = keys.filter((_, i) => !tiers[i]);
+  return unrated.length ? unrated : keys;
+}
+
+/**
+ * Duel de vérification : choisit deux titres voisins du classement (indices i et i + 1),
+ * de préférence parmi les « bien » et les titres sans avis (les « bof » comptent moins).
+ */
+export function pickVerifyPair(tiers: (Tier | undefined)[], random = Math.random): number | null {
+  const all = Array.from({ length: Math.max(0, tiers.length - 1) }, (_, i) => i);
+  if (!all.length) return null;
+  const focus = all.filter((i) => tiers[i] !== 'meh' && tiers[i + 1] !== 'meh');
+  const choices = focus.length ? focus : all;
+  return choices[Math.floor(random() * choices.length)];
+}
+
+/** Avis bien / bof des titres (seulement pour les titres vus ; la wishlist n'en a pas). */
+export async function tiersOf(s: Scope, keys: string[]): Promise<(Tier | undefined)[]> {
+  if (s.list !== 'seen') return keys.map(() => undefined);
+  return (await db.answers.bulkGet(keys)).map((a) => a?.tier);
 }
 
 /** Échange les titres aux positions i et i + 1 (le second était préféré). */

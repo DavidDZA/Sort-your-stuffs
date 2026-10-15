@@ -8,6 +8,7 @@ import {
   loadInsert,
   loadRanking,
   pickVerifyPair,
+  priorityPool,
   readRanking,
   saveInsert,
   saveRanking,
@@ -101,10 +102,26 @@ describe('duels', () => {
   });
 
   it('choisit deux voisins pour une vérification', () => {
-    expect(pickVerifyPair(1)).toBeNull();
-    expect(pickVerifyPair(2, () => 0.99)).toBe(0);
-    expect(pickVerifyPair(10, () => 0)).toBe(0);
-    expect(pickVerifyPair(10, () => 0.999)).toBe(8); // dernier couple : 8 et 9
+    const none = (n: number) => Array.from({ length: n }, () => undefined);
+    expect(pickVerifyPair(none(1))).toBeNull();
+    expect(pickVerifyPair(none(2), () => 0.99)).toBe(0);
+    expect(pickVerifyPair(none(10), () => 0)).toBe(0);
+    expect(pickVerifyPair(none(10), () => 0.999)).toBe(8); // dernier couple : 8 et 9
+  });
+
+  it('vérifie en priorité les titres « bien »', () => {
+    // bien, bien, bien, bof, bof : seuls les couples 0-1 et 1-2 sont proposés.
+    const tiers = ['good', 'good', 'good', 'meh', 'meh'] as const;
+    expect(pickVerifyPair([...tiers], () => 0)).toBe(0);
+    expect(pickVerifyPair([...tiers], () => 0.999)).toBe(1);
+    // Que des « bof » : on vérifie quand même.
+    expect(pickVerifyPair(['meh', 'meh', 'meh'], () => 0.999)).toBe(1);
+  });
+
+  it('place les « bien » d’abord, les « bof » en dernier', () => {
+    expect(priorityPool(['a', 'b', 'c', 'd'], ['meh', 'good', undefined, 'good'])).toEqual(['b', 'd']);
+    expect(priorityPool(['a', 'b', 'c'], ['meh', undefined, 'meh'])).toEqual(['b']);
+    expect(priorityPool(['a', 'b'], ['meh', 'meh'])).toEqual(['a', 'b']);
   });
 
   it('échange deux voisins sans toucher au reste', () => {
