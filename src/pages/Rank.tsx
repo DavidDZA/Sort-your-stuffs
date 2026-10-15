@@ -37,7 +37,7 @@ export default function Rank({ type }: { type: MediaType }) {
   };
 
   return (
-    <main className="page">
+    <main className="page wide">
       <TopBar title={type === 'movie' ? '🏆 Films' : '🥇 Séries'} />
       <TypeFilter<View>
         value={view}

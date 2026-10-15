@@ -1709,3 +1709,64 @@ body:has(.swipe-page)::before {
     font-size: 0.9rem;
   }
 }
+
+/* ---------- PC (souris) : écrans de classement en grand ---------- */
+
+@media (hover: hover) and (pointer: fine) {
+  .page.wide {
+    max-width: 1040px;
+    /* Hauteur prise par tout ce qui n'est pas l'affiche dans un duel. */
+    --duel-chrome: 460px;
+  }
+  .page.wide.wishlist-page {
+    --duel-chrome: 520px;
+  }
+  .page.wide .list,
+  .page.wide > .input,
+  .page.wide > .btn {
+    width: 100%;
+    max-width: 760px;
+    align-self: center;
+  }
+
+  /* Affiches du duel : aussi grandes que la hauteur de la fenêtre le permet. */
+  .page.wide .duel {
+    grid-template-columns: repeat(2, minmax(0, calc((100dvh - var(--duel-chrome)) * 2 / 3 + 20px)));
+    justify-content: center;
+    gap: 36px;
+  }
+  .page.wide .duel-card {
+    padding: 10px;
+  }
+  .page.wide .duel .title-main {
+    font-size: 1.25rem;
+  }
+  .page.wide .duel .title-original,
+  .page.wide .duel .title-meta {
+    font-size: 0.95rem;
+  }
+  .page.wide .duel .title-credits {
+    font-size: 0.9rem;
+  }
+  .page.wide .vs {
+    width: 70px;
+    height: 70px;
+    font-size: 1.55rem;
+  }
+  .page.wide .info-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.15rem;
+  }
+  .page.wide .duel-overview {
+    font-size: 0.95rem;
+    padding: 14px;
+  }
+  .page.wide .question {
+    font-size: 1.6rem;
+  }
+  .page.wide .row.center .btn {
+    padding: 12px 22px;
+    font-size: 1.05rem;
+  }
+}

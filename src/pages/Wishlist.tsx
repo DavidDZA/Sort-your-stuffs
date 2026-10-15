@@ -46,7 +46,7 @@ export default function Wishlist() {
   const providers = (t: Title) => <ProviderLine title={t} maxAge={WEEK} />;
 
   return (
-    <main className="page">
+    <main className="page wide wishlist-page">
       <TopBar title="💖 Wishlist" right={wishes && <span className="pill" title="Titres dans la wishlist">{wishes.length}</span>} />
       <TypeFilter<View>
         value={view}
