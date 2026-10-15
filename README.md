@@ -60,6 +60,11 @@ src/
 tests/               tests Vitest (logique pure + base en mémoire)
 ```
 
+## Suite du projet
+
+Comptes, données sur serveur, comparaison entre comptes et appli Android / Play Store :
+voir [docs/PLAN-comptes-serveur-android.md](docs/PLAN-comptes-serveur-android.md).
+
 ## Déploiement
 
 Chaque push sur `main` déploie sur GitHub Pages via `.github/workflows/deploy.yml`
