@@ -7,6 +7,7 @@ import { loadActivity, streak, todayCount } from './activity';
 import { exportData } from './backup';
 import { BADGES, checkBadges, checkBadgesSoon } from './badges';
 import { pick, toast } from './fun';
+import { useIsDesktop } from './hooks';
 import { FicheHost } from './components/Fiche';
 import Swipe from './pages/Swipe';
 import Rank from './pages/Rank';
@@ -119,6 +120,7 @@ const TAGLINES = [
 
 function Home() {
   const [tagline] = useState(() => pick(TAGLINES));
+  const desktop = useIsDesktop(); // PC : format d'origine ; téléphone : format compact
   const stats = useLiveQuery(async () => {
     const byType = async (type: MediaType) => {
       const [total, answered, seen, ranking] = await Promise.all([
@@ -174,7 +176,16 @@ function Home() {
 
       {backupDue && (
         <div className="banner-soft row-banner">
-          <span>💾 {stats.lastExport ? `Sauvegarde il y a ${daysAgo(stats.lastExport)} j` : 'Pas encore de sauvegarde'}</span>
+          <span>
+            💾{' '}
+            {desktop
+              ? stats.lastExport
+                ? `Dernière sauvegarde il y a ${daysAgo(stats.lastExport)} jours`
+                : 'Aucune sauvegarde pour l’instant'
+              : stats.lastExport
+                ? `Sauvegarde il y a ${daysAgo(stats.lastExport)} j`
+                : 'Pas encore de sauvegarde'}
+          </span>
           <button className="btn small primary" onClick={backupNow} title="Télécharger une sauvegarde de tes données">
             Exporter
           </button>
@@ -183,12 +194,28 @@ function Home() {
 
       {catalogueOld && (
         <a className="banner-soft row-banner" href="#/settings" title="Récupérer les nouveaux films et séries">
-          <span>🔄 Catalogue vieux de {daysAgo(stats.lastSync!)} j</span>
+          <span>{desktop ? `🔄 Catalogue mis à jour il y a ${daysAgo(stats.lastSync!)} jours` : `🔄 Catalogue vieux de ${daysAgo(stats.lastSync!)} j`}</span>
           <span className="btn small">Mettre à jour</span>
         </a>
       )}
 
-      {stats && !emptyCatalogue && (
+      {stats && !emptyCatalogue &&
+        (desktop ? (
+        <section className="activity" title="Swipes et duels du jour">
+          <div className="activity-today">
+            <span className="activity-num">{stats.today}</span>
+            <span className="activity-label">tri{stats.today > 1 ? 's' : ''} aujourd’hui</span>
+          </div>
+          <div className="activity-side">
+            <span className={`streak ${stats.streak ? 'on' : ''}`} title="Jours d’affilée avec au moins un tri">
+              🔥 {stats.streak} jour{stats.streak > 1 ? 's' : ''}
+            </span>
+            <span className="muted small">
+              {stats.today === 0 ? 'Un petit swipe pour lancer la journée ?' : stats.today < 25 ? 'Bien parti, continue !' : 'Session de champion 🏆'}
+            </span>
+          </div>
+        </section>
+        ) : (
         <section className="activity-strip" title="Swipes et duels du jour">
           <span className={`streak ${stats.streak ? 'on' : ''}`} title="Jours d’affilée avec au moins un tri">
             🔥 {stats.streak} j
@@ -200,13 +227,22 @@ function Home() {
             {stats.today === 0 ? 'Un petit swipe ?' : stats.today < 25 ? 'Bien parti !' : 'Champion 🏆'}
           </span>
         </section>
-      )}
+        ))}
 
       {stats && stats.wish > 0 && (
         <a className="tonight-btn" href="#/tonight" title="Tirer au sort un titre de ta wishlist pour ce soir">
           <span className="tonight-emoji">🍿</span>
-          <b>Ce soir, je regarde quoi ?</b>
-          <span className="tonight-arrow">›</span>
+          {desktop ? (
+            <span>
+              <b>Ce soir, je regarde quoi ?</b>
+              <span className="tonight-sub">Un tirage dans ta wishlist, selon tes priorités</span>
+            </span>
+          ) : (
+            <>
+              <b>Ce soir, je regarde quoi ?</b>
+              <span className="tonight-arrow">›</span>
+            </>
+          )}
         </a>
       )}
 

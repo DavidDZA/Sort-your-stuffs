@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Title } from './db';
 
 /** Appui long (0,5 s) sans déplacement ; le clic qui suit est annulé. */
@@ -44,4 +44,18 @@ export const normalize = (s: string) =>
 export function matchesSearch(title: Title, query: string): boolean {
   const q = normalize(query.trim());
   return !q || normalize(title.title).includes(q) || normalize(title.originalTitle).includes(q);
+}
+
+/** Pilotage à la souris (PC) plutôt qu'au doigt (téléphone, tablette). */
+const DESKTOP = '(hover: hover) and (pointer: fine)';
+
+export function useIsDesktop(): boolean {
+  const [desktop, setDesktop] = useState(() => matchMedia(DESKTOP).matches);
+  useEffect(() => {
+    const query = matchMedia(DESKTOP);
+    const onChange = () => setDesktop(query.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+  return desktop;
 }
