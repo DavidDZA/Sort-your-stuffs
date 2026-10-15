@@ -89,5 +89,17 @@ export async function initialBounds(s: Scope, ranking: string[], key: string): P
   return bounds.lo <= bounds.hi ? bounds : full;
 }
 
+/** Duel de vérification : choisit deux titres voisins du classement (indices i et i + 1). */
+export function pickVerifyPair(length: number, random = Math.random): number | null {
+  return length >= 2 ? Math.floor(random() * (length - 1)) : null;
+}
+
+/** Échange les titres aux positions i et i + 1 (le second était préféré). */
+export function swapAdjacent(ranking: string[], i: number): string[] {
+  const next = [...ranking];
+  [next[i], next[i + 1]] = [next[i + 1], next[i]];
+  return next;
+}
+
 /** Nombre de duels restants (au pire) pour placer le titre. */
 export const duelsLeft = (s: InsertState) => Math.ceil(Math.log2(s.hi - s.lo + 1));

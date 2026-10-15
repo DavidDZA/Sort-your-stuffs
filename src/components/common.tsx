@@ -65,6 +65,18 @@ export function useDetails(title: Title, maxAge = Infinity) {
   return stored ?? fetched ?? title.details ?? null;
 }
 
+/** Pastille de la note TMDB (sur 10), verte, jaune ou rouge selon la note. */
+export function RatingBadge({ title }: { title: Title }) {
+  const d = useDetails(title);
+  if (!d?.rating) return null;
+  const level = d.rating >= 7.5 ? 'high' : d.rating >= 6 ? 'mid' : 'low';
+  return (
+    <span className={`rating-badge ${level}`} title={`Note moyenne TMDB : ${d.rating.toLocaleString('fr-FR')}/10`}>
+      ⭐ {d.rating.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+    </span>
+  );
+}
+
 /** Réalisateur (ou créateur) et 2 acteurs principaux. */
 function CreditsLines({ title }: { title: Title }) {
   const d = useDetails(title);

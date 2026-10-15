@@ -3,10 +3,11 @@ import { db, type MediaType, type Title } from '../db';
 import { changeStatus, readRanking, unrank, type Scope } from '../ranking';
 import { TopBar, TypeFilter } from '../components/common';
 import { Duel, RankedList } from '../components/Ranking';
+import { TierList } from '../components/TierList';
 import { shareTop } from '../share';
 import { toast } from '../fun';
 
-type View = 'duel' | 'list';
+type View = 'duel' | 'list' | 'tiers';
 
 export default function Rank({ type }: { type: MediaType }) {
   const [view, setView] = useState<View>('duel');
@@ -44,10 +45,13 @@ export default function Rank({ type }: { type: MediaType }) {
         options={[
           ['duel', 'Duels', 'Classer en choisissant entre deux titres'],
           ['list', 'Mon classement', 'Voir et modifier le classement'],
+          ['tiers', 'Tier list', 'Ton classement en paliers S, A, B, C, D'],
         ]}
         onChange={setView}
       />
-      {view === 'duel' ? (
+      {view === 'tiers' ? (
+        <TierList type={type} />
+      ) : view === 'duel' ? (
         <Duel scope={scope} question="Lequel préfères-tu ?" emptyText="Aucun titre vu pour l’instant. Swipe ou ajoute des titres vus." />
       ) : (
         <>

@@ -116,7 +116,7 @@ interface RawProvider {
   display_priorities?: Record<string, number>;
 }
 
-interface DetailsResponse {
+export interface DetailsResponse {
   runtime?: number | null;
   episode_run_time?: number[];
   last_episode_to_air?: { runtime?: number | null } | null;
@@ -138,13 +138,13 @@ export const providerLogo = (path: string | null) => (path ? `https://image.tmdb
 const toProviders = (list: RawProvider[] = []): Provider[] =>
   list.map((p) => ({ id: p.provider_id, name: p.provider_name, logo: p.logo_path }));
 
-function pickTrailer(videos: NonNullable<DetailsResponse['videos']>['results'] = []): string | null {
+export function pickTrailer(videos: NonNullable<DetailsResponse['videos']>['results'] = []): string | null {
   const yt = videos.filter((v) => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'));
   const score = (v: (typeof yt)[number]) => (v.type === 'Trailer' ? 4 : 0) + (v.iso_639_1 === 'fr' ? 2 : 0) + (v.official ? 1 : 0);
   return yt.sort((a, b) => score(b) - score(a))[0]?.key ?? null;
 }
 
-function parseDetails(type: MediaType, res: DetailsResponse): Details {
+export function parseDetails(type: MediaType, res: DetailsResponse): Details {
   const cast = res.credits?.cast ?? [];
   const crew = res.credits?.crew ?? [];
   const fr = res['watch/providers']?.results.FR;

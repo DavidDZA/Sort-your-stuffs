@@ -1776,3 +1776,186 @@ body:has(.swipe-page)::before {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+/* ---------- Tier list ---------- */
+
+.tier-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tier-row {
+  display: flex;
+  min-height: 84px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.tier-label {
+  flex: 0 0 52px;
+  display: grid;
+  place-items: center;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.6rem;
+  color: #15102a;
+}
+.tier-items {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding: 6px;
+}
+.tier-poster {
+  width: 48px;
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+.tier-poster:active {
+  transform: scale(0.94);
+}
+.tier-poster .poster {
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+/* ---------- Duels : vérification et raccourcis ---------- */
+
+.verify-tag {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgb(61 214 245 / 0.18);
+  color: var(--cyan);
+  font-size: 0.8rem;
+  vertical-align: middle;
+}
+@media (pointer: coarse) {
+  .kbd-hint {
+    display: none;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .tier-poster {
+    width: 64px;
+  }
+}
+
+.boost-tag {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  max-width: calc(100% - 32px);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgb(16 13 31 / 0.82);
+  border: 1px solid rgb(255 209 102 / 0.5);
+  color: var(--yellow);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+/* ---------- Ce soir, je regarde quoi ? ---------- */
+
+.tonight-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgb(255 95 162 / 0.35), rgb(255 159 67 / 0.25));
+  border: 1px solid rgb(255 159 67 / 0.5);
+  transition: transform 0.15s;
+}
+.tonight-btn:active {
+  transform: scale(0.97);
+}
+.tonight-btn b {
+  display: block;
+  font-family: var(--display);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.tonight-emoji {
+  font-size: 2rem;
+}
+.tonight-sub {
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--text) 75%, transparent);
+}
+.genre-chips {
+  max-height: 84px;
+  overflow-y: auto;
+}
+.roll-btn {
+  align-self: center;
+  font-size: 1.15rem;
+  padding: 12px 28px;
+}
+.tonight-card {
+  display: flex;
+  gap: 14px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.tonight-card.revealed {
+  border-color: rgb(255 209 102 / 0.6);
+  box-shadow: 0 0 30px rgb(255 209 102 / 0.2);
+  animation: pop 0.35s;
+}
+.tonight-poster {
+  width: 130px;
+  flex-shrink: 0;
+}
+.tonight-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.tonight-overview {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Note TMDB sur la carte de swipe. */
+.rating-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgb(16 13 31 / 0.85);
+  border: 1px solid currentColor;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+.rating-badge.high {
+  color: var(--green);
+}
+.rating-badge.mid {
+  color: var(--yellow);
+}
+.rating-badge.low {
+  color: #ff8a8a;
+}
+.boost-tag {
+  max-width: calc(100% - 110px);
+}

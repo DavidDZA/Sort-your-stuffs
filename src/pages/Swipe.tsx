@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { clearStatus, db, setStatus, type MediaType, type Status, type Tier, type Title } from '../db';
 import { ensureDetails, fetchSaga, posterUrl } from '../tmdb';
-import { BackLink, Poster, Sheet, TitleText } from '../components/common';
+import { BackLink, Poster, RatingBadge, Sheet, TitleText } from '../components/common';
 import SwipeCard, { type Dir, type Tone } from '../components/SwipeCard';
 import { openFiche } from '../components/Fiche';
 import { burst, centerOf, MILESTONES, pick, toast } from '../fun';
 import { recordActivity } from '../activity';
+import { boostFactor, boostFrom, loadBoosts, type Boosts } from '../recommend';
 import { getSwipeMode, readPref, writePref } from '../settings';
 import { genreOptions, isNoTheme, LANGS, matchesTheme, NO_THEME, PERIODS, themeLabel, type Theme } from '../themes';
 
@@ -133,6 +134,9 @@ export default function Swipe({ type }: { type: MediaType }) {
   const themeKey = `swipe-theme:${type}`;
   const pool = useRef<Pool>({ items: [], total: 0 });
   const catalogue = useRef<Title[]>([]);
+  // Titres recommandés d'après ceux que tu as aimés : tirés plus souvent.
+  const boosts = useRef<Boosts>({});
+  const weightOf = (t: Title) => Math.pow(Math.max(t.voteCount, 1), WEIGHT_EXP) * boostFactor(boosts.current[t.key]);
   const answered = useRef(new Set<string>());
   const [loaded, setLoaded] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => readPref(themeKey, NO_THEME));
@@ -166,10 +170,15 @@ export default function Swipe({ type }: { type: MediaType }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [titles, keys] = await Promise.all([db.titles.where('type').equals(type).toArray(), db.answers.where('type').equals(type).primaryKeys()]);
+      const [titles, keys, saved] = await Promise.all([
+        db.titles.where('type').equals(type).toArray(),
+        db.answers.where('type').equals(type).primaryKeys(),
+        loadBoosts(type),
+      ]);
       if (cancelled) return;
       catalogue.current = titles;
       answered.current = new Set(keys);
+      boosts.current = saved;
       setLoaded(true);
     })();
     return () => {
@@ -182,7 +191,7 @@ export default function Swipe({ type }: { type: MediaType }) {
     if (!loaded) return;
     const items = catalogue.current
       .filter((t) => !answered.current.has(t.key) && matchesTheme(t, theme))
-      .map((title) => ({ title, w: Math.pow(Math.max(title.voteCount, 1), WEIGHT_EXP) }));
+      .map((title) => ({ title, w: weightOf(title) }));
     pool.current = { items, total: items.reduce((s, i) => s + i.w, 0) };
     setPhase('seen');
     setShowInfo(false);
@@ -231,6 +240,7 @@ export default function Swipe({ type }: { type: MediaType }) {
       tier = dir === 'right' ? 'good' : 'meh';
     } else status = dir === 'right' ? 'wish' : 'unseen';
     await setStatus(current, status, tier);
+    if (tier === 'good') boostRecommendations(current);
     answered.current.add(current.key);
     recordActivity();
     const origin = centerOf(cardArea.current);
@@ -263,6 +273,23 @@ export default function Swipe({ type }: { type: MediaType }) {
       setTimeout(() => setFlip(null), 420);
     }
     advance(rest);
+  };
+
+  /** Titre aimé : ses recommandations TMDB sont tirées plus souvent (en arrière-plan). */
+  const boostRecommendations = async (liked: Title) => {
+    const titles = await boostFrom(liked);
+    if (!titles.length) return;
+    boosts.current = await loadBoosts(type);
+    const inPool = new Map(pool.current.items.map((i) => [i.title.key, i]));
+    const known = new Set(catalogue.current.map((t) => t.key));
+    for (const t of titles) {
+      if (answered.current.has(t.key)) continue;
+      if (!known.has(t.key)) catalogue.current.push(t);
+      const item = inPool.get(t.key);
+      if (item) item.w = weightOf(item.title);
+      else if (!known.has(t.key) && matchesTheme(t, theme)) pool.current.items.push({ title: t, w: weightOf(t) });
+    }
+    pool.current.total = pool.current.items.reduce((s, i) => s + i.w, 0);
   };
 
   const skip = () => {
@@ -405,6 +432,8 @@ export default function Swipe({ type }: { type: MediaType }) {
             {behind && (
               <div key={behind.key} className="swipe-card card-behind" aria-hidden>
                 <Poster title={behind} size="w500" className="card-poster" />
+                <BoostTag boost={boosts.current[behind.key]} />
+                <RatingBadge title={behind} />
                 <TitleText title={behind} credits />
               </div>
             )}
@@ -426,6 +455,8 @@ export default function Swipe({ type }: { type: MediaType }) {
               onTap={() => setShowInfo((s) => !s)}
             >
               <Poster title={current} size="w500" className="card-poster" />
+              <BoostTag boost={boosts.current[current.key]} />
+              <RatingBadge title={current} />
               {showInfo && (
                 <div className="card-overview" onPointerDown={(e) => e.stopPropagation()}>
                   <button className="overview-close" onClick={() => setShowInfo(false)} aria-label="Fermer le résumé" title="Fermer le résumé">
@@ -548,5 +579,15 @@ function ActionButton(props: {
       </button>
       <span className="action-caption">{props.caption}</span>
     </div>
+  );
+}
+
+/** Petite étiquette sur l'affiche quand le titre est proposé grâce à un titre aimé. */
+function BoostTag({ boost }: { boost?: { from: string } }) {
+  if (!boost) return null;
+  return (
+    <span className="boost-tag" title={`Recommandé parce que tu as aimé « ${boost.from} »`}>
+      ✨ Comme « {boost.from} »
+    </span>
   );
 }

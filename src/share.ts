@@ -47,38 +47,8 @@ export async function shareTop(type: MediaType, titles: Title[]): Promise<void> 
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d')!;
-
-  // Fond : dégradé sombre et halos colorés, comme dans l'appli.
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, '#140f2b');
-  bg.addColorStop(1, '#2a1640');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-  for (const [x, y, r, color] of [
-    [W * 0.15, H * 0.1, 420, 'rgba(255,95,162,0.25)'],
-    [W * 0.9, H * 0.25, 380, 'rgba(61,214,245,0.16)'],
-    [W * 0.6, H * 0.95, 460, 'rgba(139,124,255,0.25)'],
-  ] as const) {
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, color);
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
-  }
-
-  // Titre.
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  const titleGrad = ctx.createLinearGradient(W * 0.25, 0, W * 0.75, 0);
-  titleGrad.addColorStop(0, '#ff5fa2');
-  titleGrad.addColorStop(0.5, '#ff9f43');
-  titleGrad.addColorStop(1, '#ffd166');
-  ctx.fillStyle = titleGrad;
-  ctx.font = `700 72px ${FONT}`;
-  ctx.fillText(`Mon top ${top.length} ${type === 'movie' ? 'films' : 'séries'}`, W / 2, 105);
-  ctx.fillStyle = '#aaa4ca';
-  ctx.font = `500 30px ${FONT}`;
-  ctx.fillText('🏆 classé duel après duel', W / 2, 152);
+  paintBackground(ctx, W, H);
+  paintTitle(ctx, W, `Mon top ${top.length} ${type === 'movie' ? 'films' : 'séries'}`, '🏆 classé duel après duel');
 
   const images = await Promise.all(top.map((t) => loadImage(posterUrl(t.posterPath, 'w342'))));
 
@@ -137,13 +107,51 @@ export async function shareTop(type: MediaType, titles: Title[]): Promise<void> 
   ctx.font = `500 24px ${FONT}`;
   ctx.fillText('Fait avec Sort my stuffs 🍿', W / 2, H - 32);
 
+  await shareCanvas(canvas, `mon-top-${type === 'movie' ? 'films' : 'series'}.png`, `Mon top ${top.length}`);
+}
+
+function paintBackground(ctx: CanvasRenderingContext2D, W: number, H: number) {
+  // Fond : dégradé sombre et halos colorés, comme dans l'appli.
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#140f2b');
+  bg.addColorStop(1, '#2a1640');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+  for (const [x, y, r, color] of [
+    [W * 0.15, Math.min(H * 0.1, 200), 420, 'rgba(255,95,162,0.25)'],
+    [W * 0.9, H * 0.25, 380, 'rgba(61,214,245,0.16)'],
+    [W * 0.6, H * 0.95, 460, 'rgba(139,124,255,0.25)'],
+  ] as const) {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, color);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+function paintTitle(ctx: CanvasRenderingContext2D, W: number, title: string, subtitle: string) {
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  const grad = ctx.createLinearGradient(W * 0.25, 0, W * 0.75, 0);
+  grad.addColorStop(0, '#ff5fa2');
+  grad.addColorStop(0.5, '#ff9f43');
+  grad.addColorStop(1, '#ffd166');
+  ctx.fillStyle = grad;
+  ctx.font = `700 72px ${FONT}`;
+  ctx.fillText(title, W / 2, 105);
+  ctx.fillStyle = '#aaa4ca';
+  ctx.font = `500 30px ${FONT}`;
+  ctx.fillText(subtitle, W / 2, 152);
+}
+
+async function shareCanvas(canvas: HTMLCanvasElement, filename: string, title: string): Promise<void> {
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
   if (!blob) throw new Error('Impossible de créer l’image.');
-  const file = new File([blob], `mon-top-${type === 'movie' ? 'films' : 'series'}.png`, { type: 'image/png' });
-
+  const file = new File([blob], filename, { type: 'image/png' });
   if (navigator.canShare?.({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: `Mon top ${top.length}` });
+      await navigator.share({ files: [file], title });
     } catch (e) {
       if ((e as Error).name !== 'AbortError') throw e;
     }
@@ -154,4 +162,67 @@ export async function shareTop(type: MediaType, titles: Title[]): Promise<void> 
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
+}
+
+/** Image de la tier list : une rangée colorée par palier, avec les affiches des titres. */
+export async function shareTierList(type: MediaType, tiers: { label: string; color: string; items: Title[] }[]): Promise<void> {
+  await document.fonts.load(`700 64px ${FONT}`).catch(() => undefined);
+  const count = tiers.reduce((s, t) => s + t.items.length, 0);
+  const W = 1080;
+  const pad = 40;
+  const labelW = 110;
+  const gap = 8;
+  const pw = count > 120 ? 52 : count > 60 ? 68 : 92; // affiches plus petites quand il y en a beaucoup
+  const ph = pw * 1.5;
+  const perRow = Math.max(1, Math.floor((W - 2 * pad - labelW - 16 + gap) / (pw + gap)));
+  const header = 190;
+  const rowHeights = tiers.map((t) => Math.max(1, Math.ceil(t.items.length / perRow)) * (ph + gap) + gap);
+  const H = header + rowHeights.reduce((s, h) => s + h + 10, 0) + 70;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d')!;
+  paintBackground(ctx, W, H);
+  paintTitle(ctx, W, `Ma tier list ${type === 'movie' ? 'films' : 'séries'}`, `🏆 ${count} titres classés duel après duel`);
+
+  const images = await Promise.all(tiers.flatMap((t) => t.items).map((t) => loadImage(posterUrl(t.posterPath, 'w185'))));
+  let index = 0;
+  let y = header;
+  tiers.forEach((tier, r) => {
+    const h = rowHeights[r];
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    roundRect(ctx, pad, y, W - 2 * pad, h, 14);
+    ctx.fill();
+    ctx.fillStyle = tier.color;
+    roundRect(ctx, pad, y, labelW, h, 14);
+    ctx.fill();
+    ctx.fillStyle = '#15102a';
+    ctx.font = `700 56px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(tier.label, pad + labelW / 2, y + h / 2);
+    tier.items.forEach((_, i) => {
+      const x = pad + labelW + 16 + (i % perRow) * (pw + gap);
+      const py = y + gap + Math.floor(i / perRow) * (ph + gap);
+      const img = images[index++];
+      ctx.save();
+      roundRect(ctx, x, py, pw, ph, 6);
+      ctx.clip();
+      if (img) ctx.drawImage(img, x, py, pw, ph);
+      else {
+        ctx.fillStyle = '#2a2445';
+        ctx.fillRect(x, py, pw, ph);
+      }
+      ctx.restore();
+    });
+    y += h + 10;
+  });
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = 'rgba(246,244,255,0.55)';
+  ctx.font = `500 24px ${FONT}`;
+  ctx.fillText('Fait avec Sort my stuffs 🍿', W / 2, H - 28);
+  await shareCanvas(canvas, `ma-tier-list-${type === 'movie' ? 'films' : 'series'}.png`, 'Ma tier list');
 }

@@ -14,6 +14,7 @@ import AddManual from './pages/AddManual';
 import Wishlist from './pages/Wishlist';
 import Lists from './pages/Lists';
 import StatsPage from './pages/Stats';
+import Tonight from './pages/Tonight';
 import Settings from './pages/Settings';
 
 function useRoute(): string[] {
@@ -30,7 +31,11 @@ const asType = (s: string | undefined): MediaType => (s === 'tv' ? 'tv' : 'movie
 
 export default function App() {
   const [page, arg] = useRoute();
-  useEffect(() => window.scrollTo(0, 0), [page, arg]);
+  // Accolades obligatoires : dans les Chrome récents, scrollTo renvoie une promesse,
+  // que React prendrait pour une fonction de nettoyage (plantage au changement de page).
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [page, arg]);
 
   // Vérifie les badges au démarrage puis au fil des swipes et des duels.
   useEffect(() => {
@@ -58,6 +63,9 @@ export default function App() {
       break;
     case 'stats':
       content = <StatsPage />;
+      break;
+    case 'tonight':
+      content = <Tonight />;
       break;
     case 'settings':
       content = <Settings />;
@@ -195,6 +203,16 @@ function Home() {
             </span>
           </div>
         </section>
+      )}
+
+      {stats && stats.wish > 0 && (
+        <a className="tonight-btn" href="#/tonight" title="Tirer au sort un titre de ta wishlist pour ce soir">
+          <span className="tonight-emoji">🍿</span>
+          <span>
+            <b>Ce soir, je regarde quoi ?</b>
+            <span className="tonight-sub">Un tirage dans ta wishlist, selon tes priorités</span>
+          </span>
+        </a>
       )}
 
       <div className="tiles">
