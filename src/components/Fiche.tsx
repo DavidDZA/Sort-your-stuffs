@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, TYPE_LABEL, type Provider, type Status, type Title } from '../lib/db';
 import { changeStatus } from '../lib/ranking';
 import { providerLogo, WEEK } from '../lib/tmdb';
-import { getMyProviders } from '../lib/settings';
+import { groupProviders, isMineGroup, loadMyProviders } from '../lib/providers';
 import { Poster, Sheet, useDetails } from './common';
 
 /** Ouvre la fiche complète d'un titre (voir <FicheHost /> dans App). */
@@ -139,13 +139,19 @@ function Fiche({ title, onClose }: { title: Title; onClose: () => void }) {
 
 function ProviderGroup({ label, list }: { label: string; list: Provider[] }) {
   if (!list.length) return null;
-  const mine = new Set(getMyProviders());
+  const mine = loadMyProviders();
   return (
     <div className="provider-group">
       <span className="muted small">{label}</span>
       <div className="providers">
-        {list.map((p) => (
-          <img key={p.id} className={`provider-logo big ${mine.has(p.id) ? 'mine' : ''}`} src={providerLogo(p.logo) ?? ''} alt={p.name} title={p.name} />
+        {groupProviders(list).map((g) => (
+          <img
+            key={g.key}
+            className={`provider-logo big ${isMineGroup(g, mine) ? 'mine' : ''}`}
+            src={providerLogo(g.logo) ?? ''}
+            alt={g.label}
+            title={g.names.join(' · ')}
+          />
         ))}
       </div>
     </div>

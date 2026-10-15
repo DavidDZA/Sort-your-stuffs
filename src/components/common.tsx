@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, TYPE_LABEL, type Title } from '../lib/db';
 import { ensureDetails, posterUrl, providerLogo } from '../lib/tmdb';
-import { getMyProviders } from '../lib/settings';
+import { groupProviders, isMineGroup, loadMyProviders } from '../lib/providers';
 import { useLongPress } from '../lib/hooks';
 import { openFiche } from './Fiche';
 
@@ -96,16 +96,24 @@ function CreditsLines({ title }: { title: Title }) {
 export function ProviderLine({ title, maxAge }: { title: Title; maxAge?: number }) {
   const d = useDetails(title, maxAge);
   if (!d) return null;
-  const mine = new Set(getMyProviders());
+  const mine = loadMyProviders();
   const { flatrate, rent, buy } = d.providers;
   if (!flatrate.length) {
     return rent.length || buy.length ? <div className="providers muted small">💰 Location / achat</div> : null;
   }
   return (
     <div className="providers">
-      {flatrate.slice(0, 5).map((p) => (
-        <img key={p.id} className={`provider-logo ${mine.has(p.id) ? 'mine' : ''}`} src={providerLogo(p.logo) ?? ''} alt={p.name} title={p.name} />
-      ))}
+      {groupProviders(flatrate)
+        .slice(0, 5)
+        .map((g) => (
+          <img
+            key={g.key}
+            className={`provider-logo ${isMineGroup(g, mine) ? 'mine' : ''}`}
+            src={providerLogo(g.logo) ?? ''}
+            alt={g.label}
+            title={g.names.join(' · ')}
+          />
+        ))}
     </div>
   );
 }

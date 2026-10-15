@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { tierize } from '../src/lib/tiers';
 import { matchesTonight, NO_FILTERS, pickWeighted, priorityWeight } from '../src/lib/tonight';
+import { availableOnMine, groupProviders, providerFamily, providerLabel, type MyProviders } from '../src/lib/providers';
 import { boostFactor, mergeBoosts } from '../src/lib/recommend';
 import { matchesTheme, NO_THEME } from '../src/lib/themes';
 import { bestStreak, lastDays, streak } from '../src/lib/activity';
@@ -40,17 +41,21 @@ describe('ce soir, je regarde quoi ?', () => {
   const netflix = { id: 8, name: 'Netflix', logo: null };
 
   it('filtre par type, abonnements, durée et genre', () => {
+    const mine = (families: string[], ids: number[] = []): MyProviders => ({ families: new Set(families), legacyIds: new Set(ids) });
+    const none = mine([]);
+    const netflixFamily = mine(['netflix']);
+    const disneyFamily = mine(['disney+']);
     const film = makeTitle(1, { details: details({ runtime: 100, genres: ['Comédie'], providers: { flatrate: [netflix], rent: [], buy: [], link: null } }) });
     const long = makeTitle(2, { details: details({ runtime: 170 }) });
     const serie = makeTitle(3, {}, 'tv');
-    expect(matchesTonight(film, { ...NO_FILTERS, type: 'tv' }, [])).toBe(false);
-    expect(matchesTonight(serie, { ...NO_FILTERS, type: 'tv' }, [])).toBe(true);
-    expect(matchesTonight(film, { ...NO_FILTERS, mineOnly: true }, [8])).toBe(true);
-    expect(matchesTonight(film, { ...NO_FILTERS, mineOnly: true }, [337])).toBe(false);
-    expect(matchesTonight(long, { ...NO_FILTERS, short: true }, [])).toBe(false);
-    expect(matchesTonight(serie, { ...NO_FILTERS, short: true }, [])).toBe(true); // la durée ne concerne que les films
-    expect(matchesTonight(film, { ...NO_FILTERS, genre: 'Comédie' }, [])).toBe(true);
-    expect(matchesTonight(long, { ...NO_FILTERS, genre: 'Comédie' }, [])).toBe(false);
+    expect(matchesTonight(film, { ...NO_FILTERS, type: 'tv' }, none)).toBe(false);
+    expect(matchesTonight(serie, { ...NO_FILTERS, type: 'tv' }, none)).toBe(true);
+    expect(matchesTonight(film, { ...NO_FILTERS, mineOnly: true }, netflixFamily)).toBe(true);
+    expect(matchesTonight(film, { ...NO_FILTERS, mineOnly: true }, disneyFamily)).toBe(false);
+    expect(matchesTonight(long, { ...NO_FILTERS, short: true }, none)).toBe(false);
+    expect(matchesTonight(serie, { ...NO_FILTERS, short: true }, none)).toBe(true); // la durée ne concerne que les films
+    expect(matchesTonight(film, { ...NO_FILTERS, genre: 'Comédie' }, none)).toBe(true);
+    expect(matchesTonight(long, { ...NO_FILTERS, genre: 'Comédie' }, none)).toBe(false);
   });
 
   it('donne 4 fois plus de chances au n°1 qu’au dernier', () => {
@@ -118,5 +123,40 @@ describe('recherche', () => {
     expect(matchesSearch(t, 'FABULEUX')).toBe(true);
     expect(matchesSearch(t, 'matrix')).toBe(false);
     expect(matchesSearch(t, '  ')).toBe(true);
+  });
+});
+
+describe('variantes des plateformes', () => {
+  it('regroupe offres avec pub, chaînes Amazon / Apple et écritures du « + »', () => {
+    expect(providerLabel('HBO Max Amazon Channel')).toBe('HBO Max');
+    expect(providerLabel('Netflix Standard with Ads')).toBe('Netflix');
+    expect(providerLabel('Amazon Prime Video with Ads')).toBe('Amazon Prime Video');
+    expect(providerLabel('Paramount Plus Apple TV channel')).toBe('Paramount Plus');
+    expect(providerFamily('Paramount Plus Premium')).toBe(providerFamily('Paramount+ Amazon Channel'));
+    expect(providerFamily('M6plus Amazon Channel')).toBe(providerFamily('M6+'));
+    expect(providerFamily('INA  madelen Amazon Channel')).toBe(providerFamily('INA madelen'));
+    expect(providerFamily('Disney Plus')).toBe('disney+');
+  });
+
+  it('ne mélange pas des services différents', () => {
+    expect(providerFamily('Apple TV')).not.toBe(providerFamily('Apple TV Store'));
+    expect(providerFamily('Arte')).not.toBe(providerFamily('ARTE VOD'));
+    expect(providerFamily('Canal+')).not.toBe(providerFamily('Canal+ Séries'));
+  });
+
+  it('une seule entrée par plateforme, et le filtre trouve toutes les variantes', () => {
+    const list = [
+      { id: 1899, name: 'HBO Max', logo: '/h.png' },
+      { id: 1825, name: 'HBO Max Amazon Channel', logo: '/ha.png' },
+      { id: 8, name: 'Netflix Standard with Ads', logo: '/n.png' },
+    ];
+    const groups = groupProviders(list);
+    expect(groups.map((g) => g.label)).toEqual(['HBO Max', 'Netflix']);
+    expect(groups[0].ids).toEqual([1899, 1825]);
+    // Abonné à « Netflix » : un titre seulement sur l'offre avec pub compte quand même.
+    expect(availableOnMine(list, { families: new Set(['netflix']), legacyIds: new Set() })).toBe(true);
+    // Ancien format (identifiants) toujours reconnu.
+    expect(availableOnMine(list, { families: new Set(), legacyIds: new Set([1825]) })).toBe(true);
+    expect(availableOnMine(list, { families: new Set(['disney+']), legacyIds: new Set() })).toBe(false);
   });
 });

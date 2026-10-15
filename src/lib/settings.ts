@@ -45,7 +45,7 @@ export const setMinVotes = (v: MinVotes) => write(VOTES_KEY, JSON.stringify(v));
 
 const PROVIDERS_KEY = 'my-providers';
 
-/** Plateformes auxquelles l'utilisateur est abonné (identifiants TMDB). */
+/** Ancien format : identifiants TMDB des plateformes cochées (remplacé par les familles, converti à l'ouverture des réglages). */
 export function getMyProviders(): number[] {
   try {
     const v = JSON.parse(read(PROVIDERS_KEY) ?? '[]');
@@ -56,6 +56,20 @@ export function getMyProviders(): number[] {
 }
 
 export const setMyProviders = (ids: number[]) => write(PROVIDERS_KEY, JSON.stringify(ids));
+
+const FAMILIES_KEY = 'my-provider-families';
+
+/** Plateformes auxquelles l'utilisateur est abonné, par famille (voir lib/providers.ts). */
+export function getMyProviderFamilies(): string[] {
+  try {
+    const v = JSON.parse(read(FAMILIES_KEY) ?? '[]');
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+
+export const setMyProviderFamilies = (families: string[]) => write(FAMILIES_KEY, JSON.stringify(families));
 
 /** Lecture / écriture JSON générique pour les petites préférences (thème de swipe…). */
 export function readPref<T>(key: string, fallback: T): T {

@@ -3,7 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Title } from '../lib/db';
 import { changeStatus, readRanking } from '../lib/ranking';
 import { prefetchDetails, WEEK } from '../lib/tmdb';
-import { getMyProviders, readPref, writePref } from '../lib/settings';
+import { readPref, writePref } from '../lib/settings';
+import { hasMyProviders, loadMyProviders } from '../lib/providers';
 import { matchesTonight, NO_FILTERS, pickWeighted, priorityWeight, type TonightFilters } from '../lib/tonight';
 import { burst, toast } from '../lib/fun';
 import { Poster, ProviderLine, RatingBadge, TitleText, TopBar, TypeFilter } from '../components/common';
@@ -17,7 +18,7 @@ export default function Tonight() {
   const [picked, setPicked] = useState<Title | null>(null);
   const [rolling, setRolling] = useState<Title | null>(null);
   const shown = useRef(new Set<string>());
-  const myProviders = getMyProviders();
+  const mine = loadMyProviders();
 
   const data = useLiveQuery(async () => {
     const keys = await db.answers.where('status').equals('wish').primaryKeys();
@@ -49,7 +50,7 @@ export default function Tonight() {
     );
   }
 
-  const candidates = data.titles.filter((t) => matchesTonight(t, filters, myProviders));
+  const candidates = data.titles.filter((t) => matchesTonight(t, filters, mine));
   const genres = [...new Set(data.titles.flatMap((t) => t.details?.genres ?? []))].sort((a, b) => a.localeCompare(b, 'fr'));
 
   const roll = () => {
@@ -100,7 +101,7 @@ export default function Tonight() {
         onChange={(type) => update({ ...filters, type })}
       />
       <div className="chips">
-        {myProviders.length > 0 && (
+        {hasMyProviders(mine) && (
           <button className={`chip ${filters.mineOnly ? 'active' : ''}`} onClick={() => update({ ...filters, mineOnly: !filters.mineOnly })} title="Seulement ce qui est dispo sur tes abonnements">
             📺 Sur mes abonnements
           </button>

@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type MediaType, type Title } from '../lib/db';
 import { changeStatus, scopeId, unrank, type Scope } from '../lib/ranking';
 import { prefetchDetails, WEEK } from '../lib/tmdb';
-import { getMyProviders } from '../lib/settings';
+import { availableOnMine, hasMyProviders, loadMyProviders } from '../lib/providers';
 import { matchesSearch } from '../lib/hooks';
 import { ProviderLine, SearchBox, TitleRow, TopBar, TypeFilter } from '../components/common';
 import { Duel } from '../components/Duel';
@@ -16,7 +16,7 @@ export default function Wishlist() {
   const [view, setView] = useState<View>('list');
   const [filter, setFilter] = useState<Filter>('all');
   const [onlyMine, setOnlyMine] = useState(false);
-  const myProviders = getMyProviders();
+  const mine = loadMyProviders();
   const wishes = useLiveQuery(async () => {
     const keys = await db.answers.where('status').equals('wish').primaryKeys();
     return (await db.titles.bulkGet(keys)).filter((t): t is Title => !!t);
@@ -31,7 +31,7 @@ export default function Wishlist() {
   const type: MediaType = filter === 'all' ? 'movie' : filter;
   const scope: Scope = { type, list: 'wish' };
   const mineFilter = onlyMine
-    ? (t: Title) => !!t.details?.providers.flatrate.some((p) => myProviders.includes(p.id))
+    ? (t: Title) => !!t.details && availableOnMine(t.details.providers.flatrate, mine)
     : undefined;
 
   const actions = (t: Title, ranked: boolean): ReactNode => (
@@ -70,7 +70,7 @@ export default function Wishlist() {
         onChange={setFilter}
       />
       {view === 'list' &&
-        (myProviders.length ? (
+        (hasMyProviders(mine) ? (
           <button
             className={`chip ${onlyMine ? 'active' : ''}`}
             onClick={() => setOnlyMine((v) => !v)}

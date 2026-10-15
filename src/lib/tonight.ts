@@ -1,4 +1,5 @@
 import type { Title } from './db';
+import { availableOnMine, type MyProviders } from './providers';
 
 export interface TonightFilters {
   type: 'all' | 'movie' | 'tv';
@@ -9,10 +10,10 @@ export interface TonightFilters {
 
 export const NO_FILTERS: TonightFilters = { type: 'all', mineOnly: false, short: false, genre: null };
 
-export function matchesTonight(t: Title, f: TonightFilters, myProviders: number[]): boolean {
+export function matchesTonight(t: Title, f: TonightFilters, mine: MyProviders): boolean {
   if (f.type !== 'all' && t.type !== f.type) return false;
   const d = t.details;
-  if (f.mineOnly && !d?.providers.flatrate.some((p) => myProviders.includes(p.id))) return false;
+  if (f.mineOnly && !(d && availableOnMine(d.providers.flatrate, mine))) return false;
   if (f.short && t.type === 'movie' && (!d?.runtime || d.runtime > 120)) return false;
   if (f.genre && !d?.genres.includes(f.genre)) return false;
   return true;
