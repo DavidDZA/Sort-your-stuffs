@@ -29,6 +29,7 @@
 html,
 body {
   margin: 0;
+  overflow-x: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -1713,26 +1714,21 @@ body:has(.swipe-page)::before {
 /* ---------- PC (souris) : écrans de classement en grand ---------- */
 
 @media (hover: hover) and (pointer: fine) {
+  /* La page garde la largeur de l'accueil (en-tête, onglets, listes alignés) ;
+     seul le duel s'élargit et déborde de la même façon des deux côtés. */
   .page.wide {
-    max-width: 1040px;
     /* Hauteur prise par tout ce qui n'est pas l'affiche dans un duel. */
     --duel-chrome: 460px;
+    /* Largeur d'une carte : limitée par la hauteur de la fenêtre et par sa largeur. */
+    --duel-col: min(calc((100dvh - var(--duel-chrome)) * 2 / 3 + 20px), calc((100vw - 68px) / 2));
   }
   .page.wide.wishlist-page {
     --duel-chrome: 520px;
   }
-  .page.wide .list,
-  .page.wide > .input,
-  .page.wide > .btn {
-    width: 100%;
-    max-width: 760px;
-    align-self: center;
-  }
-
-  /* Affiches du duel : aussi grandes que la hauteur de la fenêtre le permet. */
   .page.wide .duel {
-    grid-template-columns: repeat(2, minmax(0, calc((100dvh - var(--duel-chrome)) * 2 / 3 + 20px)));
-    justify-content: center;
+    grid-template-columns: repeat(2, var(--duel-col));
+    width: calc(var(--duel-col) * 2 + 36px);
+    align-self: center;
     gap: 36px;
   }
   .page.wide .duel-card {
