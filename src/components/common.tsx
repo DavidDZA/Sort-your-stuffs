@@ -6,12 +6,21 @@ import { getMyProviders } from '../settings';
 import { useLongPress } from '../hooks';
 import { openFiche } from './Fiche';
 
+/** Bouton retour à l'accueil : chevron dessiné (centré exactement, contrairement au caractère « ‹ »). */
+export function BackLink() {
+  return (
+    <a className="icon-btn" href="#/" aria-label="Retour" title="Retour à l’accueil">
+      <svg className="icon-svg" viewBox="0 0 24 24" aria-hidden>
+        <path d="M15.25 5.5 8.75 12l6.5 6.5" />
+      </svg>
+    </a>
+  );
+}
+
 export function TopBar({ title, right }: { title: string; right?: ReactNode }) {
   return (
     <header className="topbar">
-      <a className="icon-btn" href="#/" aria-label="Retour" title="Retour à l’accueil">
-        ‹
-      </a>
+      <BackLink />
       <h2>{title}</h2>
       <div className="topbar-right">{right}</div>
     </header>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { clearStatus, db, setStatus, type MediaType, type Status, type Tier, type Title } from '../db';
 import { ensureDetails, fetchSaga, posterUrl } from '../tmdb';
-import { Poster, Sheet, TitleText } from '../components/common';
+import { BackLink, Poster, Sheet, TitleText } from '../components/common';
 import SwipeCard, { type Dir, type Tone } from '../components/SwipeCard';
 import { openFiche } from '../components/Fiche';
 import { burst, centerOf, MILESTONES, pick, toast } from '../fun';
@@ -350,9 +350,7 @@ export default function Swipe({ type }: { type: MediaType }) {
   return (
     <main className={`page swipe-page ${mode}`}>
       <header className="swipe-top">
-        <a className="icon-btn" href="#/" aria-label="Retour" title="Retour à l’accueil">
-          ‹
-        </a>
+        <BackLink />
         <h2 className={`swipe-title ${mode === 'horizontal' && current ? `question ${phase}` : ''}`}>
           {mode === 'horizontal' && current ? p.question : typeTitle}
         </h2>
