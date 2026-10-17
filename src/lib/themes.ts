@@ -45,6 +45,7 @@ const NAMED_LANGS: [string, string][] = [
   ['it', '🇮🇹 Italien'],
   ['de', '🇩🇪 Allemand'],
   ['ko', '🇰🇷 Coréen'],
+  ['ja', '🇯🇵 Japonais'],
 ];
 
 export const LANGS: { id: string; label: string; match: (l: string) => boolean }[] = [

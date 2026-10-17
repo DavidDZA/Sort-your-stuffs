@@ -101,7 +101,7 @@ describe('thèmes de swipe', () => {
     const korean = makeTitle(8, { originalLanguage: 'ko' });
     expect(matchesTheme(korean, { ...NO_THEME, lang: 'ko' })).toBe(true);
     expect(matchesTheme(korean, { ...NO_THEME, lang: 'other' })).toBe(false); // le coréen a son propre choix
-    expect(matchesTheme(makeTitle(9, { originalLanguage: 'ja' }), { ...NO_THEME, lang: 'other' })).toBe(true);
+    expect(matchesTheme(makeTitle(9, { originalLanguage: 'zh' }), { ...NO_THEME, lang: 'other' })).toBe(true);
   });
 
   it('genre et langue lus dans la fiche détaillée quand le catalogue ne les a pas', () => {
