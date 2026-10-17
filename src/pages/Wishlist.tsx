@@ -5,7 +5,7 @@ import { changeStatus, scopeId, unrank, type Scope } from '../lib/ranking';
 import { prefetchDetails, WEEK } from '../lib/tmdb';
 import { availableOnMine, hasMyProviders, loadMyProviders } from '../lib/providers';
 import { matchesSearch } from '../lib/hooks';
-import { matchesTheme, themeFilter, themeLabel } from '../lib/themes';
+import { matchesTheme, missingFilterInfo, themeFilter, themeLabel } from '../lib/themes';
 import { ProviderLine, SearchBox, SeenButtons, TitleRow, TopBar, TypeFilter } from '../components/common';
 import { FilterButton, FilterSheet, FilterStrip, useSavedFilter } from '../components/FilterSheet';
 import { Duel } from '../components/Duel';
@@ -114,6 +114,7 @@ export default function Wishlist() {
           count={(t) => (wishes ?? []).filter((x) => (!listType || x.type === listType) && matchesTheme(x, listType ? t : { ...t, genre: null })).length}
           applyLabel={(n) => `Appliquer (${n.toLocaleString('fr-FR')} titres)`}
           hasCatalogueData={(wishes ?? []).some((t) => t.rating !== undefined || t.details?.rating)}
+          pendingInfo={(wishes ?? []).filter(missingFilterInfo).length}
           onApply={(t) => {
             // Le genre choisi est gardé pour Films / Séries, même s'il ne s'applique pas à « Tous ».
             setTheme(listType ? t : { ...t, genre: savedTheme.genre });

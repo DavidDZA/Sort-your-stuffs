@@ -17,6 +17,8 @@ export function FilterSheet(props: {
   applyLabel: (n: number) => string;
   /** Le catalogue a-t-il les genres, langues et notes (sinon : mise à jour à faire) ? */
   hasCatalogueData: boolean;
+  /** Titres dont les infos (genre, langue, note) sont en cours de récupération. */
+  pendingInfo?: number;
   onApply: (t: Theme) => void;
   onClose: () => void;
 }) {
@@ -28,8 +30,12 @@ export function FilterSheet(props: {
       <h2 className="sheet-title">
         <FilterIcon /> Filtres
       </h2>
-      {!props.hasCatalogueData && (
-        <p className="banner-soft small">Mets à jour le catalogue (Réglages) pour filtrer par genre, langue et note.</p>
+      {props.pendingInfo ? (
+        <p className="banner-soft small">
+          ⏳ Récupération des genres, langues et notes de {props.pendingInfo.toLocaleString('fr-FR')} titres… les résultats se complètent.
+        </p>
+      ) : (
+        !props.hasCatalogueData && <p className="banner-soft small">Mets à jour le catalogue (Réglages) pour filtrer par genre, langue et note.</p>
       )}
 
       <h3 className="sheet-label">Période</h3>

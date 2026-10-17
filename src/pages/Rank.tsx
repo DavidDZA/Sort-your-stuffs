@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type MediaType, type Title } from '../lib/db';
 import { changeStatus, readRanking, unrank, type Scope } from '../lib/ranking';
-import { matchesTheme, themeFilter, themeLabel } from '../lib/themes';
+import { matchesTheme, missingFilterInfo, themeFilter, themeLabel } from '../lib/themes';
+import { prefetchDetails } from '../lib/tmdb';
 import { TopBar, TypeFilter } from '../components/common';
 import { Duel } from '../components/Duel';
 import { RankedList } from '../components/RankedList';
@@ -27,6 +28,12 @@ export default function Rank({ type }: { type: MediaType }) {
     const keys = await db.answers.where('[type+status]').equals([type, 'seen']).primaryKeys();
     return (await db.titles.bulkGet(keys)).filter((t): t is Title => !!t);
   }, [type]);
+
+  // Titres sans genre / langue (catalogue d'avant le 17/10) : complétés en arrière-plan pour les filtres.
+  const pending = (seen ?? []).filter(missingFilterInfo);
+  useEffect(() => {
+    if (pending.length) prefetchDetails(pending, 0);
+  }, [pending.length > 0]);
 
   const toWishlist = async (t: Title) => {
     if (confirm(`Remettre « ${t.title} » dans la wishlist ? Il sera retiré des titres vus et du classement.`)) {
@@ -109,6 +116,7 @@ export default function Rank({ type }: { type: MediaType }) {
           count={(t) => (seen ?? []).filter((x) => matchesTheme(x, t)).length}
           applyLabel={(n) => `Appliquer (${n.toLocaleString('fr-FR')} vus)`}
           hasCatalogueData={(seen ?? []).some((t) => t.rating !== undefined || t.details?.rating)}
+          pendingInfo={pending.length}
           onApply={(t) => {
             setTheme(t);
             setShowFilters(false);

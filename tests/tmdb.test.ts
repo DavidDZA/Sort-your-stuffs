@@ -59,6 +59,7 @@ describe('fiche détaillée', () => {
     const d = parseDetails('movie', {
       runtime: 153,
       vote_average: 7.904,
+      original_language: 'en',
       genres: [{ id: 12, name: 'Aventure' }],
       belongs_to_collection: { id: 1241, name: 'Harry Potter - Saga' },
       credits: {
@@ -79,6 +80,9 @@ describe('fiche détaillée', () => {
       cast: ['Daniel Radcliffe', 'Rupert Grint'],
       rating: 7.9,
       runtime: 153,
+      genres: ['Aventure'],
+      genreIds: [12],
+      originalLanguage: 'en',
       collection: { id: 1241, name: 'Harry Potter - Saga' },
       providers: { flatrate: [{ id: 1899, name: 'HBO Max', logo: '/h.png' }], rent: [], buy: [], link: 'https://x' },
     });

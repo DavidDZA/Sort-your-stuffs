@@ -3,7 +3,7 @@ import { tierize } from '../src/lib/tiers';
 import { matchesTonight, NO_FILTERS, pickWeighted, priorityWeight } from '../src/lib/tonight';
 import { availableOnMine, groupProviders, providerFamily, providerLabel, type MyProviders } from '../src/lib/providers';
 import { boostFactor, mergeBoosts } from '../src/lib/recommend';
-import { matchesTheme, NO_THEME, themeLabel } from '../src/lib/themes';
+import { matchesTheme, missingFilterInfo, NO_THEME, themeLabel } from '../src/lib/themes';
 import { bestStreak, lastDays, streak } from '../src/lib/activity';
 import { matchesSearch, normalize } from '../src/lib/hooks';
 import type { Details } from '../src/lib/db';
@@ -98,6 +98,17 @@ describe('thèmes de swipe', () => {
     expect(matchesTheme(t, { period: 'all', genre: 35, lang: 'all', minRating: 0 })).toBe(false);
     expect(matchesTheme(t, { period: 'all', genre: null, lang: 'en', minRating: 0 })).toBe(false);
     expect(matchesTheme(t, { period: 'all', genre: null, lang: 'other', minRating: 0 })).toBe(false);
+  });
+
+  it('genre et langue lus dans la fiche détaillée quand le catalogue ne les a pas', () => {
+    const base = { fetchedAt: 0, directors: [], cast: [], genres: ['Comédie'], rating: 7, runtime: null, providers: { flatrate: [], rent: [], buy: [], link: null } };
+    const old = makeTitle(5, { details: { ...base, genreIds: [35], originalLanguage: 'fr' } }); // catalogue d'avant le 17/10
+    expect(matchesTheme(old, { ...NO_THEME, genre: 35 })).toBe(true);
+    expect(matchesTheme(old, { ...NO_THEME, lang: 'fr' })).toBe(true);
+    expect(matchesTheme(old, { ...NO_THEME, genre: 18 })).toBe(false);
+    expect(missingFilterInfo(old)).toBe(false);
+    expect(missingFilterInfo(makeTitle(6))).toBe(true); // ni langue ni fiche : à récupérer
+    expect(missingFilterInfo(makeTitle(7, { originalLanguage: 'en', details: base }))).toBe(true); // fiche d'avant le 17/10
   });
 
   it('filtre par note minimum (catalogue, sinon fiche détaillée)', () => {

@@ -35,6 +35,8 @@ export interface Details {
   directors: string[]; // réalisateur(s) pour un film, créateur(s) pour une série
   cast: string[]; // acteurs principaux
   genres: string[];
+  genreIds?: number[]; // absents des fiches enregistrées avant le 17/10 (récupérées à nouveau)
+  originalLanguage?: string;
   rating: number | null; // note moyenne TMDB sur 10
   runtime: number | null; // durée du film, ou d'un épisode pour une série (minutes)
   seasons?: number;

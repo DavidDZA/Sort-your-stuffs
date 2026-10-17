@@ -125,6 +125,7 @@ export interface DetailsResponse {
   number_of_seasons?: number;
   number_of_episodes?: number;
   vote_average?: number;
+  original_language?: string;
   genres?: { id: number; name: string }[];
   created_by?: Person[];
   belongs_to_collection?: { id: number; name: string } | null;
@@ -155,6 +156,8 @@ export function parseDetails(type: MediaType, res: DetailsResponse): Details {
     directors: (type === 'movie' ? crew.filter((c) => c.job === 'Director') : (res.created_by ?? [])).slice(0, 2).map((c) => c.name),
     cast: [...cast].sort((a, b) => (a.order ?? 99) - (b.order ?? 99)).slice(0, 2).map((c) => c.name),
     genres: (res.genres ?? []).map((g) => g.name),
+    genreIds: (res.genres ?? []).map((g) => g.id),
+    originalLanguage: res.original_language,
     rating: res.vote_average ? Math.round(res.vote_average * 10) / 10 : null,
     runtime: (type === 'movie' ? res.runtime : (res.episode_run_time?.[0] ?? res.last_episode_to_air?.runtime)) || null,
     seasons: res.number_of_seasons,
@@ -173,7 +176,8 @@ export const WEEK = 7 * 86_400_000;
  * `maxAge` force un rafraîchissement des fiches trop anciennes (utile pour les plateformes).
  */
 export function ensureDetails(title: Title, maxAge = Infinity): Promise<Details | null> {
-  const fresh = (d?: Details) => !!d && Date.now() - d.fetchedAt < maxAge;
+  // Une fiche d'avant le 17/10 n'a ni genres ni langue : on la récupère à nouveau.
+  const fresh = (d?: Details) => !!d && d.genreIds !== undefined && Date.now() - d.fetchedAt < maxAge;
   if (fresh(title.details)) return Promise.resolve(title.details!);
   let p = pending.get(title.key);
   if (!p) {
@@ -186,7 +190,12 @@ export function ensureDetails(title: Title, maxAge = Infinity): Promise<Details 
           include_video_language: 'fr,en',
         });
         const details = parseDetails(title.type, res);
-        await db.titles.update(title.key, { details });
+        // Complète au passage les infos absentes du titre (catalogue téléchargé avant qu'on les enregistre).
+        const patch: Partial<Title> = { details };
+        if (!stored?.genreIds?.length && details.genreIds?.length) patch.genreIds = details.genreIds;
+        if (!stored?.originalLanguage && details.originalLanguage) patch.originalLanguage = details.originalLanguage;
+        if (stored?.rating === undefined && details.rating) patch.rating = details.rating;
+        await db.titles.update(title.key, patch);
         return details;
       } catch {
         return null; // hors ligne ou erreur : on réessaiera au prochain affichage
@@ -201,7 +210,7 @@ export function ensureDetails(title: Title, maxAge = Infinity): Promise<Details 
 
 /** Charge les fiches manquantes ou trop anciennes, quelques-unes à la fois. */
 export async function prefetchDetails(titles: Title[], maxAge = Infinity, concurrency = 4): Promise<void> {
-  const todo = titles.filter((t) => !t.details || Date.now() - t.details.fetchedAt >= maxAge);
+  const todo = titles.filter((t) => !t.details || t.details.genreIds === undefined || Date.now() - t.details.fetchedAt >= maxAge);
   let next = 0;
   const worker = async () => {
     while (next < todo.length) await ensureDetails(todo[next++], maxAge);

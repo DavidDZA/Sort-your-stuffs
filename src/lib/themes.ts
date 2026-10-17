@@ -42,15 +42,25 @@ export const genreOptions = (type: MediaType) =>
 
 export const isNoTheme = (t: Theme) => t.period === 'all' && t.genre === null && t.lang === 'all' && !t.minRating;
 
+/** Genres du titre : ceux du catalogue, sinon ceux de sa fiche détaillée. */
+export const genreIdsOf = (t: Title): number[] => (t.genreIds?.length ? t.genreIds : (t.details?.genreIds ?? []));
+
+/** Langue originale : celle du catalogue, sinon celle de la fiche détaillée. */
+export const languageOf = (t: Title): string | undefined => t.originalLanguage ?? t.details?.originalLanguage;
+
+/** Il manque des infos utiles aux filtres (langue, ou fiche détaillée absente / d'avant le 17/10) : à récupérer. */
+export const missingFilterInfo = (t: Title) => !languageOf(t) || !t.details || t.details.genreIds === undefined;
+
 /** Note TMDB connue du titre : celle du catalogue, sinon celle de sa fiche détaillée. */
 export const ratingOf = (t: Title): number | null => t.rating ?? t.details?.rating ?? null;
 
 export function matchesTheme(title: Title, theme: Theme): boolean {
   const period = PERIODS.find((p) => p.id === theme.period);
   if (period && period.id !== 'all' && (title.year === null || !period.match(title.year))) return false;
-  if (theme.genre !== null && !(title.genreIds ?? []).includes(theme.genre)) return false;
+  if (theme.genre !== null && !genreIdsOf(title).includes(theme.genre)) return false;
   const lang = LANGS.find((l) => l.id === theme.lang);
-  if (lang && lang.id !== 'all' && (!title.originalLanguage || !lang.match(title.originalLanguage))) return false;
+  const language = languageOf(title);
+  if (lang && lang.id !== 'all' && (!language || !lang.match(language))) return false;
   if (theme.minRating > 0) {
     const rating = ratingOf(title);
     if (rating === null || rating < theme.minRating) return false;
