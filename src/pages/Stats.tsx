@@ -99,19 +99,6 @@ export default function StatsPage() {
       />
       <BarCard title="🌟 Acteurs les plus vus" bars={t.actors} empty="Il faut au moins 2 titres vus avec le même acteur." />
 
-      {stats.sagas.length > 0 && (
-        <section className="card">
-          <h3>🧩 Sagas complètes ({stats.sagas.length})</h3>
-          <div className="chips">
-            {stats.sagas.map((s) => (
-              <span key={s} className="badge saga">
-                {s}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
-
       <section className="card">
         <h3>
           🏅 Badges ({BADGES.filter((b) => unlocked.has(b.id)).length}/{BADGES.length})
@@ -140,6 +127,19 @@ export default function StatsPage() {
           })}
         </div>
       </section>
+
+      {stats.sagas.length > 0 && (
+        <section className="card">
+          <h3>🧩 Sagas complètes ({stats.sagas.length})</h3>
+          <div className="chips">
+            {stats.sagas.map((s) => (
+              <span key={s} className="badge saga">
+                {s}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }
