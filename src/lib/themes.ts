@@ -37,11 +37,20 @@ export const PERIODS: { id: string; label: string; match: (y: number) => boolean
   { id: 'old', label: 'Avant 1970', match: (y) => y < 1970 },
 ];
 
+/** Langues proposées (code TMDB → libellé) ; « Autres langues » couvre toutes celles qui n'y sont pas. */
+const NAMED_LANGS: [string, string][] = [
+  ['fr', '🇫🇷 Français'],
+  ['en', '🇬🇧 Anglais'],
+  ['es', '🇪🇸 Espagnol'],
+  ['it', '🇮🇹 Italien'],
+  ['de', '🇩🇪 Allemand'],
+  ['ko', '🇰🇷 Coréen'],
+];
+
 export const LANGS: { id: string; label: string; match: (l: string) => boolean }[] = [
   { id: 'all', label: 'Toutes', match: () => true },
-  { id: 'fr', label: '🇫🇷 Français', match: (l) => l === 'fr' },
-  { id: 'en', label: '🇬🇧 Anglais', match: (l) => l === 'en' },
-  { id: 'other', label: '🌍 Autres langues', match: (l) => l !== 'fr' && l !== 'en' },
+  ...NAMED_LANGS.map(([id, label]) => ({ id, label, match: (l: string) => l === id })),
+  { id: 'other', label: '🌍 Autres langues', match: (l) => !NAMED_LANGS.some(([id]) => id === l) },
 ];
 
 export const genreOptions = (type: MediaType) =>
