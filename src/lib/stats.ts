@@ -2,6 +2,7 @@ import { db, type MediaType, type Title } from './db';
 import { bestStreak, lastDays, loadActivity, streak, todayCount } from './activity';
 import { readRanking } from './ranking';
 import { genreName } from './genres';
+import { detailsOutdated } from './tmdb';
 
 export interface Bar {
   label: string;
@@ -32,7 +33,7 @@ export interface Stats {
   totalActions: number;
   last30: { date: Date; count: number }[];
   sagas: string[]; // sagas entièrement vues
-  missingDetails: Title[]; // titres vus sans fiche (pour compléter les stats)
+  missingDetails: Title[]; // titres vus sans fiche, ou fiche ancienne (pour compléter les stats)
 }
 
 export const TOP_SIZE: Record<MediaType, number> = { movie: 250, tv: 100 };
@@ -132,7 +133,7 @@ export async function computeStats(): Promise<Stats> {
     totalActions: Object.values(activity).reduce((s, n) => s + n, 0),
     last30: lastDays(activity, 30),
     sagas,
-    missingDetails: seenTitles.filter((t) => !t.details),
+    missingDetails: seenTitles.filter((t) => detailsOutdated(t.details)),
   };
 }
 

@@ -177,9 +177,11 @@ export const WEEK = 7 * 86_400_000;
  * Fiche détaillée (casting, durée, saga, plateformes, bande-annonce…), mise en cache dans la base.
  * `maxAge` force un rafraîchissement des fiches trop anciennes (utile pour les plateformes).
  */
+/** Fiche à récupérer à nouveau : absente, ou d'avant le 17/10 (sans genres, langue ni premiers rôles). */
+export const detailsOutdated = (d?: Details) => !d || d.genreIds === undefined || d.topCast === undefined;
+
 export function ensureDetails(title: Title, maxAge = Infinity): Promise<Details | null> {
-  // Une fiche d'avant le 17/10 n'a ni genres ni langue : on la récupère à nouveau.
-  const fresh = (d?: Details) => !!d && d.genreIds !== undefined && Date.now() - d.fetchedAt < maxAge;
+  const fresh = (d?: Details) => !detailsOutdated(d) && Date.now() - d!.fetchedAt < maxAge;
   if (fresh(title.details)) return Promise.resolve(title.details!);
   let p = pending.get(title.key);
   if (!p) {
@@ -212,7 +214,7 @@ export function ensureDetails(title: Title, maxAge = Infinity): Promise<Details 
 
 /** Charge les fiches manquantes ou trop anciennes, quelques-unes à la fois. */
 export async function prefetchDetails(titles: Title[], maxAge = Infinity, concurrency = 4): Promise<void> {
-  const todo = titles.filter((t) => !t.details || t.details.genreIds === undefined || Date.now() - t.details.fetchedAt >= maxAge);
+  const todo = titles.filter((t) => detailsOutdated(t.details) || Date.now() - t.details!.fetchedAt >= maxAge);
   let next = 0;
   const worker = async () => {
     while (next < todo.length) await ensureDetails(todo[next++], maxAge);
