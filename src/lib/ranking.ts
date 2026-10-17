@@ -61,13 +61,19 @@ export async function unrank(s: Scope, key: string): Promise<void> {
   }
 }
 
-/** Change le statut d'un titre en le retirant proprement du classement de son ancienne liste. */
-export async function changeStatus(title: Title, status: Status): Promise<void> {
+/**
+ * Change le statut d'un titre en le retirant proprement du classement de son ancienne liste.
+ * `tier` : avis « bien » / « bof » pour un titre vu (il décide de sa place dans le classement).
+ */
+export async function changeStatus(title: Title, status: Status, tier?: Tier): Promise<void> {
   const current = await db.answers.get(title.key);
-  if (current && current.status !== status && current.status !== 'unseen') {
-    await unrank({ type: title.type, list: current.status }, title.key);
+  const changedList = current && current.status !== status && current.status !== 'unseen';
+  // Un vu qui change d'avis (bien ↔ bof) repasse en « non classé » pour être replacé dans le bon groupe.
+  const changedTier = current?.status === 'seen' && status === 'seen' && tier && current.tier !== tier;
+  if (current && (changedList || changedTier)) {
+    await unrank({ type: title.type, list: current.status as 'seen' | 'wish' }, title.key);
   }
-  await setStatus(title, status);
+  await setStatus(title, status, status === 'seen' ? tier : undefined);
 }
 
 /**
@@ -118,10 +124,15 @@ export async function tiersOf(s: Scope, keys: string[]): Promise<(Tier | undefin
   return (await db.answers.bulkGet(keys)).map((a) => a?.tier);
 }
 
-/** Échange les titres aux positions i et i + 1 (le second était préféré). */
-export function swapAdjacent(ranking: string[], i: number): string[] {
+/**
+ * Fait remonter le titre en position `from` juste avant celui en position `to` (to < from) :
+ * il était moins bien classé mais préféré. Les autres titres gardent leur ordre.
+ * Pour deux voisins (to = from - 1), c'est un simple échange.
+ */
+export function promote(ranking: string[], from: number, to: number): string[] {
   const next = [...ranking];
-  [next[i], next[i + 1]] = [next[i + 1], next[i]];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
   return next;
 }
 

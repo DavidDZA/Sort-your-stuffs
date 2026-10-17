@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Title } from '../lib/db';
-import { changeStatus, readRanking } from '../lib/ranking';
+import { readRanking } from '../lib/ranking';
 import { prefetchDetails, WEEK } from '../lib/tmdb';
 import { readPref, writePref } from '../lib/settings';
 import { hasMyProviders, loadMyProviders } from '../lib/providers';
 import { matchesTonight, NO_FILTERS, pickWeighted, priorityWeight, type TonightFilters } from '../lib/tonight';
 import { burst, toast } from '../lib/fun';
-import { Poster, ProviderLine, RatingBadge, TitleText, TopBar, TypeFilter } from '../components/common';
+import { Poster, ProviderLine, RatingBadge, SeenButtons, TitleText, TopBar, TypeFilter } from '../components/common';
 import { openFiche } from '../components/Fiche';
 
 const PREF = 'tonight-filters';
@@ -81,8 +81,7 @@ export default function Tonight() {
     }, 80);
   };
 
-  const seen = async (t: Title) => {
-    await changeStatus(t, 'seen');
+  const seen = (t: Title) => {
     toast(`✓ « ${t.title} » passe dans tes titres vus`);
     setPicked(null);
   };
@@ -150,9 +149,7 @@ export default function Tonight() {
                   <button className="btn small" onClick={() => openFiche(picked)} title="Durée, note, bande-annonce, où regarder…">
                     📄 Fiche
                   </button>
-                  <button className="btn small primary" onClick={() => seen(picked)} title="Je l’ai regardé : passe dans les titres vus">
-                    ✓ Je l’ai vu
-                  </button>
+                  <SeenButtons title={picked} onSeen={() => seen(picked)} />
                 </div>
               </>
             )}

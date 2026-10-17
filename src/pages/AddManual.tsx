@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Status, type Title } from '../lib/db';
+import { db, type Answer, type Status, type Title } from '../lib/db';
 import { changeStatus } from '../lib/ranking';
 import { search } from '../lib/tmdb';
-import { TitleRow, TopBar } from '../components/common';
+import { SeenButtons, TitleRow, TopBar } from '../components/common';
 
 export default function AddManual() {
   const [query, setQuery] = useState('');
@@ -38,7 +38,7 @@ export default function AddManual() {
 
   const statuses = useLiveQuery(async () => {
     const answers = await db.answers.bulkGet(results.map((r) => r.key));
-    return new Map(answers.filter((a) => !!a).map((a) => [a!.key, a!.status]));
+    return new Map(answers.filter((a): a is Answer => !!a).map((a) => [a.key, a]));
   }, [results]);
 
   return (
@@ -58,8 +58,8 @@ export default function AddManual() {
       <ul className="list">
         {results.map((t) => (
           <TitleRow key={t.key} title={t} showType>
-            <StatusButton title={t} status="seen" current={statuses?.get(t.key)} label="Vu" tip="Ajouter aux titres vus" />
-            <StatusButton title={t} status="wish" current={statuses?.get(t.key)} label="♥" tip="Ajouter à la wishlist" />
+            <SeenButtons title={t} current={statuses?.get(t.key)} />
+            <StatusButton title={t} status="wish" current={statuses?.get(t.key)?.status} label="♥" tip="Ajouter à la wishlist" />
           </TitleRow>
         ))}
       </ul>

@@ -10,22 +10,23 @@ import { Poster } from './common';
 import { openFiche } from './Fiche';
 
 /** Classement en paliers S → D, d'après la position de chaque titre. */
-export function TierList({ type }: { type: MediaType }) {
+export function TierList({ type, filter = null, filterLabel }: { type: MediaType; filter?: ((t: Title) => boolean) | null; filterLabel?: string }) {
   const [sharing, setSharing] = useState(false);
-  const tiers = useLiveQuery(async () => {
+  const titles = useLiveQuery(async () => {
     const keys = await readRanking({ type, list: 'seen' });
-    const titles = (await db.titles.bulkGet(keys)).filter((t): t is Title => !!t);
-    return tierize(titles);
+    return (await db.titles.bulkGet(keys)).filter((t): t is Title => !!t);
   }, [type]);
+  // Avec des filtres, les paliers sont recalculés sur la sélection (« ma tier list des comédies »).
+  const tiers = titles && tierize(filter ? titles.filter(filter) : titles);
 
   if (!tiers) return <p className="muted center">Chargement…</p>;
   const count = tiers.reduce((s, t) => s + t.items.length, 0);
-  if (!count) return <p className="muted center">Classe quelques titres pour voir ta tier list.</p>;
+  if (!count) return <p className="muted center">{filter ? 'Aucun titre classé ne correspond à ces filtres.' : 'Classe quelques titres pour voir ta tier list.'}</p>;
 
   const share = async () => {
     setSharing(true);
     try {
-      await shareTierList(type, tiers);
+      await shareTierList(type, tiers, filter ? filterLabel : undefined);
     } catch (e) {
       toast(`✕ ${(e as Error).message}`);
     } finally {

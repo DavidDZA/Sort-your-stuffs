@@ -16,6 +16,7 @@ export interface Title {
   overview: string;
   voteCount: number;
   popularity: number;
+  rating?: number; // note moyenne TMDB sur 10 (catalogue)
   genreIds?: number[];
   originalLanguage?: string;
   manual?: boolean; // ajouté via la recherche, hors catalogue

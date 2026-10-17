@@ -27,13 +27,18 @@
   gap: 12px;
   animation: slide-up 0.3s cubic-bezier(0.2, 1, 0.3, 1);
 }
+/* ✕ toujours visible en haut à droite, même en faisant défiler la fenêtre. */
 .sheet-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  align-self: flex-end;
+  flex-shrink: 0;
+  margin: -8px -4px -40px 0;
   font-size: 1rem;
   width: 36px;
   height: 36px;
+  background: var(--surface-solid);
 }
 .sheet-title {
   margin: 0;
@@ -45,8 +50,15 @@
   color: var(--muted);
   font-weight: 500;
 }
+/* Boutons « Réinitialiser » / « Appliquer » toujours visibles en bas, même en faisant défiler. */
 .sheet-actions {
-  margin-top: 8px;
+  position: sticky;
+  z-index: 2;
+  bottom: calc(-1 * max(20px, env(safe-area-inset-bottom)));
+  margin: 8px -16px calc(-1 * max(20px, env(safe-area-inset-bottom)));
+  padding: 12px 16px max(14px, env(safe-area-inset-bottom));
+  background: var(--surface-solid);
+  border-top: 1px solid var(--border);
 }
 @keyframes fade {
   from {

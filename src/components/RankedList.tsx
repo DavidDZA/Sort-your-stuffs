@@ -18,7 +18,7 @@ export function RankedList({
   scope: Scope;
   empty: string;
   actions: (t: Title, ranked: boolean) => ReactNode;
-  filter?: (t: Title) => boolean;
+  filter?: ((t: Title) => boolean) | null;
   below?: (t: Title) => ReactNode;
 }) {
   const [query, setQuery] = useState('');
@@ -34,8 +34,10 @@ export function RankedList({
   if (!data.ranked.length && !data.unranked.length) return <p className="muted center">{empty}</p>;
 
   const keep = (t: Title) => matchesSearch(t, query) && (!filter || filter(t));
-  // Le rang affiché reste celui du classement complet, même filtré.
-  const ranked = data.ranked.map((t, i) => ({ t, rank: i + 1 })).filter(({ t }) => keep(t));
+  // Avec des filtres, le classement est renuméroté dans la sélection (rang général en petit).
+  // La recherche, elle, ne change pas les rangs.
+  const selection = data.ranked.map((t, i) => ({ t, overall: i + 1 })).filter(({ t }) => !filter || filter(t));
+  const ranked = selection.map((x, i) => ({ ...x, rank: i + 1 })).filter(({ t }) => matchesSearch(t, query));
   const unranked = data.unranked.filter(keep);
 
   return (
@@ -43,12 +45,17 @@ export function RankedList({
       {data.ranked.length + data.unranked.length > 8 && <SearchBox value={query} onChange={setQuery} />}
       {!ranked.length && !unranked.length && <p className="muted center">Aucun titre ne correspond.</p>}
       <ol className="list">
-        {ranked.map(({ t, rank }) => (
+        {ranked.map(({ t, rank, overall }) => (
           <TitleRow
             key={t.key}
             title={t}
             below={below?.(t)}
-            prefix={<span className={`rank-num ${rank <= 3 ? 'medal' : ''}`}>{rank <= 3 ? MEDALS[rank - 1] : rank}</span>}
+            prefix={
+              <span className={`rank-num ${rank <= 3 ? 'medal' : ''}`} title={filter ? `n°${overall} au classement complet` : undefined}>
+                {rank <= 3 ? MEDALS[rank - 1] : rank}
+                {filter && overall !== rank && <small className="rank-overall">n°{overall}</small>}
+              </span>
+            }
           >
             {actions(t, true)}
           </TitleRow>

@@ -12,7 +12,7 @@ import {
   readRanking,
   saveInsert,
   saveRanking,
-  swapAdjacent,
+  promote,
   unrankedKeys,
   type Scope,
 } from '../src/lib/ranking';
@@ -55,6 +55,25 @@ describe('classement', () => {
     await setStatus(makeTitle(1), 'seen', 'good');
     await changeStatus(makeTitle(1), 'wish');
     expect((await db.answers.get(k(1)))?.tier).toBeUndefined();
+  });
+});
+
+describe('« Vu » avec un avis', () => {
+  it('enregistre l’avis donné au moment de marquer vu', async () => {
+    await setStatus(makeTitle(1), 'wish');
+    await changeStatus(makeTitle(1), 'seen', 'good');
+    expect((await db.answers.get(k(1)))?.tier).toBe('good');
+  });
+
+  it('un vu qui change d’avis repasse en « non classé »', async () => {
+    for (const id of [1, 2, 3]) await setStatus(makeTitle(id), 'seen', 'meh');
+    await saveRanking(seen, [k(1), k(2), k(3)]);
+    await changeStatus(makeTitle(2), 'seen', 'good');
+    expect(await loadRanking(seen)).toEqual([k(1), k(3)]);
+    expect(await unrankedKeys(seen, [k(1), k(3)])).toEqual([k(2)]);
+    // Même avis : il reste à sa place.
+    await changeStatus(makeTitle(1), 'seen', 'meh');
+    expect(await loadRanking(seen)).toEqual([k(1), k(3)]);
   });
 });
 
@@ -126,7 +145,12 @@ describe('duels', () => {
 
   it('échange deux voisins sans toucher au reste', () => {
     const r = ['a', 'b', 'c', 'd'];
-    expect(swapAdjacent(r, 1)).toEqual(['a', 'c', 'b', 'd']);
+    expect(promote(r, 2, 1)).toEqual(['a', 'c', 'b', 'd']);
     expect(r).toEqual(['a', 'b', 'c', 'd']); // l'original n'est pas modifié
+  });
+
+  it('fait remonter un titre au-dessus d’un voisin de la sélection filtrée', () => {
+    // Sélection filtrée : a et d (b et c n'en font pas partie). d préféré à a : d passe juste avant a.
+    expect(promote(['a', 'b', 'c', 'd'], 3, 0)).toEqual(['d', 'a', 'b', 'c']);
   });
 });

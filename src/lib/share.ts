@@ -28,7 +28,7 @@ function fitText(ctx: CanvasRenderingContext2D, text: string, max: number): stri
 }
 
 /** Dessine une image « Mon top 10 » avec les affiches, puis la partage (ou la télécharge). */
-export async function shareTop(type: MediaType, titles: Title[]): Promise<void> {
+export async function shareTop(type: MediaType, titles: Title[], filterLabel?: string): Promise<void> {
   const top = titles.slice(0, 10);
   await document.fonts.load(`700 64px ${FONT}`).catch(() => undefined);
 
@@ -48,7 +48,7 @@ export async function shareTop(type: MediaType, titles: Title[]): Promise<void> 
   canvas.height = H;
   const ctx = canvas.getContext('2d')!;
   paintBackground(ctx, W, H);
-  paintTitle(ctx, W, `Mon top ${top.length} ${type === 'movie' ? 'films' : 'séries'}`, '🏆 classé duel après duel');
+  paintTitle(ctx, W, `Mon top ${top.length} ${type === 'movie' ? 'films' : 'séries'}`, filterLabel ? `🏆 ${filterLabel}` : '🏆 classé duel après duel');
 
   const images = await Promise.all(top.map((t) => loadImage(posterUrl(t.posterPath, 'w342'))));
 
@@ -165,7 +165,7 @@ async function shareCanvas(canvas: HTMLCanvasElement, filename: string, title: s
 }
 
 /** Image de la tier list : une rangée colorée par palier, avec les affiches des titres. */
-export async function shareTierList(type: MediaType, tiers: { label: string; color: string; items: Title[] }[]): Promise<void> {
+export async function shareTierList(type: MediaType, tiers: { label: string; color: string; items: Title[] }[], filterLabel?: string): Promise<void> {
   await document.fonts.load(`700 64px ${FONT}`).catch(() => undefined);
   const count = tiers.reduce((s, t) => s + t.items.length, 0);
   const W = 1080;
@@ -184,7 +184,7 @@ export async function shareTierList(type: MediaType, tiers: { label: string; col
   canvas.height = H;
   const ctx = canvas.getContext('2d')!;
   paintBackground(ctx, W, H);
-  paintTitle(ctx, W, `Ma tier list ${type === 'movie' ? 'films' : 'séries'}`, `🏆 ${count} titres classés duel après duel`);
+  paintTitle(ctx, W, `Ma tier list ${type === 'movie' ? 'films' : 'séries'}`, filterLabel ? `🏆 ${count} titres · ${filterLabel}` : `🏆 ${count} titres classés duel après duel`);
 
   const images = await Promise.all(tiers.flatMap((t) => t.items).map((t) => loadImage(posterUrl(t.posterPath, 'w185'))));
   let index = 0;

@@ -5,7 +5,9 @@ import { changeStatus, scopeId, unrank, type Scope } from '../lib/ranking';
 import { prefetchDetails, WEEK } from '../lib/tmdb';
 import { availableOnMine, hasMyProviders, loadMyProviders } from '../lib/providers';
 import { matchesSearch } from '../lib/hooks';
-import { ProviderLine, SearchBox, TitleRow, TopBar, TypeFilter } from '../components/common';
+import { matchesTheme, themeFilter, themeLabel } from '../lib/themes';
+import { ProviderLine, SearchBox, SeenButtons, TitleRow, TopBar, TypeFilter } from '../components/common';
+import { FilterButton, FilterSheet, FilterStrip, useSavedFilter } from '../components/FilterSheet';
 import { Duel } from '../components/Duel';
 import { RankedList } from '../components/RankedList';
 
@@ -16,6 +18,8 @@ export default function Wishlist() {
   const [view, setView] = useState<View>('list');
   const [filter, setFilter] = useState<Filter>('all');
   const [onlyMine, setOnlyMine] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [savedTheme, setTheme] = useSavedFilter('wish-filter');
   const mine = loadMyProviders();
   const wishes = useLiveQuery(async () => {
     const keys = await db.answers.where('status').equals('wish').primaryKeys();
@@ -30,9 +34,13 @@ export default function Wishlist() {
   // Les duels se font par type : « Tous » n'a pas de sens ici.
   const type: MediaType = filter === 'all' ? 'movie' : filter;
   const scope: Scope = { type, list: 'wish' };
-  const mineFilter = onlyMine
-    ? (t: Title) => !!t.details && availableOnMine(t.details.providers.flatrate, mine)
-    : undefined;
+  // Films et séries mélangés : le genre ne s'applique pas (les genres diffèrent).
+  const listType: MediaType | null = view === 'duel' ? type : filter === 'all' ? null : filter;
+  const theme = listType ? savedTheme : { ...savedTheme, genre: null };
+  const byTheme = themeFilter(theme);
+  const byMine = onlyMine ? (t: Title) => !!t.details && availableOnMine(t.details.providers.flatrate, mine) : null;
+  const combined = byTheme || byMine ? (t: Title) => (!byTheme || byTheme(t)) && (!byMine || byMine(t)) : null;
+  const label = themeLabel(listType, theme);
 
   const actions = (t: Title, ranked: boolean): ReactNode => (
     <>
@@ -48,7 +56,8 @@ export default function Wishlist() {
 
   return (
     <main className="page wide wishlist-page">
-      <TopBar title="💖 Wishlist" right={wishes && <span className="pill" title="Titres dans la wishlist">{wishes.length}</span>} />
+      <TopBar title={wishes ? `💖 Wishlist (${wishes.length})` : '💖 Wishlist'} right={<FilterButton active={!!byTheme} label={label} onClick={() => setShowFilters(true)} />} />
+      {byTheme && <FilterStrip label={label} onClick={() => setShowFilters(true)} />}
       <TypeFilter<View>
         value={view}
         options={[
@@ -84,13 +93,35 @@ export default function Wishlist() {
           </a>
         ))}
       {view === 'duel' ? (
-        <Duel key={scopeId(scope)} scope={scope} question="Lequel as-tu le plus envie de voir ?" emptyText="Rien dans la wishlist pour l’instant." />
+        <Duel
+          key={`${scopeId(scope)}-${JSON.stringify(theme)}`}
+          scope={scope}
+          filter={byTheme}
+          question="Lequel as-tu le plus envie de voir ?"
+          emptyText="Rien dans la wishlist pour l’instant."
+        />
       ) : filter === 'all' ? (
-        <AllWishes filter={mineFilter} below={providers} />
+        <AllWishes filter={combined} below={providers} />
       ) : (
-        <RankedList key={scopeId(scope)} scope={scope} empty="Rien dans la wishlist pour l’instant." actions={actions} filter={mineFilter} below={providers} />
+        <RankedList key={scopeId(scope)} scope={scope} empty="Rien dans la wishlist pour l’instant." actions={actions} filter={combined} below={providers} />
       )}
       {view === 'list' && <p className="muted tiny center">Disponibilités : JustWatch</p>}
+
+      {showFilters && (
+        <FilterSheet
+          type={listType}
+          initial={savedTheme}
+          count={(t) => (wishes ?? []).filter((x) => (!listType || x.type === listType) && matchesTheme(x, listType ? t : { ...t, genre: null })).length}
+          applyLabel={(n) => `Appliquer (${n.toLocaleString('fr-FR')} titres)`}
+          hasCatalogueData={(wishes ?? []).some((t) => t.rating !== undefined || t.details?.rating)}
+          onApply={(t) => {
+            // Le genre choisi est gardé pour Films / Séries, même s'il ne s'applique pas à « Tous ».
+            setTheme(listType ? t : { ...t, genre: savedTheme.genre });
+            setShowFilters(false);
+          }}
+          onClose={() => setShowFilters(false)}
+        />
+      )}
     </main>
   );
 }
@@ -98,9 +129,7 @@ export default function Wishlist() {
 function WishActions({ title }: { title: Title }) {
   return (
     <>
-      <button className="btn small primary" onClick={() => changeStatus(title, 'seen')} title="Je l’ai vu : passe dans les titres vus (non classés)">
-        ✓ Vu
-      </button>
+      <SeenButtons title={title} />
       <button className="btn small" onClick={() => changeStatus(title, 'unseen')} title="Retirer de la wishlist" aria-label="Retirer de la wishlist">
         ✕
       </button>
@@ -109,7 +138,7 @@ function WishActions({ title }: { title: Title }) {
 }
 
 /** Films et séries mélangés, du plus récent ajout au plus ancien. */
-function AllWishes({ filter, below }: { filter?: (t: Title) => boolean; below: (t: Title) => ReactNode }) {
+function AllWishes({ filter, below }: { filter: ((t: Title) => boolean) | null; below: (t: Title) => ReactNode }) {
   const [query, setQuery] = useState('');
   const items = useLiveQuery(async () => {
     const answers = await db.answers.where('status').equals('wish').reverse().sortBy('updatedAt');

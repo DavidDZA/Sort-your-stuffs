@@ -4,7 +4,7 @@ import { db, TYPE_LABEL, type Provider, type Status, type Title } from '../lib/d
 import { changeStatus } from '../lib/ranking';
 import { providerLogo, WEEK } from '../lib/tmdb';
 import { groupProviders, isMineGroup, loadMyProviders } from '../lib/providers';
-import { Poster, Sheet, useDetails } from './common';
+import { Poster, SeenButtons, Sheet, useDetails } from './common';
 
 /** Ouvre la fiche complète d'un titre (voir <FicheHost /> dans App). */
 export function openFiche(title: Title): void {
@@ -66,7 +66,12 @@ function Fiche({ title, onClose }: { title: Title; onClose: () => void }) {
               ))}
             </div>
           )}
-          {status && <div className={`fiche-status status-${status}`}>{STATUS_LABEL[status]}</div>}
+          {status && (
+            <div className={`fiche-status status-${status}`}>
+              {STATUS_LABEL[status]}
+              {status === 'seen' && answer?.tier && (answer.tier === 'good' ? ' · 👍 bien' : ' · 😐 bof')}
+            </div>
+          )}
         </div>
       </div>
 
@@ -121,13 +126,14 @@ function Fiche({ title, onClose }: { title: Title; onClose: () => void }) {
       </section>
 
       <div className="row center fiche-actions">
-        {(['seen', 'wish', 'unseen'] as const).map((s) => (
+        <SeenButtons title={title} current={answer} labels />
+        {(['wish', 'unseen'] as const).map((s) => (
           <button
             key={s}
             className={`btn ${status === s ? 'primary' : ''}`}
             onClick={() => changeStatus(title, s)}
             disabled={status === s}
-            title={s === 'seen' ? 'Marquer comme vu' : s === 'wish' ? 'Ajouter à la wishlist' : 'Marquer comme pas vu'}
+            title={s === 'wish' ? 'Ajouter à la wishlist' : 'Marquer comme pas vu'}
           >
             {STATUS_LABEL[s]}
           </button>

@@ -112,6 +112,7 @@ h3,
 .topbar {
   display: grid;
   grid-template-columns: 56px 1fr 56px;
+  column-gap: 4px;
   align-items: center;
 }
 .topbar h2 {
@@ -415,4 +416,65 @@ h3,
   .card {
     backdrop-filter: none;
   }
+}
+
+/* ---------- Résumés (swipe, duels) : texte qui défile, bouton « Fiche » fixe ---------- */
+
+.overview-text {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+.overview-fiche {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 10px;
+}
+
+/* ---------- Filtres ---------- */
+
+.filter-btn {
+  flex-shrink: 0;
+}
+.filter-btn .icon-svg {
+  width: 20px;
+  height: 20px;
+}
+.filter-btn.active {
+  background: var(--grad-cool);
+  border-color: transparent;
+}
+.theme-strip .filter-icon,
+.sheet-title .filter-icon {
+  width: 0.95em;
+  height: 0.95em;
+  vertical-align: -0.1em;
+}
+.rating-value {
+  color: var(--yellow);
+}
+.rating-slider {
+  width: 100%;
+  accent-color: var(--yellow);
+}
+.rating-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -8px;
+}
+
+/* ---------- Boutons « Vu » : 👍 bien / 😐 bof ---------- */
+
+.seen-btn.active:disabled {
+  opacity: 1;
+}
+.seen-btn.good.active {
+  background: linear-gradient(135deg, #6ff0b0, var(--green));
+  border-color: transparent;
+}
+.seen-btn.meh.active {
+  background: linear-gradient(135deg, #ffe08a, #f2b632);
+  border-color: transparent;
 }

@@ -61,7 +61,9 @@
 .duel-overview {
   position: absolute;
   inset: 0;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: 10px;
   border-radius: 12px;
   background: rgb(10 6 25 / 0.92);
@@ -71,7 +73,7 @@
   animation: pop 0.2s;
 }
 .duel-overview p {
-  margin: 0 0 10px;
+  margin: 0;
 }
 .info-btn {
   position: absolute;

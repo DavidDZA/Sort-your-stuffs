@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { clearStatus, db, type MediaType, type Title } from '../lib/db';
+import { clearStatus, db, type Answer, type MediaType, type Title } from '../lib/db';
 import { changeStatus } from '../lib/ranking';
 import { matchesSearch } from '../lib/hooks';
-import { SearchBox, TitleRow, TopBar, TypeFilter } from '../components/common';
+import { SearchBox, SeenButtons, TitleRow, TopBar, TypeFilter } from '../components/common';
 
 type ListId = 'seen' | 'unseen';
 type Filter = 'all' | MediaType;
@@ -20,10 +20,11 @@ export default function Lists() {
   const items = useLiveQuery(async () => {
     const answers = await db.answers.where('status').equals(list).reverse().sortBy('updatedAt');
     const keep = answers.filter((a) => filter === 'all' || a.type === filter);
-    return (await db.titles.bulkGet(keep.map((a) => a.key))).filter((t): t is Title => !!t);
+    const titles = await db.titles.bulkGet(keep.map((a) => a.key));
+    return keep.map((a, i) => ({ a, t: titles[i] })).filter((x): x is { a: Answer; t: Title } => !!x.t);
   }, [list, filter]);
 
-  const shown = items?.filter((t) => matchesSearch(t, query)) ?? [];
+  const shown = items?.filter(({ t }) => matchesSearch(t, query)) ?? [];
   const reset = () => setLimit(PAGE);
 
   return (
@@ -65,10 +66,11 @@ export default function Lists() {
         <p className="muted center">{items.length ? 'Aucun titre ne correspond.' : 'Cette liste est vide.'}</p>
       ) : (
         <ul className="list">
-          {shown.slice(0, limit).map((t) => (
+          {shown.slice(0, limit).map(({ t, a }) => (
             <TitleRow key={t.key} title={t} showType={filter === 'all'}>
               {list === 'seen' ? (
                 <>
+                  <SeenButtons title={t} current={a} />
                   <button className="btn small" onClick={() => changeStatus(t, 'wish')} title="Pas vu finalement : mettre dans la wishlist" aria-label="Mettre en wishlist">
                     ♥
                   </button>
@@ -78,9 +80,7 @@ export default function Lists() {
                 </>
               ) : (
                 <>
-                  <button className="btn small primary" onClick={() => changeStatus(t, 'seen')} title="Je l’ai vu finalement">
-                    ✓
-                  </button>
+                  <SeenButtons title={t} />
                   <button className="btn small" onClick={() => changeStatus(t, 'wish')} title="Finalement, envie de le voir : wishlist" aria-label="Mettre en wishlist">
                     ♥
                   </button>

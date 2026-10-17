@@ -8,8 +8,8 @@ import {
   pickVerifyPair,
   priorityPool,
   saveInsert,
+  promote,
   saveRanking,
-  swapAdjacent,
   tiersOf,
   unrankedKeys,
   type InsertState,
@@ -24,8 +24,8 @@ import { openFiche } from './Fiche';
 interface DuelState {
   ranking: string[];
   ins: InsertState | null;
-  /** Duel de vérification entre ranking[verify] et ranking[verify + 1]. */
-  verify: number | null;
+  /** Duel de vérification entre ranking[a] (mieux classé) et ranking[b], voisins dans la sélection. */
+  verify: Pair | null;
   candidate?: Title; // titre à placer, ou le moins bien classé des deux en vérification
   opponent?: Title;
   candidateLeft: boolean;
@@ -35,10 +35,15 @@ interface DuelState {
   tier?: Tier;
 }
 
+interface Pair {
+  a: number;
+  b: number;
+}
+
 interface Snapshot {
   ranking: string[];
   ins: InsertState | null;
-  verify: number | null;
+  verify: Pair | null;
 }
 
 /** Un duel de vérification tous les 5 titres placés. */
@@ -49,7 +54,18 @@ const VERIFY_EVERY = 5;
  * de l'intervalle possible, ce qui divise l'intervalle par deux à chaque duel.
  * De temps en temps, un duel de vérification entre deux voisins affine le classement.
  */
-export function Duel({ scope, question, emptyText }: { scope: Scope; question: string; emptyText: string }) {
+export function Duel({
+  scope,
+  question,
+  emptyText,
+  filter = null,
+}: {
+  scope: Scope;
+  question: string;
+  emptyText: string;
+  /** Filtres actifs : seuls les titres qui y correspondent sont placés et vérifiés. */
+  filter?: ((t: Title) => boolean) | null;
+}) {
   const [st, setSt] = useState<DuelState | null>(null);
   const [placed, setPlaced] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
@@ -60,9 +76,16 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
   const placedCount = useRef(0);
   const verifyOnly = useRef(false); // « Affiner mon classement » : uniquement des vérifications
 
-  /** Nombre de titres non classés, et combien sont « bien » / « bof ». */
+  /** Titres qui correspondent aux filtres (tous s'il n'y en a pas). */
+  const matching = async (keys: string[]) => {
+    if (!filter) return keys;
+    const titles = await db.titles.bulkGet(keys);
+    return keys.filter((_, i) => titles[i] && filter(titles[i]!));
+  };
+
+  /** Nombre de titres non classés (dans la sélection), et combien sont « bien » / « bof ». */
   const waitingFor = async (ranking: string[]) => {
-    const keys = await unrankedKeys(scope, ranking);
+    const keys = await matching(await unrankedKeys(scope, ranking));
     const tiers = await tiersOf(scope, keys);
     return {
       unranked: keys.length,
@@ -89,19 +112,28 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
     });
   };
 
-  /** Duel de vérification entre ranking[i] et ranking[i + 1] (choisis en priorité parmi les « bien »). */
-  const showVerify = async (ranking: string[], index?: number | null) => {
-    const i = index === undefined ? pickVerifyPair(await tiersOf(scope, ranking)) : index;
-    if (i === null) return next(ranking);
-    const [[upper, lower], counts] = await Promise.all([db.titles.bulkGet([ranking[i], ranking[i + 1]]), waitingFor(ranking)]);
-    setSt({ ranking, ins: null, verify: i, candidate: lower, opponent: upper, candidateLeft: Math.random() < 0.5, ...counts });
+  /**
+   * Duel de vérification entre deux titres voisins (dans la sélection filtrée s'il y en a une),
+   * choisis en priorité parmi les « bien ».
+   */
+  const showVerify = async (ranking: string[], given?: Pair) => {
+    let pair = given;
+    if (!pair) {
+      const selected = new Set(await matching(ranking));
+      const positions = ranking.map((k, i) => (selected.has(k) ? i : -1)).filter((i) => i >= 0);
+      const k = pickVerifyPair(await tiersOf(scope, positions.map((i) => ranking[i])));
+      if (k === null) return next(ranking);
+      pair = { a: positions[k], b: positions[k + 1] };
+    }
+    const [[upper, lower], counts] = await Promise.all([db.titles.bulkGet([ranking[pair.a], ranking[pair.b]]), waitingFor(ranking)]);
+    setSt({ ranking, ins: null, verify: pair, candidate: lower, opponent: upper, candidateLeft: Math.random() < 0.5, ...counts });
   };
 
   /** Choisit le prochain titre à placer (le premier entre directement dans le classement). */
   const next = async (ranking: string[]) => {
     let r = ranking;
     for (;;) {
-      const pool = (await unrankedKeys(scope, r)).filter((k) => !skipped.current.has(k));
+      const pool = await matching((await unrankedKeys(scope, r)).filter((k) => !skipped.current.has(k)));
       if (!pool.length) {
         await saveInsert(scope, null);
         setSt({ ranking: r, ins: null, verify: null, candidateLeft: true, unranked: 0, waiting: { good: 0, meh: 0 } });
@@ -145,8 +177,9 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
       const ranking = await loadRanking(scope);
       const ins = await loadInsert(scope);
       const unranked = await unrankedKeys(scope, ranking);
-      // Reprend le placement en cours s'il est toujours valide.
-      if (ins && unranked.includes(ins.key) && ins.lo >= 0 && ins.lo < ins.hi && ins.hi <= ranking.length) {
+      // Reprend le placement en cours s'il est toujours valide (et dans la sélection filtrée).
+      const valid = ins && unranked.includes(ins.key) && ins.lo >= 0 && ins.lo < ins.hi && ins.hi <= ranking.length;
+      if (ins && valid && (await matching([ins.key])).length) {
         await show(ranking, ins);
       } else {
         await next(ranking);
@@ -163,12 +196,12 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
       recordActivity();
 
       if (verify !== null) {
-        // Vérification : on échange les deux voisins seulement si le moins bien classé est préféré.
+        // Vérification : le moins bien classé ne remonte que s'il est préféré.
         let updated = ranking;
         if (choice === 'candidate') {
-          updated = swapAdjacent(ranking, verify);
+          updated = promote(ranking, verify.b, verify.a);
           await saveRanking(scope, updated);
-          toast(`↕️ « ${st.candidate?.title ?? ''} » remonte n°${verify + 1}`);
+          toast(`↕️ « ${st.candidate?.title ?? ''} » remonte n°${verify.a + 1}`);
         }
         await afterDecision(updated, false);
         return;
@@ -255,7 +288,7 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
     return (
       <div className="empty">
         <span className="big-emoji">{st.ranking.length ? '🏆' : '🍿'}</span>
-        <p>{st.ranking.length ? 'Tout est classé !' : emptyText}</p>
+        <p>{st.ranking.length ? (filter ? 'Tout est classé pour ces filtres !' : 'Tout est classé !') : emptyText}</p>
         {st.ranking.length >= 2 && (
           <button className="btn primary" onClick={refine} title="Des duels entre titres voisins pour corriger le classement">
             🔍 Affiner mon classement
@@ -318,7 +351,10 @@ export function Duel({ scope, question, emptyText }: { scope: Scope; question: s
       </div>
       <p className="muted small center">
         {verifying ? (
-          <>Ces deux titres sont voisins dans ton classement (n°{st.verify! + 1} et n°{st.verify! + 2}) : toujours d’accord ?</>
+          <>
+            Ces deux titres sont voisins {filter ? 'dans ta sélection' : 'dans ton classement'} (n°{st.verify!.a + 1} et n°{st.verify!.b + 1}) :
+            toujours d’accord ?
+          </>
         ) : (
           <>
             Encore ~{duelsLeft(st.ins!)} duel(s) pour placer « {st.candidate.title} »
@@ -374,9 +410,11 @@ function DuelCard(props: {
             }}
             title="Toucher pour masquer les résumés"
           >
-            <p>{t.overview || 'Pas de résumé disponible.'}</p>
+            <div className="overview-text">
+              <p>{t.overview || 'Pas de résumé disponible.'}</p>
+            </div>
             <button
-              className="btn small"
+              className="btn small overview-fiche"
               onClick={(e) => {
                 e.stopPropagation();
                 openFiche(t);

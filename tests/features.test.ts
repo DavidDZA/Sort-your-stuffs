@@ -3,7 +3,7 @@ import { tierize } from '../src/lib/tiers';
 import { matchesTonight, NO_FILTERS, pickWeighted, priorityWeight } from '../src/lib/tonight';
 import { availableOnMine, groupProviders, providerFamily, providerLabel, type MyProviders } from '../src/lib/providers';
 import { boostFactor, mergeBoosts } from '../src/lib/recommend';
-import { matchesTheme, NO_THEME } from '../src/lib/themes';
+import { matchesTheme, NO_THEME, themeLabel } from '../src/lib/themes';
 import { bestStreak, lastDays, streak } from '../src/lib/activity';
 import { matchesSearch, normalize } from '../src/lib/hooks';
 import type { Details } from '../src/lib/db';
@@ -93,11 +93,26 @@ describe('thèmes de swipe', () => {
   const t = makeTitle(1, { year: 2005, genreIds: [14, 12], originalLanguage: 'fr' });
   it('combine période, genre et langue', () => {
     expect(matchesTheme(t, NO_THEME)).toBe(true);
-    expect(matchesTheme(t, { period: '2000', genre: 14, lang: 'fr' })).toBe(true);
-    expect(matchesTheme(t, { period: '1990', genre: null, lang: 'all' })).toBe(false);
-    expect(matchesTheme(t, { period: 'all', genre: 35, lang: 'all' })).toBe(false);
-    expect(matchesTheme(t, { period: 'all', genre: null, lang: 'en' })).toBe(false);
-    expect(matchesTheme(t, { period: 'all', genre: null, lang: 'other' })).toBe(false);
+    expect(matchesTheme(t, { period: '2000', genre: 14, lang: 'fr', minRating: 0 })).toBe(true);
+    expect(matchesTheme(t, { period: '1990', genre: null, lang: 'all', minRating: 0 })).toBe(false);
+    expect(matchesTheme(t, { period: 'all', genre: 35, lang: 'all', minRating: 0 })).toBe(false);
+    expect(matchesTheme(t, { period: 'all', genre: null, lang: 'en', minRating: 0 })).toBe(false);
+    expect(matchesTheme(t, { period: 'all', genre: null, lang: 'other', minRating: 0 })).toBe(false);
+  });
+
+  it('filtre par note minimum (catalogue, sinon fiche détaillée)', () => {
+    const noted = makeTitle(2, { rating: 7.4 });
+    const fromDetails = makeTitle(3, { details: { fetchedAt: 0, directors: [], cast: [], genres: [], rating: 8.1, runtime: null, providers: { flatrate: [], rent: [], buy: [], link: null } } });
+    const unknown = makeTitle(4);
+    const min7 = { ...NO_THEME, minRating: 7 };
+    expect(matchesTheme(noted, min7)).toBe(true);
+    expect(matchesTheme(noted, { ...NO_THEME, minRating: 7.5 })).toBe(false);
+    expect(matchesTheme(fromDetails, min7)).toBe(true);
+    expect(matchesTheme(unknown, min7)).toBe(false); // note inconnue : exclu quand on filtre par note
+    expect(matchesTheme(unknown, NO_THEME)).toBe(true);
+    expect(themeLabel('movie', { ...NO_THEME, genre: 35, minRating: 7.5 })).toBe('Comédie · ⭐ 7,5+');
+    // Films et séries mélangés : le genre ne s'applique pas.
+    expect(themeLabel(null, { ...NO_THEME, genre: 35 })).toBe('Aucun filtre');
   });
 });
 

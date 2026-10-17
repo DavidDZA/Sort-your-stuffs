@@ -20,7 +20,7 @@ body.rate-phase::after {
   background: radial-gradient(circle at 50% 35%, rgb(62 224 143 / 0.3), rgb(8 45 35 / 0.75));
 }
 
-/* Barre du haut : retour, titre (ou question), thème, compteur. */
+/* Barre du haut : retour, titre (ou question), filtres, compteur. */
 .swipe-top {
   display: flex;
   align-items: center;
@@ -36,14 +36,6 @@ body.rate-phase::after {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.theme-icon {
-  font-size: 1.15rem;
-  flex-shrink: 0;
-}
-.theme-icon.active {
-  background: var(--grad-cool);
-  border-color: transparent;
 }
 .theme-strip {
   align-self: center;
@@ -130,23 +122,24 @@ body.rate-phase .swipe-card:not(.card-behind) {
   object-fit: cover;
 }
 
-/* Résumé par-dessus l'affiche : il capte le doigt pour défiler sans faire bouger la carte. */
+/* Résumé par-dessus l'affiche : seul le texte défile (il capte le doigt, la carte ne bouge pas) ;
+   le bouton « Fiche complète » et le ✕ restent visibles. */
 .card-overview {
   position: absolute;
   inset: 10px 10px auto;
   max-height: 70%;
-  overflow: auto;
-  touch-action: pan-y;
-  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: rgb(10 6 25 / 0.88);
   border-radius: 12px;
-  padding: 34px 14px 14px;
+  padding: 34px 14px 12px;
   font-size: 0.9rem;
   line-height: 1.4;
   animation: pop 0.2s;
 }
 .card-overview p {
-  margin: 0 0 10px;
+  margin: 0;
 }
 .overview-close {
   position: absolute;

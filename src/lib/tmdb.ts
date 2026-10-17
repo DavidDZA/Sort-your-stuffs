@@ -24,6 +24,7 @@ export interface RawResult {
   poster_path: string | null;
   overview?: string;
   vote_count?: number;
+  vote_average?: number;
   popularity?: number;
   genre_ids?: number[];
   original_language?: string;
@@ -98,6 +99,7 @@ export function toTitle(type: MediaType, r: RawResult): Title {
     overview: r.overview ?? '',
     voteCount: r.vote_count ?? 0,
     popularity: r.popularity ?? 0,
+    ...(r.vote_average ? { rating: Math.round(r.vote_average * 10) / 10 } : {}),
     genreIds: r.genre_ids ?? [],
     originalLanguage: r.original_language,
   };

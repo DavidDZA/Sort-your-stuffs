@@ -10,7 +10,7 @@ import SwipeCard, { type Dir, type Tone } from '../../components/SwipeCard';
 import { openFiche } from '../../components/Fiche';
 import { ARROWS, CORNERS, isCorner, PHASES, TONES, type Corner, type Phase } from './config';
 import { chainSaga, draw, prefetch, QUEUE_SIZE, removeFromPool, sagaOf, sagaTags, WEIGHT_EXP, type Pool, type SagaInfo, type SagaTag } from './pool';
-import { ThemeSheet } from './ThemeSheet';
+import { FilterButton, FilterIcon, FilterSheet } from '../../components/FilterSheet';
 import { ActionButton, CardTag } from './controls';
 
 const FLIP_MS = 350; // durée du retournement de la carte (animation flip-in)
@@ -281,21 +281,18 @@ export default function Swipe({ type }: { type: MediaType }) {
         <h2 className={`swipe-title ${mode === 'horizontal' && current ? `question ${phase}` : ''}`}>
           {mode === 'horizontal' && current ? p.question : typeTitle}
         </h2>
-        <button
-          className={`icon-btn theme-icon ${isNoTheme(theme) ? '' : 'active'}`}
+        <FilterButton
+          active={!isNoTheme(theme)}
+          label={`${themeLabel(type, theme)} · ${remaining.toLocaleString('fr-FR')} titres restants`}
           onClick={() => setShowThemes(true)}
-          aria-label="Thème de la session"
-          title={`Thème : ${themeLabel(type, theme)} · ${remaining.toLocaleString('fr-FR')} titres restants`}
-        >
-          🎯
-        </button>
+        />
         <span className="pill" title="Titres triés pendant cette session">
           🔥 {count}
         </span>
       </header>
       {!isNoTheme(theme) && (
-        <button className="theme-strip" onClick={() => setShowThemes(true)} title="Changer de thème">
-          🎯 {themeLabel(type, theme)} · {remaining.toLocaleString('fr-FR')} restants
+        <button className="theme-strip" onClick={() => setShowThemes(true)} title="Changer les filtres">
+          <FilterIcon /> {themeLabel(type, theme)} · {remaining.toLocaleString('fr-FR')} restants
         </button>
       )}
 
@@ -313,10 +310,10 @@ export default function Swipe({ type }: { type: MediaType }) {
             </>
           ) : !isNoTheme(theme) ? (
             <>
-              <span className="big-emoji">🎯</span>
-              <p>Plus rien à trier dans ce thème !</p>
+              <span className="big-emoji">🔍</span>
+              <p>Plus rien à trier avec ces filtres !</p>
               <button className="btn primary" onClick={() => setShowThemes(true)}>
-                Changer de thème
+                Changer les filtres
               </button>
             </>
           ) : (
@@ -356,8 +353,10 @@ export default function Swipe({ type }: { type: MediaType }) {
                   <button className="overview-close" onClick={() => setShowInfo(false)} aria-label="Fermer le résumé" title="Fermer le résumé">
                     ✕
                   </button>
-                  <p>{current.overview || 'Pas de résumé disponible.'}</p>
-                  <button className="btn small" onClick={() => openFiche(current)} title="Durée, note, bande-annonce, où regarder…">
+                  <div className="overview-text">
+                    <p>{current.overview || 'Pas de résumé disponible.'}</p>
+                  </div>
+                  <button className="btn small overview-fiche" onClick={() => openFiche(current)} title="Durée, note, bande-annonce, où regarder…">
                     📄 Fiche complète
                   </button>
                 </div>
@@ -386,11 +385,12 @@ export default function Swipe({ type }: { type: MediaType }) {
       )}
 
       {showThemes && (
-        <ThemeSheet
+        <FilterSheet
           type={type}
           initial={theme}
           count={(t) => catalogue.current.filter((x) => !answered.current.has(x.key) && matchesTheme(x, t)).length}
-          hasGenres={catalogue.current.some((t) => t.genreIds?.length)}
+          applyLabel={(n) => `C’est parti (${n.toLocaleString('fr-FR')})`}
+          hasCatalogueData={catalogue.current.some((t) => t.rating !== undefined)}
           onApply={applyTheme}
           onClose={() => setShowThemes(false)}
         />

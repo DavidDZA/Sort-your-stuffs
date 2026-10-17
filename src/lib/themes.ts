@@ -1,14 +1,18 @@
 import type { MediaType, Title } from './db';
 import { GENRES } from './genres';
 
-/** Thème d'une session de swipe : une période, un genre et une langue (chacun optionnel). */
+/**
+ * Filtres (swipe, classement, wishlist) : une période, un genre, une langue et une note minimum,
+ * chacun optionnel. Appelé « thème » à l'origine (sessions de swipe), d'où le nom.
+ */
 export interface Theme {
   period: string;
   genre: number | null;
   lang: string;
+  minRating: number; // note TMDB minimum sur 10 (0 = pas de filtre)
 }
 
-export const NO_THEME: Theme = { period: 'all', genre: null, lang: 'all' };
+export const NO_THEME: Theme = { period: 'all', genre: null, lang: 'all', minRating: 0 };
 
 const YEAR = new Date().getFullYear();
 
@@ -36,7 +40,10 @@ export const genreOptions = (type: MediaType) =>
     .map(([id, label]) => ({ id: Number(id), label }))
     .sort((a, b) => a.label.localeCompare(b.label, 'fr'));
 
-export const isNoTheme = (t: Theme) => t.period === 'all' && t.genre === null && t.lang === 'all';
+export const isNoTheme = (t: Theme) => t.period === 'all' && t.genre === null && t.lang === 'all' && !t.minRating;
+
+/** Note TMDB connue du titre : celle du catalogue, sinon celle de sa fiche détaillée. */
+export const ratingOf = (t: Title): number | null => t.rating ?? t.details?.rating ?? null;
 
 export function matchesTheme(title: Title, theme: Theme): boolean {
   const period = PERIODS.find((p) => p.id === theme.period);
@@ -44,14 +51,23 @@ export function matchesTheme(title: Title, theme: Theme): boolean {
   if (theme.genre !== null && !(title.genreIds ?? []).includes(theme.genre)) return false;
   const lang = LANGS.find((l) => l.id === theme.lang);
   if (lang && lang.id !== 'all' && (!title.originalLanguage || !lang.match(title.originalLanguage))) return false;
+  if (theme.minRating > 0) {
+    const rating = ratingOf(title);
+    if (rating === null || rating < theme.minRating) return false;
+  }
   return true;
 }
 
-export function themeLabel(type: MediaType, theme: Theme): string {
-  if (isNoTheme(theme)) return 'Tout le catalogue';
+/** Résumé du filtre (« Comédie · 90s · ⭐ 7+ »). Sans type (films et séries mélangés), pas de genre. */
+export function themeLabel(type: MediaType | null, theme: Theme): string {
+  if (isNoTheme(theme)) return 'Aucun filtre';
   const parts: string[] = [];
-  if (theme.genre !== null) parts.push(GENRES[type][theme.genre] ?? '');
+  if (type && theme.genre !== null) parts.push(GENRES[type][theme.genre] ?? '');
   if (theme.period !== 'all') parts.push(PERIODS.find((p) => p.id === theme.period)?.label ?? '');
   if (theme.lang !== 'all') parts.push(LANGS.find((l) => l.id === theme.lang)?.label ?? '');
-  return parts.filter(Boolean).join(' · ');
+  if (theme.minRating > 0) parts.push(`⭐ ${theme.minRating.toLocaleString('fr-FR')}+`);
+  return parts.filter(Boolean).join(' · ') || 'Aucun filtre';
 }
+
+/** Filtre utilisable sur une liste : null si aucun filtre (tout passe). */
+export const themeFilter = (theme: Theme): ((t: Title) => boolean) | null => (isNoTheme(theme) ? null : (t) => matchesTheme(t, theme));

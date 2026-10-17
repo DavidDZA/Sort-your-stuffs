@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, TYPE_LABEL, type Title } from '../lib/db';
+import { db, TYPE_LABEL, type Answer, type Tier, type Title } from '../lib/db';
+import { changeStatus } from '../lib/ranking';
+import { boostFrom } from '../lib/recommend';
 import { ensureDetails, posterUrl, providerLogo } from '../lib/tmdb';
 import { groupProviders, isMineGroup, loadMyProviders } from '../lib/providers';
 import { useLongPress } from '../lib/hooks';
@@ -202,5 +204,52 @@ export function Sheet({ onClose, children, label }: { onClose: () => void; child
         {children}
       </div>
     </div>
+  );
+}
+
+/**
+ * « Vu » en deux boutons : 👍 bien ou 😐 bof (l'avis décide de la place dans le classement :
+ * les « bien » au-dessus, et classés en priorité). Un « bien » fait aussi recommander des titres proches.
+ */
+export function SeenButtons({
+  title,
+  current,
+  onSeen,
+  labels = false,
+}: {
+  title: Title;
+  current?: Pick<Answer, 'status' | 'tier'>;
+  onSeen?: (tier: Tier) => void;
+  /** Libellés complets (« 👍 Vu · bien ») plutôt que les seuls emojis. */
+  labels?: boolean;
+}) {
+  const mark = async (tier: Tier) => {
+    await changeStatus(title, 'seen', tier);
+    if (tier === 'good') boostFrom(title);
+    onSeen?.(tier);
+  };
+  const isActive = (tier: Tier) => current?.status === 'seen' && current.tier === tier;
+  const size = labels ? '' : 'small';
+  return (
+    <>
+      <button
+        className={`btn ${size} seen-btn good ${isActive('good') ? 'active' : ''}`}
+        onClick={() => mark('good')}
+        disabled={isActive('good')}
+        title={isActive('good') ? 'Vu, avis « bien »' : 'Vu, et j’ai aimé : classé avec les « bien »'}
+        aria-label="Vu, bien"
+      >
+        {labels ? '👍 Vu · bien' : '👍'}
+      </button>
+      <button
+        className={`btn ${size} seen-btn meh ${isActive('meh') ? 'active' : ''}`}
+        onClick={() => mark('meh')}
+        disabled={isActive('meh')}
+        title={isActive('meh') ? 'Vu, avis « bof »' : 'Vu, mais bof : classé avec les « bof »'}
+        aria-label="Vu, bof"
+      >
+        {labels ? '😐 Vu · bof' : '😐'}
+      </button>
+    </>
   );
 }
