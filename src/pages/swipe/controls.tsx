@@ -29,7 +29,10 @@ export function CardTag({ saga, boost }: { saga?: SagaTag; boost?: { from: strin
   if (saga) {
     return (
       <span className="card-tag saga-tag" title={`Saga ${saga.name} : film ${saga.position} sur ${saga.total}`}>
-        🎞️ {saga.name} · {saga.position}/{saga.total}
+        <span className="saga-name">🎞️ {saga.name}</span>
+        <span className="saga-count">
+          · {saga.position}/{saga.total}
+        </span>
       </span>
     );
   }

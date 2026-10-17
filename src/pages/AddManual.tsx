@@ -2,13 +2,10 @@ import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Answer, type Status, type Title } from '../lib/db';
 import { changeStatus } from '../lib/ranking';
-import { personFilmography, profileUrl, search, searchPeople, type Person, type PersonRole } from '../lib/tmdb';
-import { SeenButtons, TitleRow, TopBar, TypeFilter } from '../components/common';
+import { KNOWN_VOTES, personFilmography, search, searchPeople, type Person, type PersonRole } from '../lib/tmdb';
+import { PersonAvatar, SeenButtons, TitleRow, TopBar, TypeFilter } from '../components/common';
 
 type Mode = 'title' | PersonRole;
-
-/** Titres peu connus (souvent des courts métrages) : rangés à part dans une filmographie. */
-const KNOWN_VOTES = 50;
 
 const PLACEHOLDER: Record<Mode, string> = {
   title: 'Titre d’un film ou d’une série…',
@@ -180,10 +177,6 @@ export default function AddManual() {
   );
 }
 
-function PersonAvatar({ person }: { person: Person }) {
-  const src = profileUrl(person.profilePath);
-  return <div className="person-avatar">{src ? <img src={src} alt="" loading="lazy" /> : <span>{person.name.slice(0, 1)}</span>}</div>;
-}
 
 function StatusButton({ title, status, current, label, tip }: { title: Title; status: Status; current?: Status; label: string; tip: string }) {
   const active = current === status;

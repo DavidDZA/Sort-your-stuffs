@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, TYPE_LABEL, type Answer, type Tier, type Title } from '../lib/db';
 import { changeStatus } from '../lib/ranking';
 import { boostFrom } from '../lib/recommend';
-import { ensureDetails, posterUrl, providerLogo } from '../lib/tmdb';
+import { ensureDetails, posterUrl, profileUrl, providerLogo } from '../lib/tmdb';
 import { groupProviders, isMineGroup, loadMyProviders } from '../lib/providers';
 import { useLongPress } from '../lib/hooks';
 import { openFiche } from './Fiche';
@@ -252,4 +252,10 @@ export function SeenButtons({
       </button>
     </>
   );
+}
+
+/** Photo d'une personne (ou son initiale). */
+export function PersonAvatar({ person }: { person: { name: string; profilePath: string | null } }) {
+  const src = profileUrl(person.profilePath);
+  return <div className="person-avatar">{src ? <img src={src} alt="" loading="lazy" /> : <span>{person.name.slice(0, 1)}</span>}</div>;
 }

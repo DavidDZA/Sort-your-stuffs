@@ -3,7 +3,7 @@ import { tierize } from '../src/lib/tiers';
 import { matchesTonight, NO_FILTERS, pickWeighted, priorityWeight } from '../src/lib/tonight';
 import { availableOnMine, groupProviders, providerFamily, providerLabel, type MyProviders } from '../src/lib/providers';
 import { boostFactor, mergeBoosts } from '../src/lib/recommend';
-import { matchesTheme, missingFilterInfo, NO_THEME, themeLabel } from '../src/lib/themes';
+import { isNoTheme, matchesTheme, missingFilterInfo, NO_THEME, themeLabel } from '../src/lib/themes';
 import { bestStreak, lastDays, streak } from '../src/lib/activity';
 import { matchesSearch, normalize } from '../src/lib/hooks';
 import type { Details } from '../src/lib/db';
@@ -124,6 +124,17 @@ describe('thèmes de swipe', () => {
     expect(themeLabel('movie', { ...NO_THEME, genre: 35, minRating: 7.5 })).toBe('Comédie · ⭐ 7,5+');
     // Films et séries mélangés : le genre ne s'applique pas.
     expect(themeLabel(null, { ...NO_THEME, genre: 35 })).toBe('Aucun filtre');
+  });
+
+  it('filtre par réalisateur et par acteur (filmographie retenue avec le filtre)', () => {
+    const director = { id: 1, name: 'Christopher Nolan', keys: [makeTitle(2).key, makeTitle(3).key] };
+    const actor = { id: 2, name: 'Michael Caine', keys: [makeTitle(3).key, makeTitle(4).key] };
+    expect(matchesTheme(makeTitle(2), { ...NO_THEME, director })).toBe(true);
+    expect(matchesTheme(makeTitle(4), { ...NO_THEME, director })).toBe(false);
+    expect(matchesTheme(makeTitle(3), { ...NO_THEME, director, actor })).toBe(true); // les deux
+    expect(matchesTheme(makeTitle(2), { ...NO_THEME, director, actor })).toBe(false);
+    expect(isNoTheme({ ...NO_THEME, actor })).toBe(false);
+    expect(themeLabel('movie', { ...NO_THEME, period: '2010', director, actor })).toBe('2010s · 🎥 Christopher Nolan · 🎭 Michael Caine');
   });
 });
 

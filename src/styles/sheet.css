@@ -154,3 +154,50 @@
 .fiche-section p {
   margin: 0;
 }
+
+/* Filtre réalisateur / acteur : recherche, puis la personne choisie en pastille. */
+.person-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.person-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.person-results button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.person-results .person-avatar {
+  width: 36px;
+  height: 36px;
+}
+.person-result-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.person-result-text .tiny {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.person-chip span {
+  margin-left: 4px;
+  opacity: 0.7;
+}

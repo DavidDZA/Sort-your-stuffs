@@ -149,13 +149,14 @@ export function pickTrailer(videos: NonNullable<DetailsResponse['videos']>['resu
 }
 
 export function parseDetails(type: MediaType, res: DetailsResponse): Details {
-  const cast = res.credits?.cast ?? [];
+  const cast = [...(res.credits?.cast ?? [])].sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
   const crew = res.credits?.crew ?? [];
   const fr = res['watch/providers']?.results.FR;
   return {
     fetchedAt: Date.now(),
     directors: (type === 'movie' ? crew.filter((c) => c.job === 'Director') : (res.created_by ?? [])).slice(0, 2).map((c) => c.name),
-    cast: [...cast].sort((a, b) => (a.order ?? 99) - (b.order ?? 99)).slice(0, 2).map((c) => c.name),
+    cast: cast.slice(0, 2).map((c) => c.name),
+    topCast: cast.slice(0, 8).map((c) => c.name),
     genres: (res.genres ?? []).map((g) => g.name),
     genreIds: (res.genres ?? []).map((g) => g.id),
     originalLanguage: res.original_language,
@@ -332,9 +333,21 @@ export function filmography(credits: { cast: CreditItem[]; crew: CreditItem[] },
   return [...byKey.values()].sort((a, b) => (b.year ?? 0) - (a.year ?? 0) || b.voteCount - a.voteCount);
 }
 
-export async function personFilmography(personId: number, role: PersonRole): Promise<Title[]> {
-  const credits = await tmdb<{ cast: CreditItem[]; crew: CreditItem[] }>(`/person/${personId}/combined_credits`);
-  return filmography(credits, role);
+/** Titres peu connus (souvent des courts métrages) : rangés à part, et pas ajoutés au swipe. */
+export const KNOWN_VOTES = 50;
+
+const filmographies = new Map<string, Promise<Title[]>>();
+
+/** Filmographie d'une personne (mémorisée le temps de la session). */
+export function personFilmography(personId: number, role: PersonRole): Promise<Title[]> {
+  const id = `${personId}:${role}`;
+  let p = filmographies.get(id);
+  if (!p) {
+    p = tmdb<{ cast: CreditItem[]; crew: CreditItem[] }>(`/person/${personId}/combined_credits`).then((credits) => filmography(credits, role));
+    p.catch(() => filmographies.delete(id));
+    filmographies.set(id, p);
+  }
+  return p;
 }
 
 /** Recherche films + séries ; renvoie les titres non exclus. */

@@ -15,6 +15,7 @@ export interface TypeStats {
   decades: Bar[];
   genres: Bar[];
   people: Bar[]; // réalisateurs (films) ou créateurs (séries)
+  actors: Bar[]; // acteurs (premiers rôles)
   top: { seen: number; total: number }; // couverture des titres les plus populaires
   ranked: number;
 }
@@ -89,6 +90,10 @@ async function typeStats(type: MediaType, seen: Title[]): Promise<TypeStats> {
     ),
     people: count(
       seen.flatMap((t) => t.details?.directors ?? []),
+      5,
+    ).filter((b) => b.count > 1),
+    actors: count(
+      seen.flatMap((t) => t.details?.topCast ?? t.details?.cast ?? []),
       5,
     ).filter((b) => b.count > 1),
     top: { seen: top.filter((k) => seenKeys.has(k)).length, total: top.length },

@@ -12,6 +12,7 @@ import { ARROWS, CORNERS, isCorner, PHASES, TONES, type Corner, type Phase } fro
 import { chainSaga, draw, prefetch, QUEUE_SIZE, removeFromPool, sagaOf, sagaTags, WEIGHT_EXP, type Pool, type SagaInfo, type SagaTag } from './pool';
 import { FilterButton, FilterIcon, FilterSheet } from '../../components/FilterSheet';
 import { ActionButton, CardTag } from './controls';
+import { KNOWN_VOTES, personFilmography } from '../../lib/tmdb';
 
 const FLIP_MS = 350; // durée du retournement de la carte (animation flip-in)
 
@@ -85,6 +86,12 @@ export default function Swipe({ type }: { type: MediaType }) {
     if (next) setQueue(next);
   };
 
+  /** Ajoute au catalogue du swipe les titres connus de ce type qu'il n'a pas (filmographie d'une personne). */
+  const addTitles = (titles: Title[]) => {
+    const known = new Set(catalogue.current.map((t) => t.key));
+    for (const t of titles) if (t.type === type && t.voteCount >= KNOWN_VOTES && !known.has(t.key)) catalogue.current.push(t);
+  };
+
   // Charge le catalogue de ce type (à nouveau après une mise à jour du catalogue).
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +106,11 @@ export default function Swipe({ type }: { type: MediaType }) {
       catalogue.current = titles;
       answered.current = new Set(keys);
       boosts.current = saved;
+      // Filtre sur une personne retenu : sa filmographie peut compter des titres hors catalogue.
+      for (const [person, role] of [[theme.director, 'director'], [theme.actor, 'actor']] as const) {
+        if (person) addTitles(await personFilmography(person.id, role).catch(() => []));
+      }
+      if (cancelled) return;
       setLoaded(true);
     })();
     return () => {
@@ -395,6 +407,7 @@ export default function Swipe({ type }: { type: MediaType }) {
           hasCatalogueData={catalogue.current.some((t) => t.rating !== undefined)}
           missingRatings={catalogue.current.filter((t) => !answered.current.has(t.key) && ratingMissing(t)).length}
           onCatalogueUpdated={() => setCatalogueVersion((v) => v + 1)}
+          onPersonTitles={addTitles}
           onApply={applyTheme}
           onClose={() => setShowThemes(false)}
         />

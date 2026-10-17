@@ -34,6 +34,7 @@ export interface Details {
   fetchedAt: number;
   directors: string[]; // réalisateur(s) pour un film, créateur(s) pour une série
   cast: string[]; // acteurs principaux
+  topCast?: string[]; // premiers rôles (8), pour les stats ; absents des fiches d'avant le 17/10
   genres: string[];
   genreIds?: number[]; // absents des fiches enregistrées avant le 17/10 (récupérées à nouveau)
   originalLanguage?: string;

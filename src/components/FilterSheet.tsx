@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import type { MediaType } from '../lib/db';
-import { genreOptions, LANGS, NO_THEME, PERIODS, type Theme } from '../lib/themes';
+import { useEffect, useState } from 'react';
+import type { MediaType, Title } from '../lib/db';
+import { genreOptions, LANGS, NO_THEME, PERIODS, type PersonFilter, type Theme } from '../lib/themes';
+import { personFilmography, searchPeople, type Person, type PersonRole } from '../lib/tmdb';
 import { getMinVotes, readPref, writePref } from '../lib/settings';
 import { requestPersistentStorage } from '../lib/db';
 import { syncCatalogue } from '../lib/sync';
-import { Sheet } from './common';
+import { PersonAvatar, Sheet } from './common';
 
 /**
  * Fenêtre des filtres (swipe, classement, wishlist) : note minimum, période, genre, langue.
@@ -25,6 +26,8 @@ export function FilterSheet(props: {
   missingRatings?: number;
   /** Appelé après une mise à jour du catalogue faite depuis cette fenêtre. */
   onCatalogueUpdated?: () => void;
+  /** Filmographie d'une personne choisie, reçue avant le filtre (le swipe y ajoute les titres hors catalogue). */
+  onPersonTitles?: (titles: Title[]) => void;
   onApply: (t: Theme) => void;
   onClose: () => void;
 }) {
@@ -103,6 +106,12 @@ export function FilterSheet(props: {
         ))}
       </div>
 
+      <h3 className="sheet-label">Réalisateur</h3>
+      <PersonField role="director" value={draft.director ?? null} onChange={(p) => setDraft({ ...draft, director: p })} onTitles={props.onPersonTitles} />
+
+      <h3 className="sheet-label">Acteur</h3>
+      <PersonField role="actor" value={draft.actor ?? null} onChange={(p) => setDraft({ ...draft, actor: p })} onTitles={props.onPersonTitles} />
+
       <h3 className="sheet-label">Genre</h3>
       {props.type ? (
         <div className="chips">
@@ -137,6 +146,91 @@ export function FilterSheet(props: {
         </button>
       </div>
     </Sheet>
+  );
+}
+
+const PERSON_TEXT: Record<PersonRole, { icon: string; placeholder: string }> = {
+  director: { icon: '🎥', placeholder: 'Nom d’un réalisateur ou d’une réalisatrice…' },
+  actor: { icon: '🎭', placeholder: 'Nom d’un acteur ou d’une actrice…' },
+};
+
+/** Choix d'une personne (recherche TMDB) ; sa filmographie devient le filtre. */
+function PersonField(props: {
+  role: PersonRole;
+  value: PersonFilter | null;
+  onChange: (p: PersonFilter | null) => void;
+  onTitles?: (titles: Title[]) => void;
+}) {
+  const { icon, placeholder } = PERSON_TEXT[props.role];
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<Person[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setResults([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      searchPeople(q, props.role)
+        .then((found) => !cancelled && setResults(found.slice(0, 5)))
+        .catch((e) => !cancelled && setError((e as Error).message));
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query, props.role]);
+
+  const choose = async (p: Person) => {
+    setBusy(p.name);
+    setError(null);
+    try {
+      const titles = await personFilmography(p.id, props.role);
+      props.onTitles?.(titles);
+      props.onChange({ id: p.id, name: p.name, keys: titles.map((t) => t.key) });
+      setQuery('');
+      setResults([]);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (props.value) {
+    return (
+      <div className="chips">
+        <button className="chip active person-chip" onClick={() => props.onChange(null)} title="Retirer ce filtre">
+          {icon} {props.value.name} <span aria-hidden>✕</span>
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="person-field">
+      <input className="input" type="search" placeholder={placeholder} value={query} onChange={(e) => setQuery(e.target.value)} />
+      {busy && <p className="muted small">Filmographie de {busy}…</p>}
+      {error && <p className="error small">{error}</p>}
+      {!busy && results.length > 0 && (
+        <ul className="person-results">
+          {results.map((p) => (
+            <li key={p.id}>
+              <button onClick={() => choose(p)} title={`Filtrer sur ${p.name}`}>
+                <PersonAvatar person={p} />
+                <span className="person-result-text">
+                  <b>{p.name}</b>
+                  {p.knownFor.length > 0 && <span className="muted tiny">{p.knownFor.join(', ')}</span>}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

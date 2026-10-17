@@ -97,6 +97,7 @@ export default function StatsPage() {
         bars={t.people}
         empty="Il faut au moins 2 titres vus du même auteur."
       />
+      <BarCard title="🌟 Acteurs les plus vus" bars={t.actors} empty="Il faut au moins 2 titres vus avec le même acteur." />
 
       {stats.sagas.length > 0 && (
         <section className="card">
