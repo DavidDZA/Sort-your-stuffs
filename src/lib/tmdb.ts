@@ -105,7 +105,8 @@ export function toTitle(type: MediaType, r: RawResult): Title {
   };
 }
 
-interface Person {
+/** Membre du casting ou de l'équipe dans une fiche détaillée. */
+interface CreditPerson {
   name: string;
   job?: string;
   order?: number;
@@ -127,9 +128,9 @@ export interface DetailsResponse {
   vote_average?: number;
   original_language?: string;
   genres?: { id: number; name: string }[];
-  created_by?: Person[];
+  created_by?: CreditPerson[];
   belongs_to_collection?: { id: number; name: string } | null;
-  credits?: { cast: Person[]; crew: Person[] };
+  credits?: { cast: CreditPerson[]; crew: CreditPerson[] };
   videos?: { results: { key: string; site: string; type: string; iso_639_1: string; official: boolean }[] };
   'watch/providers'?: {
     results: Record<string, { link?: string; flatrate?: RawProvider[]; rent?: RawProvider[]; buy?: RawProvider[] } | undefined>;
@@ -266,6 +267,74 @@ export async function fetchProviderOptions(): Promise<ProviderOption[]> {
     if (!prev || priority < prev.priority) byId.set(p.provider_id, { id: p.provider_id, name: p.provider_name, logo: p.logo_path, priority });
   }
   return [...byId.values()].sort((a, b) => a.priority - b.priority);
+}
+
+// ---------- Personnes (ajout manuel par réalisateur / acteur) ----------
+
+export type PersonRole = 'director' | 'actor';
+
+export interface Person {
+  id: number;
+  name: string;
+  profilePath: string | null;
+  department: string; // « Directing », « Acting »…
+  knownFor: string[];
+}
+
+export const profileUrl = (path: string | null) => (path ? `https://image.tmdb.org/t/p/w185${path}` : null);
+
+/** Personnes correspondant au nom, celles du bon métier en premier (réalisation ou interprétation). */
+export async function searchPeople(query: string, role: PersonRole): Promise<Person[]> {
+  const page = await tmdb<{ results: { id: number; name: string; profile_path: string | null; known_for_department?: string; known_for?: RawResult[] }[] }>(
+    '/search/person',
+    { query, include_adult: false },
+  );
+  const wanted = role === 'director' ? 'Directing' : 'Acting';
+  return page.results
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      profilePath: p.profile_path,
+      department: p.known_for_department ?? '',
+      knownFor: (p.known_for ?? []).map((k) => k.title ?? k.name ?? '').filter(Boolean).slice(0, 3),
+    }))
+    .sort((a, b) => Number(b.department === wanted) - Number(a.department === wanted));
+}
+
+export interface CreditItem extends RawResult {
+  media_type?: string;
+  character?: string;
+  job?: string;
+}
+
+/** Apparitions « dans son propre rôle » (documentaires, hommages, making-of…) : écartées. */
+const SELF = /^(self|himself|herself|themselves|lui-même|elle-même)\b/i;
+
+/**
+ * Filmographie d'une personne : films réalisés et séries créées (réalisateur), ou rôles joués (acteur).
+ * Sans doublon, sans titre exclu (documentaires, émissions, animes…) ni titre pas encore sorti ;
+ * du plus récent au plus ancien.
+ */
+export function filmography(credits: { cast: CreditItem[]; crew: CreditItem[] }, role: PersonRole): Title[] {
+  const items =
+    role === 'actor'
+      ? credits.cast.filter((c) => !SELF.test(c.character?.trim() ?? ''))
+      : credits.crew.filter((c) => (c.media_type === 'movie' && c.job === 'Director') || (c.media_type === 'tv' && c.job === 'Creator'));
+  const today = new Date().toISOString().slice(0, 10);
+  const byKey = new Map<string, Title>();
+  for (const c of items) {
+    if (c.media_type !== 'movie' && c.media_type !== 'tv') continue;
+    const date = c.media_type === 'movie' ? c.release_date : c.first_air_date;
+    if (!date || date > today || isExcluded(c.media_type, c)) continue;
+    const t = { ...toTitle(c.media_type, c), manual: true };
+    if (!byKey.has(t.key)) byKey.set(t.key, t);
+  }
+  return [...byKey.values()].sort((a, b) => (b.year ?? 0) - (a.year ?? 0) || b.voteCount - a.voteCount);
+}
+
+export async function personFilmography(personId: number, role: PersonRole): Promise<Title[]> {
+  const credits = await tmdb<{ cast: CreditItem[]; crew: CreditItem[] }>(`/person/${personId}/combined_credits`);
+  return filmography(credits, role);
 }
 
 /** Recherche films + séries ; renvoie les titres non exclus. */

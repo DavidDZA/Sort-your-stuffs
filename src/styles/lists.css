@@ -131,3 +131,48 @@
     width: 64px;
   }
 }
+
+/* ---------- Ajout manuel : recherche par réalisateur / acteur ---------- */
+
+.person-row {
+  cursor: pointer;
+  flex-wrap: nowrap;
+}
+.person-avatar {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface-2);
+  display: grid;
+  place-items: center;
+  font-family: var(--display);
+  font-weight: 700;
+  color: var(--muted);
+}
+.person-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.person-arrow {
+  font-size: 1.4rem;
+  color: var(--muted);
+}
+.person-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.person-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.lesser summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 4px 0 8px;
+}

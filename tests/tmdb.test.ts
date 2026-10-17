@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isExcluded, parseDetails, pickTrailer, toTitle, type RawResult } from '../src/lib/tmdb';
+import { filmography, isExcluded, parseDetails, pickTrailer, toTitle, type CreditItem, type RawResult } from '../src/lib/tmdb';
 
 const raw = (extra: Partial<RawResult>): RawResult => ({ id: 1, poster_path: null, ...extra });
 
@@ -97,5 +97,34 @@ describe('fiche détaillée', () => {
       number_of_episodes: 73,
     });
     expect(d).toMatchObject({ directors: ['David Benioff', 'D. B. Weiss'], runtime: 80, seasons: 8, episodes: 73, collection: null });
+  });
+});
+
+describe('filmographie (ajout manuel par personne)', () => {
+  const c = (extra: Partial<CreditItem>): CreditItem => ({ id: 1, poster_path: null, media_type: 'movie', release_date: '2010-07-16', vote_count: 100, ...extra });
+  const credits = {
+    cast: [
+      c({ id: 1, title: 'Inception', character: 'Cobb' }),
+      c({ id: 2, title: 'Hommage', character: 'Self' }), // apparition dans son propre rôle
+      c({ id: 3, title: 'Making-of', character: 'Himself - Actor' }),
+      c({ id: 4, title: 'Docu', character: 'Narrateur', genre_ids: [99] }), // documentaire
+      c({ id: 5, title: 'Pas encore sorti', character: 'X', release_date: '2999-01-01' }),
+      c({ id: 1, title: 'Inception', character: 'Cobb (voix)' }), // doublon
+      c({ id: 6, media_type: 'tv', name: 'Une série', first_air_date: '2015-01-01', character: 'Y' }),
+    ],
+    crew: [
+      c({ id: 10, title: 'Réalisé', job: 'Director', release_date: '2020-01-01' }),
+      c({ id: 11, title: 'Produit', job: 'Producer' }),
+      c({ id: 12, media_type: 'tv', name: 'Créée', job: 'Creator', first_air_date: '2018-01-01' }),
+      c({ id: 13, media_type: 'tv', name: 'Un épisode réalisé', job: 'Director', first_air_date: '2019-01-01' }),
+    ],
+  };
+
+  it('acteur : rôles joués, sans « Self », documentaire, titre à venir ni doublon, du plus récent au plus ancien', () => {
+    expect(filmography(credits, 'actor').map((t) => t.title)).toEqual(['Une série', 'Inception']);
+  });
+
+  it('réalisateur : films réalisés et séries créées (pas un épisode réalisé)', () => {
+    expect(filmography(credits, 'director').map((t) => t.title)).toEqual(['Réalisé', 'Créée']);
   });
 });

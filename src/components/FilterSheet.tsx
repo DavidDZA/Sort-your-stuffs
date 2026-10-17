@@ -5,7 +5,7 @@ import { readPref, writePref } from '../lib/settings';
 import { Sheet } from './common';
 
 /**
- * Fenêtre des filtres (swipe, classement, wishlist) : période, genre, langue, note minimum.
+ * Fenêtre des filtres (swipe, classement, wishlist) : note minimum, période, genre, langue.
  * Le nombre de titres concernés se met à jour en direct ; les boutons restent visibles en bas.
  */
 export function FilterSheet(props: {
@@ -37,6 +37,25 @@ export function FilterSheet(props: {
       ) : (
         !props.hasCatalogueData && <p className="banner-soft small">Mets à jour le catalogue (Réglages) pour filtrer par genre, langue et note.</p>
       )}
+
+      <h3 className="sheet-label">
+        Note TMDB minimum : <b className="rating-value">{draft.minRating > 0 ? `⭐ ${draft.minRating.toLocaleString('fr-FR')}` : 'toutes'}</b>
+      </h3>
+      <input
+        className="rating-slider"
+        type="range"
+        min={0}
+        max={10}
+        step={0.5}
+        value={draft.minRating}
+        onChange={(e) => setDraft({ ...draft, minRating: Number(e.target.value) })}
+        aria-label="Note TMDB minimum"
+      />
+      <div className="rating-scale muted tiny">
+        <span>0</span>
+        <span>5</span>
+        <span>10</span>
+      </div>
 
       <h3 className="sheet-label">Période</h3>
       <div className="chips">
@@ -70,25 +89,6 @@ export function FilterSheet(props: {
             {l.label}
           </button>
         ))}
-      </div>
-
-      <h3 className="sheet-label">
-        Note TMDB minimum : <b className="rating-value">{draft.minRating > 0 ? `⭐ ${draft.minRating.toLocaleString('fr-FR')}` : 'toutes'}</b>
-      </h3>
-      <input
-        className="rating-slider"
-        type="range"
-        min={0}
-        max={10}
-        step={0.5}
-        value={draft.minRating}
-        onChange={(e) => setDraft({ ...draft, minRating: Number(e.target.value) })}
-        aria-label="Note TMDB minimum"
-      />
-      <div className="rating-scale muted tiny">
-        <span>0</span>
-        <span>5</span>
-        <span>10</span>
       </div>
 
       <div className="row center sheet-actions">

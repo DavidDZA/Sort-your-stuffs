@@ -8,7 +8,7 @@ Web app (PWA) pour construire petit à petit la liste des films et séries qu'on
 2. **Swiper les séries** : idem.
 3. **Classer les films** : duels entre deux films vus ; chaque film est placé par insertion dichotomique (~log₂(n) duels).
 4. **Classer les séries** : idem.
-5. **Ajout manuel** : recherche TMDB pour marquer un titre comme vu ou l'ajouter à la wishlist.
+5. **Ajout manuel** : recherche par titre, par réalisateur ou par acteur (filmographie complète), pour marquer des titres vus ou les ajouter à la wishlist.
 6. **Wishlist** : filtre films / séries, priorisation par duels, plateformes de streaming (et filtre « dispo sur mes abonnements »).
 7. **Mes listes** : tous les titres vus / pas vus, avec recherche, pour corriger une erreur.
 8. **Stats & badges** : décennies, genres, réalisateurs, temps passé, couverture des titres populaires, activité, badges.
