@@ -51,6 +51,12 @@
   font-weight: 500;
 }
 /* Boutons « Réinitialiser » / « Appliquer » toujours visibles en bas, même en faisant défiler. */
+.catalogue-update {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
 .sheet-actions {
   position: sticky;
   z-index: 2;

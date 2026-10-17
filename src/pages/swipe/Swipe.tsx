@@ -4,7 +4,7 @@ import { burst, centerOf, MILESTONES, pick, toast } from '../../lib/fun';
 import { recordActivity } from '../../lib/activity';
 import { boostFactor, boostFrom, loadBoosts, type Boosts } from '../../lib/recommend';
 import { getSwipeMode, readPref, writePref } from '../../lib/settings';
-import { isNoTheme, matchesTheme, NO_THEME, themeLabel, type Theme } from '../../lib/themes';
+import { isNoTheme, matchesTheme, NO_THEME, ratingOf, themeLabel, type Theme } from '../../lib/themes';
 import { BackLink, Poster, RatingBadge, TitleText } from '../../components/common';
 import SwipeCard, { type Dir, type Tone } from '../../components/SwipeCard';
 import { openFiche } from '../../components/Fiche';
@@ -25,6 +25,7 @@ export default function Swipe({ type }: { type: MediaType }) {
   const weightOf = (t: Title) => Math.pow(Math.max(t.voteCount, 1), WEIGHT_EXP) * boostFactor(boosts.current[t.key]);
   const answered = useRef(new Set<string>());
   const [loaded, setLoaded] = useState(false);
+  const [catalogueVersion, setCatalogueVersion] = useState(0); // relance le chargement après une mise à jour
   const [theme, setTheme] = useState<Theme>(() => readPref(themeKey, NO_THEME));
   const [showThemes, setShowThemes] = useState(false);
   const [queue, setQueueState] = useState<Title[] | null>(null);
@@ -84,9 +85,10 @@ export default function Swipe({ type }: { type: MediaType }) {
     if (next) setQueue(next);
   };
 
-  // Charge le catalogue de ce type une seule fois.
+  // Charge le catalogue de ce type (à nouveau après une mise à jour du catalogue).
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
     (async () => {
       const [titles, keys, saved] = await Promise.all([
         db.titles.where('type').equals(type).toArray(),
@@ -102,7 +104,7 @@ export default function Swipe({ type }: { type: MediaType }) {
     return () => {
       cancelled = true;
     };
-  }, [type]);
+  }, [type, catalogueVersion]);
 
   // (Re)construit le tirage quand le thème change.
   useEffect(() => {
@@ -391,6 +393,8 @@ export default function Swipe({ type }: { type: MediaType }) {
           count={(t) => catalogue.current.filter((x) => !answered.current.has(x.key) && matchesTheme(x, t)).length}
           applyLabel={(n) => `C’est parti (${n.toLocaleString('fr-FR')})`}
           hasCatalogueData={catalogue.current.some((t) => t.rating !== undefined)}
+          missingRatings={catalogue.current.filter((t) => !answered.current.has(t.key) && ratingOf(t) === null).length}
+          onCatalogueUpdated={() => setCatalogueVersion((v) => v + 1)}
           onApply={applyTheme}
           onClose={() => setShowThemes(false)}
         />

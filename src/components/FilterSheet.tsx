@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import type { MediaType } from '../lib/db';
 import { genreOptions, LANGS, NO_THEME, PERIODS, type Theme } from '../lib/themes';
-import { readPref, writePref } from '../lib/settings';
+import { getMinVotes, readPref, writePref } from '../lib/settings';
+import { requestPersistentStorage } from '../lib/db';
+import { syncCatalogue } from '../lib/sync';
 import { Sheet } from './common';
 
 /**
@@ -19,18 +21,53 @@ export function FilterSheet(props: {
   hasCatalogueData: boolean;
   /** Titres dont les infos (genre, langue, note) sont en cours de récupération. */
   pendingInfo?: number;
+  /** Titres du catalogue sans note (téléchargés avant qu'on l'enregistre) : mise à jour proposée sur place. */
+  missingRatings?: number;
+  /** Appelé après une mise à jour du catalogue faite depuis cette fenêtre. */
+  onCatalogueUpdated?: () => void;
   onApply: (t: Theme) => void;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState<Theme>({ ...props.initial, genre: props.type ? props.initial.genre : null });
+  const [sync, setSync] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const n = props.count(draft);
+
+  const updateCatalogue = async () => {
+    setSyncing(true);
+    setSync('Démarrage…');
+    await requestPersistentStorage();
+    try {
+      const { movie, tv } = await syncCatalogue(getMinVotes(), setSync);
+      setSync(`✓ Catalogue à jour (${(movie + tv).toLocaleString('fr-FR')} titres) : les notes sont là.`);
+      props.onCatalogueUpdated?.();
+    } catch (e) {
+      setSync(`✕ ${(e as Error).message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   return (
     <Sheet onClose={props.onClose} label="Filtres">
       <h2 className="sheet-title">
         <FilterIcon /> Filtres
       </h2>
-      {props.pendingInfo ? (
+      {(props.missingRatings ?? 0) > 0 || sync ? (
+        <div className="banner-soft small catalogue-update">
+          {sync ?? (
+            <>
+              ⭐ <b>{props.missingRatings!.toLocaleString('fr-FR')} titres</b> n’ont pas encore leur note : ton catalogue a été téléchargé avant
+              qu’on l’enregistre. Avec une note minimum, ils sont écartés.
+            </>
+          )}
+          {!syncing && !sync?.startsWith('✓') && (
+            <button className="btn small primary" onClick={updateCatalogue} title="Retélécharger le catalogue avec les notes (environ 1 minute)">
+              Mettre à jour le catalogue (≈ 1 min)
+            </button>
+          )}
+        </div>
+      ) : props.pendingInfo ? (
         <p className="banner-soft small">
           ⏳ Récupération des genres, langues et notes de {props.pendingInfo.toLocaleString('fr-FR')} titres… les résultats se complètent.
         </p>
