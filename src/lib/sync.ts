@@ -1,5 +1,6 @@
 import { db, setMeta, type MediaType, type Title } from './db';
-import { EXCLUDED_GENRES, isExcluded, tmdb, toTitle, type Page } from './tmdb';
+import { EXCLUDED_GENRES, isExcluded, prefetchDetails, tmdb, toTitle, type Page } from './tmdb';
+import { ratingMissing } from './themes';
 import type { MinVotes } from './settings';
 
 const MAX_PAGES = 500; // limite imposée par TMDB sur /discover
@@ -48,7 +49,7 @@ async function runPool(tasks: (() => Promise<void>)[], concurrency: number) {
 
 export type Progress = (message: string) => void;
 
-async function syncType(type: MediaType, minVotes: number, onProgress: Progress): Promise<number> {
+async function syncType(type: MediaType, minVotes: number, onProgress: Progress, seen: Set<string>): Promise<number> {
   const label = type === 'movie' ? 'films' : 'séries';
   onProgress(`Préparation des ${label}…`);
   const to = Date.UTC(new Date().getUTCFullYear() + 1, 11, 31);
@@ -63,6 +64,7 @@ async function syncType(type: MediaType, minVotes: number, onProgress: Progress)
     const batch = buffer;
     buffer = [];
     count += batch.length;
+    batch.forEach((t) => seen.add(t.key));
     // Conserve les fiches détaillées déjà mises en cache.
     const existing = await db.titles.bulkGet(batch.map((t) => t.key));
     batch.forEach((t, i) => {
@@ -90,8 +92,16 @@ async function syncType(type: MediaType, minVotes: number, onProgress: Progress)
 
 /** Télécharge ou met à jour le catalogue. Ne touche jamais aux réponses de l'utilisateur. */
 export async function syncCatalogue(minVotes: MinVotes, onProgress: Progress): Promise<{ movie: number; tv: number }> {
-  const movie = await syncType('movie', minVotes.movie, onProgress);
-  const tv = await syncType('tv', minVotes.tv, onProgress);
+  const seen = new Set<string>();
+  const movie = await syncType('movie', minVotes.movie, onProgress, seen);
+  const tv = await syncType('tv', minVotes.tv, onProgress, seen);
+  // Titres absents de la liste renvoyée (ajout manuel, saga, seuil de votes relevé…) : la mise à jour
+  // ne leur apporte pas de note ; on la prend dans leur fiche détaillée (une seule fois).
+  const rest = await db.titles.filter((t) => !seen.has(t.key) && ratingMissing(t)).toArray();
+  if (rest.length) {
+    onProgress(`Récupération des notes de ${rest.length.toLocaleString('fr-FR')} autres titres…`);
+    await prefetchDetails(rest, Infinity, CONCURRENCY);
+  }
   await setMeta('lastSync', Date.now());
   return { movie, tv };
 }

@@ -4,7 +4,7 @@ import { burst, centerOf, MILESTONES, pick, toast } from '../../lib/fun';
 import { recordActivity } from '../../lib/activity';
 import { boostFactor, boostFrom, loadBoosts, type Boosts } from '../../lib/recommend';
 import { getSwipeMode, readPref, writePref } from '../../lib/settings';
-import { isNoTheme, matchesTheme, NO_THEME, ratingOf, themeLabel, type Theme } from '../../lib/themes';
+import { isNoTheme, matchesTheme, NO_THEME, ratingMissing, themeLabel, type Theme } from '../../lib/themes';
 import { BackLink, Poster, RatingBadge, TitleText } from '../../components/common';
 import SwipeCard, { type Dir, type Tone } from '../../components/SwipeCard';
 import { openFiche } from '../../components/Fiche';
@@ -393,7 +393,7 @@ export default function Swipe({ type }: { type: MediaType }) {
           count={(t) => catalogue.current.filter((x) => !answered.current.has(x.key) && matchesTheme(x, t)).length}
           applyLabel={(n) => `C’est parti (${n.toLocaleString('fr-FR')})`}
           hasCatalogueData={catalogue.current.some((t) => t.rating !== undefined)}
-          missingRatings={catalogue.current.filter((t) => !answered.current.has(t.key) && ratingOf(t) === null).length}
+          missingRatings={catalogue.current.filter((t) => !answered.current.has(t.key) && ratingMissing(t)).length}
           onCatalogueUpdated={() => setCatalogueVersion((v) => v + 1)}
           onApply={applyTheme}
           onClose={() => setShowThemes(false)}

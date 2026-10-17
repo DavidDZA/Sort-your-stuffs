@@ -54,6 +54,12 @@ export const missingFilterInfo = (t: Title) => !languageOf(t) || !t.details || t
 /** Note TMDB connue du titre : celle du catalogue, sinon celle de sa fiche détaillée. */
 export const ratingOf = (t: Title): number | null => t.rating ?? t.details?.rating ?? null;
 
+/**
+ * Note pas encore récupérée (catalogue téléchargé avant qu'on l'enregistre, fiche absente ou ancienne).
+ * Un titre dont la fiche récente n'a pas de note n'est pas noté sur TMDB : rien à récupérer.
+ */
+export const ratingMissing = (t: Title) => ratingOf(t) === null && (!t.details || t.details.genreIds === undefined);
+
 export function matchesTheme(title: Title, theme: Theme): boolean {
   const period = PERIODS.find((p) => p.id === theme.period);
   if (period && period.id !== 'all' && (title.year === null || !period.match(title.year))) return false;
