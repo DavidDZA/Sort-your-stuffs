@@ -1,4 +1,4 @@
-import { db, type Title } from '../../lib/db';
+import { db, getMeta, type MediaType, type Title } from '../../lib/db';
 import { ensureDetails, fetchSaga, posterUrl } from '../../lib/tmdb';
 
 /**
@@ -42,6 +42,25 @@ export function prefetch(title: Title) {
   ensureDetails(title);
 }
 
+// Catalogue gardé en mémoire d'une visite du swipe à l'autre (sa lecture prend du temps sur un gros
+// catalogue), préchargé depuis l'accueil ; relu après une mise à jour du catalogue.
+const catalogues = new Map<MediaType, { lastSync: number | null; titles: Promise<Title[]> }>();
+
+/** Titres du catalogue de ce type (le tableau gardé en mémoire : les ajouts du swipe y restent). */
+export async function loadCatalogue(type: MediaType): Promise<Title[]> {
+  const lastSync = await getMeta<number | null>('lastSync', null);
+  let cached = catalogues.get(type);
+  if (!cached || cached.lastSync !== lastSync) {
+    cached = { lastSync, titles: db.titles.where('type').equals(type).toArray() };
+    cached.titles.catch(() => catalogues.delete(type));
+    catalogues.set(type, cached);
+  }
+  return cached.titles;
+}
+
+/** La saga d'un titre se déduit sans réseau : sa fiche (même ancienne) dit déjà s'il en fait partie. */
+export const sagaKnownLocally = (t: Title) => t.type !== 'movie' || t.details?.collection !== undefined;
+
 export interface SagaInfo {
   id: number;
   name: string;
@@ -54,7 +73,8 @@ export interface SagaInfo {
  */
 export async function sagaOf(title: Title): Promise<SagaInfo | null> {
   if (title.type !== 'movie') return null;
-  const d = await ensureDetails(title);
+  // Une fiche ancienne suffit pour savoir si le film est dans une saga : pas besoin de la récupérer à nouveau.
+  const d = title.details?.collection !== undefined ? title.details : await ensureDetails(title);
   if (!d?.collection) return null;
   const saga = await fetchSaga(d.collection.id);
   if (!saga || saga.parts.length < 2) return null;

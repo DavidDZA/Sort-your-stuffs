@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, getMeta, type MediaType } from '../lib/db';
 import { readRanking } from '../lib/ranking';
@@ -8,6 +8,7 @@ import { exportData } from '../lib/backup';
 import { BADGES } from '../lib/badges';
 import { pick, toast } from '../lib/fun';
 import { useIsDesktop } from '../lib/hooks';
+import { loadCatalogue } from './swipe/pool';
 
 const fmt = (n: number) => Math.max(0, n).toLocaleString('fr-FR');
 const DAY = 86_400_000;
@@ -24,6 +25,15 @@ const TAGLINES = [
 
 /** Accueil : format complet sur PC, compact sur téléphone (les 8 tuiles tiennent à l'écran). */
 export default function Home() {
+  // Précharge le catalogue pendant qu'on est sur l'accueil : le swipe s'ouvre ensuite sans attendre.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadCatalogue('movie')
+        .then(() => loadCatalogue('tv'))
+        .catch(() => undefined);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
   const [tagline] = useState(() => pick(TAGLINES));
   const desktop = useIsDesktop();
   const stats = useLiveQuery(async () => {

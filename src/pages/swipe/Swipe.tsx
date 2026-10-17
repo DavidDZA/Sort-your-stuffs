@@ -9,7 +9,21 @@ import { BackLink, Poster, RatingBadge, TitleText } from '../../components/commo
 import SwipeCard, { type Dir, type Tone } from '../../components/SwipeCard';
 import { openFiche } from '../../components/Fiche';
 import { ARROWS, CORNERS, isCorner, PHASES, TONES, type Corner, type Phase } from './config';
-import { chainSaga, draw, prefetch, QUEUE_SIZE, removeFromPool, sagaOf, sagaTags, WEIGHT_EXP, type Pool, type SagaInfo, type SagaTag } from './pool';
+import {
+  chainSaga,
+  draw,
+  loadCatalogue,
+  prefetch,
+  QUEUE_SIZE,
+  removeFromPool,
+  sagaKnownLocally,
+  sagaOf,
+  sagaTags,
+  WEIGHT_EXP,
+  type Pool,
+  type SagaInfo,
+  type SagaTag,
+} from './pool';
 import { FilterButton, FilterIcon, FilterSheet } from '../../components/FilterSheet';
 import { ActionButton, CardTag } from './controls';
 import { KNOWN_VOTES, personFilmography } from '../../lib/tmdb';
@@ -102,7 +116,7 @@ export default function Swipe({ type }: { type: MediaType }) {
     let cancelled = false;
     setLoaded(false);
     setLoadError(null);
-    Promise.all([db.titles.where('type').equals(type).toArray(), db.answers.where('type').equals(type).primaryKeys(), loadBoosts(type)])
+    Promise.all([loadCatalogue(type), db.answers.where('type').equals(type).primaryKeys(), loadBoosts(type)])
       .then(([titles, keys, saved]) => {
         if (cancelled) return;
         catalogue.current = titles;
@@ -153,11 +167,13 @@ export default function Swipe({ type }: { type: MediaType }) {
     setPhase('seen');
     setShowInfo(false);
     // Avant d'afficher la 1re carte, on regarde si c'est un film de saga, pour commencer par le 1er film.
+    // Seulement si sa fiche le dit déjà : on n'attend pas le réseau pour afficher la 1re carte
+    // (sinon la saga s'enchaînera juste derrière elle).
     let alive = true;
     const first = fill([]);
     const head = first[0];
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
-    (head ? Promise.race([sagaOf(head).catch(() => null), timeout]) : Promise.resolve(null)).then((saga) => {
+    (head && sagaKnownLocally(head) ? Promise.race([sagaOf(head).catch(() => null), timeout]) : Promise.resolve(null)).then((saga) => {
       if (!alive) return;
       const chained = saga && !chainedSagas.current.has(saga.id) ? insertSaga(first, 0, saga, false) : null;
       setQueue(chained ?? first);
