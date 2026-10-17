@@ -39,6 +39,9 @@ export interface Page {
   results: RawResult[];
 }
 
+/** Au-delà, une requête TMDB est abandonnée (réseau qui ne répond plus). */
+const TIMEOUT_MS = 20_000;
+
 export async function tmdb<T>(
   path: string,
   params: Record<string, string | number | boolean> = {},
@@ -50,7 +53,13 @@ export async function tmdb<T>(
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
 
   for (let attempt = 0; ; attempt++) {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, accept: 'application/json' } });
+    let res: Response;
+    try {
+      res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, accept: 'application/json' }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    } catch (e) {
+      if ((e as Error).name === 'TimeoutError') throw new TmdbError('TMDB ne répond pas : vérifie ta connexion.', 0);
+      throw e;
+    }
     if (res.status === 429 && attempt < 5) {
       await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
       continue;

@@ -27,6 +27,7 @@ export default function Swipe({ type }: { type: MediaType }) {
   const answered = useRef(new Set<string>());
   const [loaded, setLoaded] = useState(false);
   const [catalogueVersion, setCatalogueVersion] = useState(0); // relance le chargement après une mise à jour
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(() => readPref(themeKey, NO_THEME));
   const [showThemes, setShowThemes] = useState(false);
   const [queue, setQueueState] = useState<Title[] | null>(null);
@@ -86,37 +87,61 @@ export default function Swipe({ type }: { type: MediaType }) {
     if (next) setQueue(next);
   };
 
-  /** Ajoute au catalogue du swipe les titres connus de ce type qu'il n'a pas (filmographie d'une personne). */
-  const addTitles = (titles: Title[]) => {
+  /** Ajoute au catalogue du swipe les titres connus de ce type qu'il n'a pas (filmographie d'une personne) ; renvoie les ajouts. */
+  const addTitles = (titles: Title[]): Title[] => {
     const known = new Set(catalogue.current.map((t) => t.key));
-    for (const t of titles) if (t.type === type && t.voteCount >= KNOWN_VOTES && !known.has(t.key)) catalogue.current.push(t);
+    const added = titles.filter((t) => t.type === type && t.voteCount >= KNOWN_VOTES && !known.has(t.key));
+    catalogue.current.push(...added);
+    // Enregistrés : ils restent là au prochain chargement, même sans réseau.
+    if (added.length) db.titles.bulkPut(added).catch(() => undefined);
+    return added;
   };
 
-  // Charge le catalogue de ce type (à nouveau après une mise à jour du catalogue).
+  // Charge le catalogue de ce type (à nouveau après une mise à jour du catalogue). Sans réseau.
   useEffect(() => {
     let cancelled = false;
     setLoaded(false);
-    (async () => {
-      const [titles, keys, saved] = await Promise.all([
-        db.titles.where('type').equals(type).toArray(),
-        db.answers.where('type').equals(type).primaryKeys(),
-        loadBoosts(type),
-      ]);
-      if (cancelled) return;
-      catalogue.current = titles;
-      answered.current = new Set(keys);
-      boosts.current = saved;
-      // Filtre sur une personne retenu : sa filmographie peut compter des titres hors catalogue.
-      for (const [person, role] of [[theme.director, 'director'], [theme.actor, 'actor']] as const) {
-        if (person) addTitles(await personFilmography(person.id, role).catch(() => []));
-      }
-      if (cancelled) return;
-      setLoaded(true);
-    })();
+    setLoadError(null);
+    Promise.all([db.titles.where('type').equals(type).toArray(), db.answers.where('type').equals(type).primaryKeys(), loadBoosts(type)])
+      .then(([titles, keys, saved]) => {
+        if (cancelled) return;
+        catalogue.current = titles;
+        answered.current = new Set(keys);
+        boosts.current = saved;
+        setLoaded(true);
+      })
+      .catch((e) => !cancelled && setLoadError((e as Error).message));
     return () => {
       cancelled = true;
     };
   }, [type, catalogueVersion]);
+
+  // Filtre sur une personne retenu d'une visite à l'autre : sa filmographie peut compter des titres hors
+  // catalogue. Récupérée en arrière-plan ; ses titres rejoignent le tirage à leur arrivée.
+  useEffect(() => {
+    if (!loaded) return;
+    let alive = true;
+    const people = [
+      [theme.director, 'director'],
+      [theme.actor, 'actor'],
+    ] as const;
+    for (const [person, role] of people) {
+      if (!person) continue;
+      personFilmography(person.id, role)
+        .then((titles) => {
+          if (!alive) return;
+          const added = addTitles(titles).filter((t) => !answered.current.has(t.key) && matchesTheme(t, theme));
+          if (!added.length) return;
+          pool.current.items.push(...added.map((title) => ({ title, w: weightOf(title) })));
+          pool.current.total = pool.current.items.reduce((s, i) => s + i.w, 0);
+          if (queueRef.current && !queueRef.current.length) setQueue(fill([]));
+        })
+        .catch(() => undefined); // hors ligne : les titres déjà au catalogue suffisent
+    }
+    return () => {
+      alive = false;
+    };
+  }, [loaded, theme]);
 
   // (Re)construit le tirage quand le thème change.
   useEffect(() => {
@@ -132,7 +157,7 @@ export default function Swipe({ type }: { type: MediaType }) {
     const first = fill([]);
     const head = first[0];
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
-    (head ? Promise.race([sagaOf(head), timeout]) : Promise.resolve(null)).then((saga) => {
+    (head ? Promise.race([sagaOf(head).catch(() => null), timeout]) : Promise.resolve(null)).then((saga) => {
       if (!alive) return;
       const chained = saga && !chainedSagas.current.has(saga.id) ? insertSaga(first, 0, saga, false) : null;
       setQueue(chained ?? first);
@@ -310,7 +335,15 @@ export default function Swipe({ type }: { type: MediaType }) {
         </button>
       )}
 
-      {queue === null ? (
+      {loadError ? (
+        <div className="empty">
+          <span className="big-emoji">⚠️</span>
+          <p>Impossible de charger le catalogue : {loadError}</p>
+          <button className="btn primary" onClick={() => setCatalogueVersion((v) => v + 1)}>
+            Réessayer
+          </button>
+        </div>
+      ) : queue === null ? (
         <p className="muted center">Chargement…</p>
       ) : !current ? (
         <div className="empty">
