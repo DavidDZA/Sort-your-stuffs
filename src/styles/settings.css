@@ -113,3 +113,8 @@
   flex-direction: column;
   gap: 8px;
 }
+
+/* Rubrique ouverte directement (#/settings/catalogue) : un peu d’air au-dessus. */
+.card[id] {
+  scroll-margin-top: 12px;
+}

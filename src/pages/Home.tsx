@@ -92,7 +92,7 @@ export default function Home() {
       </header>
 
       {(noToken || emptyCatalogue) && (
-        <a className="banner" href="#/settings">
+        <a className="banner" href={noToken ? '#/settings/tmdb' : '#/settings/catalogue'}>
           {noToken ? '🔑 Commence par renseigner ta clé TMDB dans les réglages →' : '📦 Télécharge le catalogue des films et séries →'}
         </a>
       )}
@@ -123,7 +123,7 @@ export default function Home() {
       )}
 
       {catalogueOld && (
-        <a className="banner-soft row-banner" href="#/settings" title="Récupérer les nouveaux films et séries">
+        <a className="banner-soft row-banner" href="#/settings/catalogue" title="Récupérer les nouveaux films et séries">
           <span>{desktop ? `🔄 Catalogue mis à jour il y a ${daysAgo(stats.lastSync!)} jours` : `🔄 Catalogue vieux de ${daysAgo(stats.lastSync!)} j`}</span>
           <span className="btn small">Mettre à jour</span>
         </a>

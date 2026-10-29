@@ -11,7 +11,9 @@ import { SwipeModeSetting } from './SwipeModeSetting';
 import { Account } from './Account';
 import { syncAndWait, useCloud } from '../../lib/cloud';
 
-export default function Settings() {
+/** `section` : rubrique à afficher directement (« #/settings/catalogue », « #/settings/tmdb »). */
+export default function Settings({ section }: { section?: string }) {
+  useScrollToSection(section);
   const [token, setTokenInput] = useState(getUserToken() ?? '');
   const [tokenMsg, setTokenMsg] = useState<string | null>(null);
   // Seuils enregistrés (et mis à jour par la synchro tant qu'on ne les a pas modifiés ici).
@@ -113,25 +115,29 @@ export default function Settings() {
       <Account />
 
       <section className="card">
-        <h3>🔑 Clé TMDB</h3>
+        <h3>💾 Sauvegarde</h3>
         <p className="muted small">
-          Le « jeton d’accès en lecture » de ton compte themoviedb.org (Paramètres → API). Il reste uniquement dans ce navigateur.
+          {signedIn
+            ? 'Tes données sont synchronisées avec ton compte. Tu peux quand même en garder une copie dans un fichier.'
+            : 'Sans compte, tes données ne sont stockées que dans ce navigateur. Exporte-les régulièrement.'}
         </p>
-        {hasBuiltInToken && (
-          <p className="small">✓ Une clé est intégrée au site : rien à saisir. Remplis ce champ seulement pour utiliser une autre clé.</p>
-        )}
-        <input className="input" type="password" value={token} onChange={(e) => setTokenInput(e.target.value)} placeholder={hasBuiltInToken ? 'Clé intégrée utilisée' : 'eyJhbGciOi…'} autoComplete="off" />
-        <button className="btn primary" onClick={saveToken} disabled={!token.trim()} title="Vérifier la clé auprès de TMDB puis l’enregistrer">
-          Enregistrer
-        </button>
-        {tokenMsg && <p className="small">{tokenMsg}</p>}
+        <div className="row">
+          <button className="btn" onClick={() => exportData()} title="Télécharger un fichier avec tes réponses et classements">
+            Exporter
+          </button>
+          <button className="btn" onClick={() => fileInput.current?.click()} title="Restaurer une sauvegarde (remplace les données actuelles)">
+            Importer
+          </button>
+          <input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={(e) => onImport(e.target.files?.[0])} />
+        </div>
+        {backupMsg && <p className="small">{backupMsg}</p>}
       </section>
 
       <SwipeModeSetting />
 
       <MyProviders />
 
-      <section className="card">
+      <section className="card" id="catalogue">
         <h3>📦 Catalogue</h3>
         <p className="muted small">
           {info ? `${info.movies.toLocaleString('fr-FR')} films · ${info.series.toLocaleString('fr-FR')} séries` : '…'}
@@ -160,23 +166,19 @@ export default function Settings() {
         </p>
       </section>
 
-      <section className="card">
-        <h3>💾 Sauvegarde</h3>
+      <section className="card" id="tmdb">
+        <h3>🔑 Clé TMDB</h3>
         <p className="muted small">
-          {signedIn
-            ? 'Tes données sont synchronisées avec ton compte. Tu peux quand même en garder une copie dans un fichier.'
-            : 'Sans compte, tes données ne sont stockées que dans ce navigateur. Exporte-les régulièrement.'}
+          Le « jeton d’accès en lecture » de ton compte themoviedb.org (Paramètres → API). Il reste uniquement dans ce navigateur.
         </p>
-        <div className="row">
-          <button className="btn" onClick={() => exportData()} title="Télécharger un fichier avec tes réponses et classements">
-            Exporter
-          </button>
-          <button className="btn" onClick={() => fileInput.current?.click()} title="Restaurer une sauvegarde (remplace les données actuelles)">
-            Importer
-          </button>
-          <input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={(e) => onImport(e.target.files?.[0])} />
-        </div>
-        {backupMsg && <p className="small">{backupMsg}</p>}
+        {hasBuiltInToken && (
+          <p className="small">✓ Une clé est intégrée au site : rien à saisir. Remplis ce champ seulement pour utiliser une autre clé.</p>
+        )}
+        <input className="input" type="password" value={token} onChange={(e) => setTokenInput(e.target.value)} placeholder={hasBuiltInToken ? 'Clé intégrée utilisée' : 'eyJhbGciOi…'} autoComplete="off" />
+        <button className="btn primary" onClick={saveToken} disabled={!token.trim()} title="Vérifier la clé auprès de TMDB puis l’enregistrer">
+          Enregistrer
+        </button>
+        {tokenMsg && <p className="small">{tokenMsg}</p>}
       </section>
 
       <section className="card danger-zone">
@@ -197,4 +199,33 @@ export default function Settings() {
       </p>
     </main>
   );
+}
+
+/**
+ * Amène la rubrique `id` en haut de l'écran. Les rubriques au-dessus (abonnements…) se chargent après coup
+ * et changent de hauteur : on recale pendant 2 s, sauf si l'utilisateur fait défiler la page lui-même.
+ */
+function useScrollToSection(id: string | undefined) {
+  useEffect(() => {
+    const el = id && document.getElementById(id);
+    if (!el) return;
+    let active = true;
+    const go = () => active && el.scrollIntoView({ block: 'start' });
+    const stop = () => {
+      active = false;
+      observer.disconnect();
+    };
+    const observer = new ResizeObserver(go);
+    observer.observe(el.parentElement!);
+    const frame = requestAnimationFrame(go); // après le retour en haut fait au changement de page
+    const timer = setTimeout(stop, 2000);
+    const events = ['wheel', 'touchstart', 'keydown'] as const;
+    events.forEach((e) => addEventListener(e, stop, { once: true, passive: true }));
+    return () => {
+      stop();
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+      events.forEach((e) => removeEventListener(e, stop));
+    };
+  }, [id]);
 }

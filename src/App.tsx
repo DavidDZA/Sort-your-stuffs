@@ -45,7 +45,7 @@ function page(name: string, arg: string | undefined): ReactNode {
     case 'tonight':
       return <Tonight />;
     case 'settings':
-      return <Settings />;
+      return <Settings section={arg} />;
     case 'friends':
       return <Friends />;
     case 'invite':
