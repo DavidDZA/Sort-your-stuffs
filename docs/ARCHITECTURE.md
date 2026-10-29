@@ -73,9 +73,10 @@ classements de séries sans perdre leur ordre (au démarrage, après chaque sync
 
 `syncCatalogue` lance une requête `/discover` par seuil de votes (`catalogueQueries`) : films (1 000), séries
 (50), animes (50), titres en français (films 150, séries 20), films d'avant 1980 (150). Un titre est gardé s'il
-passe l'un des seuils qui le concernent. Les titres absents du nouveau téléchargement sont **supprimés**, avec
-leurs réponses (y compris ajouts manuels, à la demande de l'utilisateur) — et donc aussi sur le compte. Les
-seuils sont synchronisés pour que deux appareils ne s'effacent pas des titres.
+passe l'un des seuils qui le concernent. Les titres absents du nouveau téléchargement sont **supprimés** — sauf
+ceux **vus ou en wishlist** (ajouts manuels compris), qui restent avec leur place dans les classements. Les titres
+jamais triés ou « pas vu / pas envie » partent avec leur réponse, donc aussi sur le compte. Les seuils sont
+synchronisés pour que deux appareils ne s'effacent pas des titres.
 
 ## 4. Compte et amis (Supabase)
 

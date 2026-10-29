@@ -48,20 +48,25 @@ beforeEach(async () => {
 });
 
 describe('mise à jour du catalogue', () => {
-  it('supprime les titres absents du nouveau catalogue, même vus, classés ou ajoutés à la main', async () => {
-    for (const id of [1, 2]) await setStatus(makeTitle(id), 'seen', 'good');
-    await setStatus(makeTitle(3, { manual: true }), 'seen');
-    await db.titles.put(makeTitle(4));
-    await saveRanking({ category: 'movie', list: 'seen' }, ['movie:2', 'movie:1', 'movie:3']);
+  it('retire les titres absents du nouveau catalogue, sauf ceux vus ou en wishlist', async () => {
+    await setStatus(makeTitle(1), 'seen', 'good'); // toujours au catalogue
+    await setStatus(makeTitle(21), 'seen', 'good'); // vu et classé, sorti du catalogue (seuil relevé)
+    await setStatus(makeTitle(22, { manual: true }), 'seen'); // ajout manuel, jamais au catalogue
+    await setStatus(makeTitle(23), 'wish'); // dans la wishlist
+    await setStatus(makeTitle(24), 'unseen'); // pas vu / pas envie
+    await db.titles.put(makeTitle(25)); // jamais trié
+    await db.details.put({ key: 'movie:25', fetchedAt: 0, directors: [], cast: [], genres: [], rating: null, runtime: null, providers: { flatrate: [], rent: [], buy: [], link: null } });
+    await saveRanking({ category: 'movie', list: 'seen' }, ['movie:21', 'movie:1', 'movie:22']);
 
     const { movie, removed } = await syncCatalogue(votes({ tv: 50, anime: 50 }), () => {});
 
     expect(movie).toBe(1);
-    expect(removed).toBe(3); // 2 (vu et classé), 3 (ajout manuel) et 4 (jamais répondu)
-    expect((await db.titles.where('type').equals('movie').primaryKeys()).sort()).toEqual(['movie:1']);
-    expect(await db.answers.get('movie:2')).toBeUndefined();
-    expect(await db.answers.get('movie:1')).toBeDefined(); // les réponses des titres gardés restent
-    expect(await readRanking({ category: 'movie', list: 'seen' })).toEqual(['movie:1']);
+    expect(removed).toBe(2); // 24 (pas envie) et 25 (jamais trié)
+    expect((await db.titles.where('type').equals('movie').primaryKeys()).sort()).toEqual(['movie:1', 'movie:21', 'movie:22', 'movie:23']);
+    expect(await db.answers.get('movie:24')).toBeUndefined();
+    expect(await db.details.get('movie:25')).toBeUndefined();
+    expect((await db.answers.get('movie:23'))?.status).toBe('wish');
+    expect(await readRanking({ category: 'movie', list: 'seen' })).toEqual(['movie:21', 'movie:1', 'movie:22']); // classement intact
     expect(await getMeta('lastSync', null)).not.toBeNull();
   });
 });

@@ -131,11 +131,13 @@ export function catalogueQueries(v: MinVotes): Query[] {
 
 /**
  * Supprime les titres absents du nouveau téléchargement (seuil de votes relevé, ajout manuel…),
- * avec leurs réponses : ils disparaissent aussi des classements.
+ * sauf ceux qu'on a vus ou mis dans sa wishlist : ils restent, avec leur place dans les classements.
+ * Les titres jamais triés ou marqués « pas vu / pas envie » partent, avec leur réponse.
  */
 async function removeMissing(seen: Set<string>): Promise<number> {
   return db.transaction('rw', db.titles, db.answers, db.details, async () => {
-    const keys = await db.titles.filter((t) => !seen.has(t.key)).primaryKeys();
+    const kept = new Set(await db.answers.where('status').anyOf('seen', 'wish').primaryKeys());
+    const keys = await db.titles.filter((t) => !seen.has(t.key) && !kept.has(t.key)).primaryKeys();
     await db.titles.bulkDelete(keys);
     await db.answers.bulkDelete(keys);
     await db.details.bulkDelete(keys);
@@ -145,7 +147,7 @@ async function removeMissing(seen: Set<string>): Promise<number> {
 
 /**
  * Télécharge ou met à jour le catalogue. Les titres qui n'en font plus partie sont supprimés,
- * même s'ils avaient une réponse ou une place dans un classement, y compris les ajouts manuels.
+ * sauf ceux déjà vus ou dans la wishlist (ajouts manuels compris).
  */
 export async function syncCatalogue(minVotes: MinVotes, onProgress: Progress): Promise<{ movie: number; tv: number; anime: number; removed: number }> {
   const seen = new Set<string>();

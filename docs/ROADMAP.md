@@ -133,6 +133,6 @@ libres (TMDB, Supabase) — c'est autorisé. Utile aussi si le Play Store est bl
 
 - **Pause du projet Supabase gratuit** après 7 jours sans activité (données gardées, réactivation manuelle) ;
   pas de sauvegarde automatique téléchargeable dans l'offre gratuite.
-- **Mise à jour du catalogue = suppressions propagées** à tous les appareils (choix assumé) : garder les seuils
+- **Mise à jour du catalogue** : les titres absents qui ne sont ni vus ni en wishlist sont supprimés, et ces suppressions se propagent à tous les appareils : garder les seuils
   synchronisés.
 - **Clé TMDB** lisible dans le site (§ 4) ; **téléphone pro** : le Play Store peut y être restreint, garder la PWA.

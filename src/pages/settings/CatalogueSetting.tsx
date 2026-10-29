@@ -115,7 +115,7 @@ export function CatalogueSetting() {
         {syncing ? 'Mise à jour en cours…' : info?.lastSync ? 'Mettre à jour le catalogue' : 'Télécharger le catalogue'}
       </button>
       {syncMsg && <p className="small">{syncMsg}</p>}
-      <p className="muted small">Les titres absents du nouveau catalogue sont supprimés, même déjà vus, classés ou ajoutés à la main.</p>
+      <p className="muted small">Les titres absents du nouveau catalogue sont retirés, sauf ceux que tu as vus ou mis dans ta wishlist : eux restent, avec leur place dans tes classements.</p>
     </section>
   );
 }
