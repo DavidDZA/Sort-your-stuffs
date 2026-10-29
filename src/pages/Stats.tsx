@@ -9,7 +9,7 @@ import { TopBar, TypeFilter } from '../components/common';
 export default function StatsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
-  const [type, setType] = useState<Category>('movie');
+  const [category, setCategory] = useState<Category>('movie');
   const categories = useCategories();
   const [completing, setCompleting] = useState(0);
 
@@ -46,7 +46,7 @@ export default function StatsPage() {
     );
   }
 
-  const t = stats[type];
+  const t = stats[category];
   const all = [stats.movie, stats.tv, stats.anime];
   const minutes = all.reduce((s, x) => s + x.minutes, 0);
   const seenTotal = all.reduce((s, x) => s + x.seen, 0);
@@ -76,13 +76,13 @@ export default function StatsPage() {
       </section>
 
       <TypeFilter<Category>
-        value={type}
+        value={category}
         options={categoryOptions(categories, (c) => `Statistiques des ${CATEGORY_LABEL[c].plural} ${CATEGORY_LABEL[c].seen}`)}
-        onChange={setType}
+        onChange={setCategory}
       />
 
       <section className="card">
-        <h3>⭐ Les {TOP_SIZE[type]} {CATEGORY_LABEL[type].plural} les plus populaires</h3>
+        <h3>⭐ Les {TOP_SIZE[category]} {CATEGORY_LABEL[category].plural} les plus populaires</h3>
         <div className="big-progress" title={`${t.top.seen} / ${t.top.total}`}>
           <span style={{ width: `${t.top.total ? (t.top.seen / t.top.total) * 100 : 0}%` }} />
         </div>
@@ -94,7 +94,7 @@ export default function StatsPage() {
       <BarCard title="🕰️ Par décennie" bars={t.decades} empty="Pas encore de titre vu." />
       <BarCard title="🎭 Genres favoris" bars={t.genres} empty="Pas encore assez de données." />
       <BarCard
-        title={type === 'movie' ? '🎬 Réalisateurs les plus vus' : '✍️ Créateurs les plus vus'}
+        title={category === 'movie' ? '🎬 Réalisateurs les plus vus' : '✍️ Créateurs les plus vus'}
         bars={t.people}
         empty="Il faut au moins 2 titres vus du même auteur."
       />

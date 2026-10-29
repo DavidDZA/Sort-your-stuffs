@@ -15,21 +15,21 @@ import { toast } from '../lib/fun';
 
 type View = 'duel' | 'list' | 'tiers';
 
-export default function Rank({ type }: { type: Category }) {
-  const media = mediaOf(type);
+export default function Rank({ category }: { category: Category }) {
+  const media = mediaOf(category);
   const [view, setView] = useState<View>('duel');
   const [sharing, setSharing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [theme, setTheme] = useSavedFilter(`rank-filter:${type}`);
-  const scope: Scope = { type, list: 'seen' };
+  const [theme, setTheme] = useSavedFilter(`rank-filter:${category}`);
+  const scope: Scope = { category: category, list: 'seen' };
   const filter = themeFilter(theme);
   const label = themeLabel(media, theme);
 
   // Titres vus de ce type : pour compter ce que gardent les filtres.
   const seen = useLiveQuery(async () => {
-    const keys = await keysOfCategory(type, await db.answers.where('[type+status]').equals([media, 'seen']).primaryKeys());
+    const keys = await keysOfCategory(category, await db.answers.where('[type+status]').equals([media, 'seen']).primaryKeys());
     return withDetails((await db.titles.bulkGet(keys)).filter((t): t is Title => !!t));
-  }, [type]);
+  }, [category]);
 
   // Titres sans genre / langue (catalogue d'avant le 17/10) : complétés en arrière-plan pour les filtres.
   const pending = (seen ?? []).filter(missingFilterInfo);
@@ -52,7 +52,7 @@ export default function Rank({ type }: { type: Category }) {
     }
     setSharing(true);
     try {
-      await shareTop(type, titles, filter ? label : undefined);
+      await shareTop(category, titles, filter ? label : undefined);
     } catch (e) {
       toast(`✕ ${(e as Error).message}`);
     } finally {
@@ -63,7 +63,7 @@ export default function Rank({ type }: { type: Category }) {
   return (
     <main className="page wide">
       <TopBar
-        title={`${{ movie: '🏆', tv: '🥇', anime: '🏯' }[type]} ${capitalize(CATEGORY_LABEL[type].plural)}`}
+        title={`${{ movie: '🏆', tv: '🥇', anime: '🏯' }[category]} ${capitalize(CATEGORY_LABEL[category].plural)}`}
         right={<FilterButton active={!!filter} label={label} onClick={() => setShowFilters(true)} />}
       />
       {filter && <FilterStrip label={label} onClick={() => setShowFilters(true)} />}
@@ -77,7 +77,7 @@ export default function Rank({ type }: { type: Category }) {
         onChange={setView}
       />
       {view === 'tiers' ? (
-        <TierList type={type} filter={filter} filterLabel={label} />
+        <TierList category={category} filter={filter} filterLabel={label} />
       ) : view === 'duel' ? (
         <Duel
           key={JSON.stringify(theme)}

@@ -11,12 +11,12 @@ import { Poster } from './common';
 import { openFiche } from './Fiche';
 
 /** Classement en paliers S → D, d'après la position de chaque titre. */
-export function TierList({ type, filter = null, filterLabel }: { type: Category; filter?: ((t: Title) => boolean) | null; filterLabel?: string }) {
+export function TierList({ category, filter = null, filterLabel }: { category: Category; filter?: ((t: Title) => boolean) | null; filterLabel?: string }) {
   const [sharing, setSharing] = useState(false);
   const titles = useLiveQuery(async () => {
-    const keys = await readRanking({ type, list: 'seen' });
+    const keys = await readRanking({ category: category, list: 'seen' });
     return (await db.titles.bulkGet(keys)).filter((t): t is Title => !!t);
-  }, [type]);
+  }, [category]);
   // Avec des filtres, les paliers sont recalculés sur la sélection (« ma tier list des comédies »).
   const tiers = titles && tierize(filter ? titles.filter(filter) : titles);
 
@@ -27,7 +27,7 @@ export function TierList({ type, filter = null, filterLabel }: { type: Category;
   const share = async () => {
     setSharing(true);
     try {
-      await shareTierList(type, tiers, filter ? filterLabel : undefined);
+      await shareTierList(category, tiers, filter ? filterLabel : undefined);
     } catch (e) {
       toast(`✕ ${(e as Error).message}`);
     } finally {

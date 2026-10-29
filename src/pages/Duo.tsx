@@ -29,7 +29,7 @@ export default function Duo({ friendId }: { friendId: string }) {
   const cloud = useCloud();
   const [data, setData] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [type, setType] = useState<Category>('movie');
+  const [category, setCategory] = useState<Category>('movie');
   const categories = useCategories();
   const [tab, setTab] = useState<Tab>('top');
 
@@ -99,15 +99,15 @@ export default function Duo({ friendId }: { friendId: string }) {
             onChange={setTab}
           />
           <TypeFilter<Category>
-            value={type}
+            value={category}
             options={categoryOptions(categories, (c) => `Les ${CATEGORY_LABEL[c].plural}`)}
-            onChange={setType}
+            onChange={setCategory}
           />
-          {tab === 'top' && <FriendTop key={type} data={data} type={type} onWish={refreshMe} />}
-          {tab === 'wish' && <CommonWishlist data={data} type={type} />}
-          {tab === 'tonight' && <TonightDuo key={type} data={data} type={type} />}
-          {tab === 'advice' && <AdviceLists data={data} type={type} onWish={refreshMe} />}
-          {tab === 'match' && <MatchView data={data} type={type} />}
+          {tab === 'top' && <FriendTop key={category} data={data} category={category} onWish={refreshMe} />}
+          {tab === 'wish' && <CommonWishlist data={data} category={category} />}
+          {tab === 'tonight' && <TonightDuo key={category} data={data} category={category} />}
+          {tab === 'advice' && <AdviceLists data={data} category={category} onWish={refreshMe} />}
+          {tab === 'match' && <MatchView data={data} category={category} />}
           <p className="muted tiny center">
             <button className="link" onClick={() => load(true)} title="Recharger les dernières données de ton ami">
               Actualiser
@@ -129,24 +129,24 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 const PAGE = 100;
 
 /** Où j'en suis avec un titre de l'ami : classé, vu, dans ma wishlist, pas envie. */
-function myStatus(me: Side, key: string, type: Category): string | null {
+function myStatus(me: Side, key: string, category: Category): string | null {
   const a = me.answers.get(key);
   if (!a) return null;
   if (a.status === 'wish') return 'Toi : 💖 dans ta wishlist';
   if (a.status === 'unseen') return 'Toi : pas envie';
-  const i = (me.rankings[type] ?? []).indexOf(key);
+  const i = (me.rankings[category] ?? []).indexOf(key);
   return `Toi : ${i === -1 ? 'vu' : `n°${i + 1}`}${a.tier === 'good' ? ' 👍' : a.tier === 'meh' ? ' 😐' : ''}`;
 }
 
 /** Tout le classement de l'ami, puis ses titres vus pas encore classés ; ma situation sur chacun. */
-function FriendTop({ data, type, onWish }: { data: Loaded; type: Category; onWish: () => void }) {
+function FriendTop({ data, category, onWish }: { data: Loaded; category: Category; onWish: () => void }) {
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
   const pseudo = data.friend.pseudo;
-  const ranking = data.them.rankings[type] ?? [];
+  const ranking = data.them.rankings[category] ?? [];
   const ranked = new Set(ranking);
   const unranked = [...data.them.answers]
-    .filter(([key, a]) => a.status === 'seen' && data.catOf(key) === type && !ranked.has(key))
+    .filter(([key, a]) => a.status === 'seen' && data.catOf(key) === category && !ranked.has(key))
     .map(([key]) => data.titles.get(key))
     .filter((t): t is Title => !!t)
     .sort((a, b) => a.title.localeCompare(b.title, 'fr'));
@@ -157,7 +157,7 @@ function FriendTop({ data, type, onWish }: { data: Loaded; type: Category; onWis
     .filter((x): x is { t: Title; rank: number } => !!x.t && matchesSearch(x.t, query));
   const others = unranked.filter((t) => matchesSearch(t, query));
   if (!ranking.length && !unranked.length) {
-    return <p className="muted center">Rien de vu chez {pseudo} dans les {CATEGORY_LABEL[type].plural} pour l’instant.</p>;
+    return <p className="muted center">Rien de vu chez {pseudo} dans les {CATEGORY_LABEL[category].plural} pour l’instant.</p>;
   }
 
   const addToWishlist = async (t: Title) => {
@@ -167,7 +167,7 @@ function FriendTop({ data, type, onWish }: { data: Loaded; type: Category; onWis
   };
   const row = (t: Title, prefix?: ReactNode) => {
     const tier = data.them.answers.get(t.key)?.tier;
-    const mine = myStatus(data.me, t.key, type);
+    const mine = myStatus(data.me, t.key, category);
     return (
       <TitleRow
         key={t.key}
@@ -214,11 +214,11 @@ function FriendTop({ data, type, onWish }: { data: Loaded; type: Category; onWis
   );
 }
 
-function CommonWishlist({ data, type }: { data: Loaded; type: Category }) {
-  const list = useMemo(() => commonWishlist(data.me, data.them, type, data.catOf), [data, type]);
+function CommonWishlist({ data, category }: { data: Loaded; category: Category }) {
+  const list = useMemo(() => commonWishlist(data.me, data.them, category, data.catOf), [data, category]);
   const pseudo = data.friend.pseudo;
   if (!data.friend.shareWishlist) return <NeedsSharing pseudo={pseudo} what="sa wishlist" />;
-  if (!list.length) return <p className="muted center">Aucun{type === 'tv' ? 'e' : ''} {CATEGORY_LABEL[type].one} dans vos deux wishlists pour l’instant.</p>;
+  if (!list.length) return <p className="muted center">Aucun{category === 'tv' ? 'e' : ''} {CATEGORY_LABEL[category].one} dans vos deux wishlists pour l’instant.</p>;
   return (
     <>
       <p className="muted small center">
@@ -249,11 +249,11 @@ function CommonWishlist({ data, type }: { data: Loaded; type: Category }) {
   );
 }
 
-function TonightDuo({ data, type }: { data: Loaded; type: Category }) {
+function TonightDuo({ data, category }: { data: Loaded; category: Category }) {
   const [mineOnly, setMineOnly] = useState(false);
   const [picked, setPicked] = useState<Title | null>(null);
   const mine = loadMyProviders();
-  const list = useMemo(() => commonWishlist(data.me, data.them, type, data.catOf), [data, type]);
+  const list = useMemo(() => commonWishlist(data.me, data.them, category, data.catOf), [data, category]);
   const titles = list.map((w) => data.titles.get(w.key)).filter((t): t is Title => !!t);
 
   // Plateformes à jour pour le filtre « sur mes abonnements ».
@@ -318,10 +318,10 @@ function TonightDuo({ data, type }: { data: Loaded; type: Category }) {
   );
 }
 
-function AdviceLists({ data, type, onWish }: { data: Loaded; type: Category; onWish: () => void }) {
+function AdviceLists({ data, category, onWish }: { data: Loaded; category: Category; onWish: () => void }) {
   const pseudo = data.friend.pseudo;
-  const forMe = useMemo(() => advice(data.them, data.me, type, data.catOf), [data, type]);
-  const forThem = useMemo(() => advice(data.me, data.them, type, data.catOf), [data, type]);
+  const forMe = useMemo(() => advice(data.them, data.me, category, data.catOf), [data, category]);
+  const forThem = useMemo(() => advice(data.me, data.them, category, data.catOf), [data, category]);
   if (!data.friend.shareRanking) return <NeedsSharing pseudo={pseudo} what="ses titres vus" />;
 
   const addToWishlist = async (t: Title) => {
@@ -391,14 +391,14 @@ function verdict(p: number): string {
   return 'Goûts opposés : de beaux débats en perspective !';
 }
 
-function MatchView({ data, type }: { data: Loaded; type: Category }) {
+function MatchView({ data, category }: { data: Loaded; category: Category }) {
   const pseudo = data.friend.pseudo;
-  const match = useMemo(() => compatibility(data.me, data.them, type), [data, type]);
+  const match = useMemo(() => compatibility(data.me, data.them, category), [data, category]);
   if (!data.friend.shareRanking) return <NeedsSharing pseudo={pseudo} what="son classement" />;
   if (!match) {
     return (
       <p className="muted center">
-        Pas assez de {CATEGORY_LABEL[type].plural} classé{type === 'tv' ? 'e' : ''}s par vous deux (il en faut au moins 5 en commun). Continuez les duels !
+        Pas assez de {CATEGORY_LABEL[category].plural} classé{category === 'tv' ? 'e' : ''}s par vous deux (il en faut au moins 5 en commun). Continuez les duels !
       </p>
     );
   }
@@ -416,7 +416,7 @@ function MatchView({ data, type }: { data: Loaded; type: Category }) {
         <p className="duo-percent">{match.percent} %</p>
         <p>{verdict(match.percent)}</p>
         <p className="muted small">
-          Sur {match.common} {CATEGORY_LABEL[type].plural} classé{type === 'tv' ? 'e' : ''}s par vous deux.
+          Sur {match.common} {CATEGORY_LABEL[category].plural} classé{category === 'tv' ? 'e' : ''}s par vous deux.
         </p>
       </section>
       {match.agree.length > 0 && (

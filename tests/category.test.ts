@@ -26,13 +26,13 @@ describe('catégories', () => {
     await setStatus(series(1), 'seen');
     await setStatus(anime(2), 'seen');
     await setStatus(anime(3), 'wish');
-    expect(await unrankedKeys({ type: 'tv', list: 'seen' }, [])).toEqual([tv(1)]);
-    expect(await unrankedKeys({ type: 'anime', list: 'seen' }, [])).toEqual([tv(2)]);
-    expect(await unrankedKeys({ type: 'anime', list: 'wish' }, [])).toEqual([tv(3)]);
+    expect(await unrankedKeys({ category: 'tv', list: 'seen' }, [])).toEqual([tv(1)]);
+    expect(await unrankedKeys({ category: 'anime', list: 'seen' }, [])).toEqual([tv(2)]);
+    expect(await unrankedKeys({ category: 'anime', list: 'wish' }, [])).toEqual([tv(3)]);
     // Passer un anime de la wishlist aux vus le retire de la bonne liste.
-    await saveRanking({ type: 'anime', list: 'wish' }, [tv(3)]);
+    await saveRanking({ category: 'anime', list: 'wish' }, [tv(3)]);
     await changeStatus(anime(3), 'seen');
-    expect(await readRanking({ type: 'anime', list: 'wish' })).toEqual([]);
+    expect(await readRanking({ category: 'anime', list: 'wish' })).toEqual([]);
   });
 });
 
@@ -49,16 +49,16 @@ describe('animes sortis des classements de séries', () => {
     for (const id of [2, 4]) await setStatus(anime(id), 'seen');
     await setStatus(series(5), 'wish');
     await setStatus(anime(6), 'wish');
-    await saveRanking({ type: 'tv', list: 'seen' }, [tv(2), tv(1), tv(4), tv(3)]);
-    await saveRanking({ type: 'tv', list: 'wish' }, [tv(6), tv(5)]);
-    await saveInsert({ type: 'tv', list: 'seen' }, { key: tv(9), lo: 0, hi: 4 });
+    await saveRanking({ category: 'tv', list: 'seen' }, [tv(2), tv(1), tv(4), tv(3)]);
+    await saveRanking({ category: 'tv', list: 'wish' }, [tv(6), tv(5)]);
+    await saveInsert({ category: 'tv', list: 'seen' }, { key: tv(9), lo: 0, hi: 4 });
 
     await splitAnimeRankings();
-    expect(await readRanking({ type: 'tv', list: 'seen' })).toEqual([tv(1), tv(3)]);
-    expect(await readRanking({ type: 'anime', list: 'seen' })).toEqual([tv(2), tv(4)]);
-    expect(await readRanking({ type: 'tv', list: 'wish' })).toEqual([tv(5)]);
-    expect(await readRanking({ type: 'anime', list: 'wish' })).toEqual([tv(6)]);
-    expect(await loadInsert({ type: 'tv', list: 'seen' })).toBeNull(); // positions changées
+    expect(await readRanking({ category: 'tv', list: 'seen' })).toEqual([tv(1), tv(3)]);
+    expect(await readRanking({ category: 'anime', list: 'seen' })).toEqual([tv(2), tv(4)]);
+    expect(await readRanking({ category: 'tv', list: 'wish' })).toEqual([tv(5)]);
+    expect(await readRanking({ category: 'anime', list: 'wish' })).toEqual([tv(6)]);
+    expect(await loadInsert({ category: 'tv', list: 'seen' })).toBeNull(); // positions changées
 
     // Deuxième passage : rien ne bouge.
     const before = await db.meta.toArray();

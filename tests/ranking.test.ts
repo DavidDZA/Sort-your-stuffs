@@ -19,8 +19,8 @@ import {
 } from '../src/lib/ranking';
 import { makeTitle } from './helpers';
 
-const seen: Scope = { type: 'movie', list: 'seen' };
-const wish: Scope = { type: 'movie', list: 'wish' };
+const seen: Scope = { category: 'movie', list: 'seen' };
+const wish: Scope = { category: 'movie', list: 'wish' };
 const k = (id: number) => `movie:${id}`;
 
 beforeEach(async () => {

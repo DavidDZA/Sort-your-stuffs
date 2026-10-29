@@ -148,9 +148,9 @@ export async function loadMySide(): Promise<Side> {
   const answers: Side['answers'] = new Map();
   for (const a of await db.answers.toArray()) answers.set(a.key, { status: a.status, tier: a.tier ?? null });
   const rankings: Record<string, string[]> = {};
-  for (const type of ['movie', 'tv', 'anime'] as const) {
-    rankings[type] = await readRanking({ type, list: 'seen' });
-    rankings[`wish:${type}`] = await readRanking({ type, list: 'wish' });
+  for (const category of ['movie', 'tv', 'anime'] as const) {
+    rankings[category] = await readRanking({ category, list: 'seen' });
+    rankings[`wish:${category}`] = await readRanking({ category, list: 'wish' });
   }
   return { answers, rankings };
 }

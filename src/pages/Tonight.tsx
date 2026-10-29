@@ -26,7 +26,7 @@ export default function Tonight() {
     const keys = await db.answers.where('status').equals('wish').primaryKeys();
     const titles = await withDetails((await db.titles.bulkGet(keys)).filter((t): t is Title => !!t));
     const [movie, tv, anime] = await Promise.all(
-      (['movie', 'tv', 'anime'] as const).map((type) => readRanking({ type, list: 'wish' })),
+      (['movie', 'tv', 'anime'] as const).map((category) => readRanking({ category, list: 'wish' })),
     );
     return { titles, ranks: { movie, tv, anime } };
   });

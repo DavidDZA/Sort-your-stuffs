@@ -31,10 +31,10 @@ import { KNOWN_VOTES, personFilmography } from '../../lib/tmdb';
 
 const FLIP_MS = 350; // durée du retournement de la carte (animation flip-in)
 
-export default function Swipe({ type }: { type: Category }) {
-  const media = mediaOf(type); // type TMDB (les animes sont des séries pour TMDB)
+export default function Swipe({ category }: { category: Category }) {
+  const media = mediaOf(category); // type TMDB (les animes sont des séries pour TMDB)
   const [mode] = useState(getSwipeMode);
-  const themeKey = `swipe-theme:${type}`;
+  const themeKey = `swipe-theme:${category}`;
   const pool = useRef<Pool>({ items: [], total: 0 });
   const catalogue = useRef<Title[]>([]);
   // Titres recommandés d'après ceux que tu as aimés : tirés plus souvent.
@@ -106,7 +106,7 @@ export default function Swipe({ type }: { type: Category }) {
   /** Ajoute au catalogue du swipe les titres connus de ce type qu'il n'a pas (filmographie d'une personne) ; renvoie les ajouts. */
   const addTitles = (titles: Title[]): Title[] => {
     const known = new Set(catalogue.current.map((t) => t.key));
-    const added = titles.filter((t) => categoryOf(t) === type && t.voteCount >= KNOWN_VOTES && !known.has(t.key));
+    const added = titles.filter((t) => categoryOf(t) === category && t.voteCount >= KNOWN_VOTES && !known.has(t.key));
     catalogue.current.push(...added);
     // Enregistrés : ils restent là au prochain chargement, même sans réseau.
     if (added.length) db.titles.bulkPut(added).catch(() => undefined);
@@ -118,7 +118,7 @@ export default function Swipe({ type }: { type: Category }) {
     let cancelled = false;
     setLoaded(false);
     setLoadError(null);
-    Promise.all([loadCatalogue(type), db.answers.where('type').equals(media).primaryKeys(), loadBoosts(media)])
+    Promise.all([loadCatalogue(category), db.answers.where('type').equals(media).primaryKeys(), loadBoosts(media)])
       .then(([titles, keys, saved]) => {
         if (cancelled) return;
         catalogue.current = titles;
@@ -130,7 +130,7 @@ export default function Swipe({ type }: { type: Category }) {
     return () => {
       cancelled = true;
     };
-  }, [type, catalogueVersion]);
+  }, [category, catalogueVersion]);
 
   // Filtre sur une personne retenu d'une visite à l'autre : sa filmographie peut compter des titres hors
   // catalogue. Récupérée en arrière-plan ; ses titres rejoignent le tirage à leur arrivée.
@@ -329,7 +329,7 @@ export default function Swipe({ type }: { type: Category }) {
       onClick={() => press(c)}
     />
   );
-  const typeTitle = `${CATEGORY_LABEL[type].emoji} ${capitalize(CATEGORY_LABEL[type].plural)}`;
+  const typeTitle = `${CATEGORY_LABEL[category].emoji} ${capitalize(CATEGORY_LABEL[category].plural)}`;
 
   return (
     <main className={`page swipe-page ${mode}`}>

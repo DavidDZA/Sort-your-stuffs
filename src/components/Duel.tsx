@@ -174,7 +174,7 @@ export function Duel({
         await next(ranking);
       }
     })();
-  }, [scope.type, scope.list]);
+  }, [scope.category, scope.list]);
 
   const choose = async (choice: 'candidate' | 'opponent' | 'tie') => {
     if (!st || (!st.ins && st.verify === null) || busy.current) return;

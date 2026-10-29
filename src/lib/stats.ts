@@ -10,7 +10,7 @@ export interface Bar {
   count: number;
 }
 
-export interface TypeStats {
+export interface CategoryStats {
   seen: number;
   minutes: number; // temps passé (approximatif pour les séries)
   withDetails: number; // titres vus dont la fiche est connue
@@ -23,9 +23,9 @@ export interface TypeStats {
 }
 
 export interface Stats {
-  movie: TypeStats;
-  tv: TypeStats;
-  anime: TypeStats;
+  movie: CategoryStats;
+  tv: CategoryStats;
+  anime: CategoryStats;
   wish: number;
   unseen: number;
   today: number;
@@ -76,9 +76,9 @@ function minutesOf(t: Title): number {
   return t.type === 'movie' ? d.runtime : d.runtime * (d.episodes ?? 0);
 }
 
-async function typeStats(type: Category, seen: Title[]): Promise<TypeStats> {
+async function categoryStats(category: Category, seen: Title[]): Promise<CategoryStats> {
   const seenKeys = new Set(seen.map((t) => t.key));
-  const top = await topKeys(type);
+  const top = await topKeys(category);
   const decades = new Map<number, number>();
   for (const t of seen) if (t.year) decades.set(Math.floor(t.year / 10) * 10, (decades.get(Math.floor(t.year / 10) * 10) ?? 0) + 1);
 
@@ -88,7 +88,7 @@ async function typeStats(type: Category, seen: Title[]): Promise<TypeStats> {
     withDetails: seen.filter((t) => t.details).length,
     decades: [...decades.entries()].sort((a, b) => a[0] - b[0]).map(([d, n]) => ({ label: d < 2000 ? `${String(d).slice(2)}s` : `${d}s`, count: n })),
     genres: count(
-      seen.flatMap((t) => (t.genreIds?.length ? t.genreIds.map((g) => genreName(mediaOf(type), g)).filter(Boolean) : (t.details?.genres ?? []))),
+      seen.flatMap((t) => (t.genreIds?.length ? t.genreIds.map((g) => genreName(mediaOf(category), g)).filter(Boolean) : (t.details?.genres ?? []))),
       8,
     ),
     people: count(
@@ -100,7 +100,7 @@ async function typeStats(type: Category, seen: Title[]): Promise<TypeStats> {
       5,
     ).filter((b) => b.count > 1),
     top: { seen: top.filter((k) => seenKeys.has(k)).length, total: top.length },
-    ranked: (await readRanking({ type, list: 'seen' })).length,
+    ranked: (await readRanking({ category, list: 'seen' })).length,
   };
 }
 
@@ -114,7 +114,7 @@ export async function computeStats(): Promise<Stats> {
   const seenTitles = await withDetails((await db.titles.bulkGet(seenAnswers.map((a) => a.key))).filter((t): t is Title => !!t));
   const seenKeys = new Set(seenTitles.map((t) => t.key));
   const [movie, tv, anime] = await Promise.all(
-    (['movie', 'tv', 'anime'] as const).map((c) => typeStats(c, seenTitles.filter((t) => categoryOf(t) === c))),
+    (['movie', 'tv', 'anime'] as const).map((c) => categoryStats(c, seenTitles.filter((t) => categoryOf(t) === c))),
   );
 
   const sagas = sagaRows

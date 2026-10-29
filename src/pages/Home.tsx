@@ -43,15 +43,15 @@ export default function Home() {
   const cloud = useCloud();
   const showAnime = useCategories().includes('anime');
   const stats = useLiveQuery(async () => {
-    const byType = async (type: Category) => {
-      const media = mediaOf(type);
+    const byCategory = async (category: Category) => {
+      const media = mediaOf(category);
       const [catalogue, answeredKeys, seenKeys, ranking] = await Promise.all([
-        loadCatalogue(type),
+        loadCatalogue(category),
         db.answers.where('type').equals(media).primaryKeys(),
         db.answers.where('[type+status]').equals([media, 'seen']).primaryKeys(),
-        readRanking({ type, list: 'seen' }),
+        readRanking({ category: category, list: 'seen' }),
       ]);
-      const [answered, seen] = await Promise.all([keysOfCategory(type, answeredKeys), keysOfCategory(type, seenKeys)]);
+      const [answered, seen] = await Promise.all([keysOfCategory(category, answeredKeys), keysOfCategory(category, seenKeys)]);
       const total = catalogue.length;
       return {
         total,
@@ -63,9 +63,9 @@ export default function Home() {
       };
     };
     const [movie, tv, anime, wish, activity, lastSync, lastExport, badges] = await Promise.all([
-      byType('movie'),
-      byType('tv'),
-      byType('anime'),
+      byCategory('movie'),
+      byCategory('tv'),
+      byCategory('anime'),
       db.answers.where('status').equals('wish').count(),
       loadActivity(),
       getMeta<number | null>('lastSync', null),

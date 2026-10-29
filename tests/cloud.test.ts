@@ -91,7 +91,7 @@ async function restore(s: unknown[][]) {
 }
 
 const USER = 'user-1';
-const seen = { type: 'movie' as const, list: 'seen' as const };
+const seen = { category: 'movie' as const, list: 'seen' as const };
 
 beforeEach(async () => {
   await Promise.all(tables.map((t) => t.clear()));

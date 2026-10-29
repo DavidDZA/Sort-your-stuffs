@@ -3,7 +3,7 @@ import { categoryOf, keysOfCategory, mediaOf, type Category } from './category';
 
 /** Une liste classable : les titres vus ou la wishlist, d'une catégorie (films, séries, animes). */
 export interface Scope {
-  type: Category;
+  category: Category;
   list: 'seen' | 'wish';
 }
 
@@ -14,13 +14,13 @@ export interface InsertState {
   hi: number;
 }
 
-export const scopeId = (s: Scope) => (s.list === 'seen' ? s.type : `wish:${s.type}`);
+export const scopeId = (s: Scope) => (s.list === 'seen' ? s.category : `wish:${s.category}`);
 const rankingKey = (s: Scope) => `ranking:${scopeId(s)}`;
 const insertKey = (s: Scope) => `insert:${scopeId(s)}`;
 
 async function poolKeys(s: Scope): Promise<Set<string>> {
-  const keys = await db.answers.where('[type+status]').equals([mediaOf(s.type), s.list]).primaryKeys();
-  return new Set(await keysOfCategory(s.type, keys));
+  const keys = await db.answers.where('[type+status]').equals([mediaOf(s.category), s.list]).primaryKeys();
+  return new Set(await keysOfCategory(s.category, keys));
 }
 
 /** Classement (du premier au dernier), sans les titres qui ont quitté la liste. Lecture seule. */
@@ -70,7 +70,7 @@ export async function unrank(s: Scope, key: string): Promise<void> {
 export async function changeStatus(title: Title, status: Status, tier?: Tier): Promise<void> {
   const current = await db.answers.get(title.key);
   if (current && current.status !== status && current.status !== 'unseen') {
-    await unrank({ type: categoryOf(title), list: current.status as 'seen' | 'wish' }, title.key);
+    await unrank({ category: categoryOf(title), list: current.status as 'seen' | 'wish' }, title.key);
   }
   await setStatus(title, status, status === 'seen' ? tier : undefined);
 }
@@ -139,8 +139,8 @@ export function splitAnime(tv: string[], anime: string[], isAnime: (key: string)
  */
 export async function splitAnimeRankings(): Promise<void> {
   for (const list of ['seen', 'wish'] as const) {
-    const tvScope: Scope = { type: 'tv', list };
-    const animeScope: Scope = { type: 'anime', list };
+    const tvScope: Scope = { category: 'tv', list };
+    const animeScope: Scope = { category: 'anime', list };
     const tv = [...new Set(await getMeta<string[]>(rankingKey(tvScope), []))];
     if (!tv.length) continue;
     const animeKeys = new Set(await keysOfCategory('anime', tv));

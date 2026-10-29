@@ -34,10 +34,10 @@ export default function Wishlist() {
   }, [wishes?.length]);
 
   // Les duels se font par catégorie : « Tous » n'a pas de sens ici.
-  const type: Category = filter === 'all' ? 'movie' : filter;
-  const scope: Scope = { type, list: 'wish' };
+  const category: Category = filter === 'all' ? 'movie' : filter;
+  const scope: Scope = { category: category, list: 'wish' };
   // Catégories mélangées : le genre ne s'applique pas (les genres diffèrent entre films et séries).
-  const listCat: Category | null = view === 'duel' ? type : filter === 'all' ? null : filter;
+  const listCat: Category | null = view === 'duel' ? category : filter === 'all' ? null : filter;
   const listType = listCat && mediaOf(listCat);
   const theme = listType ? savedTheme : { ...savedTheme, genre: null };
   const byTheme = themeFilter(theme);
@@ -73,7 +73,7 @@ export default function Wishlist() {
         }}
       />
       <TypeFilter<Filter>
-        value={view === 'duel' ? type : filter}
+        value={view === 'duel' ? category : filter}
         options={[
           ...(view === 'list' ? [['all', 'Tous', 'Tous les titres, du plus récent au plus ancien ajout'] as [Filter, string, string]] : []),
           ...categoryOptions(categories, (c) => `${c === 'movie' ? 'Films' : c === 'tv' ? 'Séries' : 'Animes'} seulement, par ordre de priorité`),

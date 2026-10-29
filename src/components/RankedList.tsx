@@ -40,7 +40,7 @@ export function RankedList({
     // Fiches jointes : les filtres peuvent porter sur les plateformes (wishlist « dispo chez moi »).
     const [ranked, rest] = await Promise.all([withDetails(r.filter(ok)), withDetails(u.filter(ok))]);
     return { ranked, unranked: rest.sort((a, b) => a.title.localeCompare(b.title, 'fr')) };
-  }, [scope.type, scope.list]);
+  }, [scope.category, scope.list]);
   useEffect(() => setOptimistic(null), [data]);
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));

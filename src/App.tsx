@@ -45,9 +45,9 @@ function useRoute(): string[] {
 function page(name: string, arg: string | undefined): ReactNode {
   switch (name) {
     case 'swipe':
-      return <Swipe key={arg} type={asCategory(arg)} />;
+      return <Swipe key={arg} category={asCategory(arg)} />;
     case 'rank':
-      return <Rank key={arg} type={asCategory(arg)} />;
+      return <Rank key={arg} category={asCategory(arg)} />;
     case 'add':
       return <AddManual />;
     case 'wishlist':

@@ -52,7 +52,7 @@ describe('mise à jour du catalogue', () => {
     for (const id of [1, 2]) await setStatus(makeTitle(id), 'seen', 'good');
     await setStatus(makeTitle(3, { manual: true }), 'seen');
     await db.titles.put(makeTitle(4));
-    await saveRanking({ type: 'movie', list: 'seen' }, ['movie:2', 'movie:1', 'movie:3']);
+    await saveRanking({ category: 'movie', list: 'seen' }, ['movie:2', 'movie:1', 'movie:3']);
 
     const { movie, removed } = await syncCatalogue(votes({ tv: 50, anime: 50 }), () => {});
 
@@ -61,7 +61,7 @@ describe('mise à jour du catalogue', () => {
     expect((await db.titles.where('type').equals('movie').primaryKeys()).sort()).toEqual(['movie:1']);
     expect(await db.answers.get('movie:2')).toBeUndefined();
     expect(await db.answers.get('movie:1')).toBeDefined(); // les réponses des titres gardés restent
-    expect(await readRanking({ type: 'movie', list: 'seen' })).toEqual(['movie:1']);
+    expect(await readRanking({ category: 'movie', list: 'seen' })).toEqual(['movie:1']);
     expect(await getMeta('lastSync', null)).not.toBeNull();
   });
 });
