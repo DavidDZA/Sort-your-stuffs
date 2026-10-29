@@ -40,7 +40,7 @@ describe('ce soir, je regarde quoi ?', () => {
   });
   const netflix = { id: 8, name: 'Netflix', logo: null };
 
-  it('filtre par type, abonnements, durée et genre', () => {
+  it('filtre par catégorie, abonnements, durée et genre', () => {
     const mine = (families: string[], ids: number[] = []): MyProviders => ({ families: new Set(families), legacyIds: new Set(ids) });
     const none = mine([]);
     const netflixFamily = mine(['netflix']);
@@ -48,8 +48,8 @@ describe('ce soir, je regarde quoi ?', () => {
     const film = makeTitle(1, { details: details({ runtime: 100, genres: ['Comédie'], providers: { flatrate: [netflix], rent: [], buy: [], link: null } }) });
     const long = makeTitle(2, { details: details({ runtime: 170 }) });
     const serie = makeTitle(3, {}, 'tv');
-    expect(matchesTonight(film, { ...NO_FILTERS, type: 'tv' }, none)).toBe(false);
-    expect(matchesTonight(serie, { ...NO_FILTERS, type: 'tv' }, none)).toBe(true);
+    expect(matchesTonight(film, { ...NO_FILTERS, category: 'tv' }, none)).toBe(false);
+    expect(matchesTonight(serie, { ...NO_FILTERS, category: 'tv' }, none)).toBe(true);
     expect(matchesTonight(film, { ...NO_FILTERS, mineOnly: true }, netflixFamily)).toBe(true);
     expect(matchesTonight(film, { ...NO_FILTERS, mineOnly: true }, disneyFamily)).toBe(false);
     expect(matchesTonight(long, { ...NO_FILTERS, short: true }, none)).toBe(false);

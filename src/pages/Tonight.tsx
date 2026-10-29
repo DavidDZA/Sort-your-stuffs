@@ -94,15 +94,15 @@ export default function Tonight() {
 
   return (
     <Shell>
-      <TypeFilter<TonightFilters['type']>
-        value={filters.type}
+      <TypeFilter<TonightFilters['category']>
+        value={filters.category}
         options={[
           ['all', 'Tout', 'Toute la wishlist'],
           ['movie', 'Un film', 'Seulement les films'],
           ['tv', 'Une série', 'Seulement les séries'],
           ...(categories.includes('anime') ? [['anime', 'Un anime', 'Seulement les animes'] as ['anime', string, string]] : []),
         ]}
-        onChange={(type) => update({ ...filters, type })}
+        onChange={(category) => update({ ...filters, category })}
       />
       <div className="chips">
         {hasMyProviders(mine) && (
@@ -110,7 +110,7 @@ export default function Tonight() {
             📺 Sur mes abonnements
           </button>
         )}
-        {(filters.type === 'all' || filters.type === 'movie') && (
+        {(filters.category === 'all' || filters.category === 'movie') && (
           <button className={`chip ${filters.short ? 'active' : ''}`} onClick={() => update({ ...filters, short: !filters.short })} title="Films de 2 h maximum">
             ⏱️ Moins de 2 h
           </button>

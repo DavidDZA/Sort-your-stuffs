@@ -3,16 +3,16 @@ import { categoryOf, type Category } from './category';
 import { availableOnMine, type MyProviders } from './providers';
 
 export interface TonightFilters {
-  type: 'all' | Category;
+  category: 'all' | Category;
   mineOnly: boolean; // disponible sur mes abonnements
   short: boolean; // films de moins de 2 h
   genre: string | null; // nom de genre (fiche détaillée)
 }
 
-export const NO_FILTERS: TonightFilters = { type: 'all', mineOnly: false, short: false, genre: null };
+export const NO_FILTERS: TonightFilters = { category: 'all', mineOnly: false, short: false, genre: null };
 
 export function matchesTonight(t: Title, f: TonightFilters, mine: MyProviders): boolean {
-  if (f.type !== 'all' && categoryOf(t) !== f.type) return false;
+  if (f.category !== 'all' && categoryOf(t) !== f.category) return false;
   const d = t.details;
   if (f.mineOnly && !(d && availableOnMine(d.providers.flatrate, mine))) return false;
   if (f.short && t.type === 'movie' && (!d?.runtime || d.runtime > 120)) return false;
