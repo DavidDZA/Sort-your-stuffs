@@ -176,3 +176,32 @@
   font-size: 0.9rem;
   margin: 4px 0 8px;
 }
+
+/* Classement déplaçable à la main : poignée ⠿, numéro à toucher, ligne attrapée. */
+.drag-handle {
+  width: 28px;
+  align-self: stretch;
+  margin: -8px 0 -8px -8px;
+  padding-left: 6px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 1.3rem;
+  cursor: grab;
+  touch-action: none; /* sinon le téléphone fait défiler la page au lieu de déplacer le titre */
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+button.rank-num {
+  background: none;
+  border: none;
+  padding: 0;
+}
+.list-item.dragging {
+  position: relative;
+  z-index: 2;
+  border-color: var(--violet);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+  background: var(--surface-solid);
+}

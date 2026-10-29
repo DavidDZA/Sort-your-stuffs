@@ -6,6 +6,7 @@ import {
   duelsLeft,
   loadInsert,
   loadRanking,
+  moveInRanking,
   pickVerifyPair,
   priorityPool,
   readRanking,
@@ -123,5 +124,18 @@ describe('duels', () => {
   it('fait remonter un titre au-dessus d’un voisin de la sélection filtrée', () => {
     // Sélection filtrée : a et d (b et c n'en font pas partie). d préféré à a : d passe juste avant a.
     expect(promote(['a', 'b', 'c', 'd'], 3, 0)).toEqual(['d', 'a', 'b', 'c']);
+  });
+});
+
+describe('déplacement à la main', () => {
+  it('place le titre à la position voulue, sans changer l’ordre des autres', async () => {
+    for (const id of [1, 2, 3, 4, 5]) await setStatus(makeTitle(id), 'seen');
+    await saveRanking(seen, [k(1), k(2), k(3), k(4), k(5)]);
+    await saveInsert(seen, { key: k(9), lo: 0, hi: 5 });
+    expect(await moveInRanking(seen, k(5), 1)).toEqual([k(1), k(5), k(2), k(3), k(4)]);
+    expect(await loadInsert(seen)).toBeNull(); // positions changées : placement en cours annulé
+    expect(await moveInRanking(seen, k(1), 99)).toEqual([k(5), k(2), k(3), k(4), k(1)]); // au-delà : dernier
+    expect(await moveInRanking(seen, k(8), 0)).toEqual([k(5), k(2), k(3), k(4), k(1)]); // pas classé : rien
+    expect(await loadRanking(seen)).toEqual([k(5), k(2), k(3), k(4), k(1)]);
   });
 });

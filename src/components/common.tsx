@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Answer, type Tier, type Title } from '../lib/db';
 import { CATEGORY_LABEL, categoryOf } from '../lib/category';
@@ -131,18 +131,25 @@ export function TitleRow({
   below,
   showType = false,
   children,
+  itemRef,
+  itemStyle,
+  itemClass = '',
 }: {
   title: Title;
   prefix?: ReactNode;
   below?: ReactNode;
   showType?: boolean;
   children?: ReactNode;
+  /** Pour le glisser-déposer du classement. */
+  itemRef?: (el: HTMLLIElement | null) => void;
+  itemStyle?: CSSProperties;
+  itemClass?: string;
 }) {
   const [open, setOpen] = useState(false);
   const toggle = () => setOpen((o) => !o);
   const longPress = useLongPress(() => openFiche(title));
   return (
-    <li className="list-item">
+    <li className={`list-item ${itemClass}`} ref={itemRef} style={itemStyle}>
       {prefix}
       <div
         className="row-main"

@@ -152,3 +152,19 @@ export async function splitAnimeRankings(): Promise<void> {
     if (await loadInsert(tvScope)) await saveInsert(tvScope, null);
   }
 }
+
+/**
+ * Déplacement à la main (glisser-déposer, ou nouvelle place tapée) : le titre passe à la position `to`
+ * (0 = premier), les autres gardent leur ordre. Renvoie le classement modifié.
+ */
+export async function moveInRanking(s: Scope, key: string, to: number): Promise<string[]> {
+  const ranking = await loadRanking(s);
+  const from = ranking.indexOf(key);
+  if (from === -1) return ranking;
+  const target = Math.max(0, Math.min(ranking.length - 1, to));
+  if (target === from) return ranking;
+  const next = promote(ranking, from, target);
+  await saveRanking(s, next);
+  await saveInsert(s, null); // les positions changent : on repart d'un placement neuf
+  return next;
+}
