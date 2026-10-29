@@ -8,10 +8,11 @@ import { pickWeighted } from '../lib/tonight';
 import { availableOnMine, hasMyProviders, loadMyProviders } from '../lib/providers';
 import { prefetchDetails, WEEK } from '../lib/tmdb';
 import { burst, toast } from '../lib/fun';
-import { Poster, ProviderLine, RatingBadge, TitleRow, TitleText, TopBar, TypeFilter } from '../components/common';
+import { matchesSearch } from '../lib/hooks';
+import { Poster, ProviderLine, RatingBadge, SearchBox, TitleRow, TitleText, TopBar, TypeFilter } from '../components/common';
 import { openFiche } from '../components/Fiche';
 
-type Tab = 'wish' | 'tonight' | 'advice' | 'match';
+type Tab = 'top' | 'wish' | 'tonight' | 'advice' | 'match';
 
 interface Loaded {
   friend: Friend;
@@ -26,7 +27,7 @@ export default function Duo({ friendId }: { friendId: string }) {
   const [data, setData] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [type, setType] = useState<MediaType>('movie');
-  const [tab, setTab] = useState<Tab>('wish');
+  const [tab, setTab] = useState<Tab>('top');
 
   const load = async (fresh = false) => {
     try {
@@ -81,6 +82,7 @@ export default function Duo({ friendId }: { friendId: string }) {
           <TypeFilter<Tab>
             value={tab}
             options={[
+              ['top', '🏆 Son top', 'Tout son classement, et ce qu’il ou elle a vu sans le classer'],
               ['wish', '💖 En commun', 'Les titres que vous voulez voir tous les deux'],
               ['tonight', '🍿 Ce soir', 'Tirer au sort un titre de votre wishlist commune'],
               ['advice', '💡 Conseils', 'Ce que l’autre a aimé et que vous n’avez pas vu'],
@@ -96,6 +98,7 @@ export default function Duo({ friendId }: { friendId: string }) {
             ]}
             onChange={setType}
           />
+          {tab === 'top' && <FriendTop key={type} data={data} type={type} onWish={refreshMe} />}
           {tab === 'wish' && <CommonWishlist data={data} type={type} />}
           {tab === 'tonight' && <TonightDuo key={type} data={data} type={type} />}
           {tab === 'advice' && <AdviceLists data={data} type={type} onWish={refreshMe} />}
@@ -115,6 +118,95 @@ const nth = (n: number | undefined) => (n ? `n°${n}` : 'non priorisé');
 
 function NeedsSharing({ pseudo, what }: { pseudo: string; what: string }) {
   return <p className="muted center small">{pseudo} ne partage pas {what}. Il ou elle peut l’activer dans sa page Amis.</p>;
+}
+
+const MEDALS = ['🥇', '🥈', '🥉'];
+const PAGE = 100;
+
+/** Où j'en suis avec un titre de l'ami : classé, vu, dans ma wishlist, pas envie. */
+function myStatus(me: Side, key: string, type: MediaType): string | null {
+  const a = me.answers.get(key);
+  if (!a) return null;
+  if (a.status === 'wish') return 'Toi : 💖 dans ta wishlist';
+  if (a.status === 'unseen') return 'Toi : pas envie';
+  const i = (me.rankings[type] ?? []).indexOf(key);
+  return `Toi : ${i === -1 ? 'vu' : `n°${i + 1}`}${a.tier === 'good' ? ' 👍' : a.tier === 'meh' ? ' 😐' : ''}`;
+}
+
+/** Tout le classement de l'ami, puis ses titres vus pas encore classés ; ma situation sur chacun. */
+function FriendTop({ data, type, onWish }: { data: Loaded; type: MediaType; onWish: () => void }) {
+  const [query, setQuery] = useState('');
+  const [limit, setLimit] = useState(PAGE);
+  const pseudo = data.friend.pseudo;
+  const ranking = data.them.rankings[type] ?? [];
+  const ranked = new Set(ranking);
+  const unranked = [...data.them.answers]
+    .filter(([key, a]) => a.status === 'seen' && key.startsWith(`${type}:`) && !ranked.has(key))
+    .map(([key]) => data.titles.get(key))
+    .filter((t): t is Title => !!t)
+    .sort((a, b) => a.title.localeCompare(b.title, 'fr'));
+  if (!data.friend.shareRanking) return <NeedsSharing pseudo={pseudo} what="son classement" />;
+
+  const rows = ranking
+    .map((key, i) => ({ t: data.titles.get(key), rank: i + 1 }))
+    .filter((x): x is { t: Title; rank: number } => !!x.t && matchesSearch(x.t, query));
+  const others = unranked.filter((t) => matchesSearch(t, query));
+  if (!ranking.length && !unranked.length) {
+    return <p className="muted center">{pseudo} n’a pas encore de {type === 'movie' ? 'film' : 'série'} vu{type === 'tv' ? 'e' : ''}.</p>;
+  }
+
+  const addToWishlist = async (t: Title) => {
+    await changeStatus(t, 'wish');
+    toast(`💖 « ${t.title} » ajouté à ta wishlist`);
+    onWish();
+  };
+  const row = (t: Title, prefix?: ReactNode) => {
+    const tier = data.them.answers.get(t.key)?.tier;
+    const mine = myStatus(data.me, t.key, type);
+    return (
+      <TitleRow
+        key={t.key}
+        title={t}
+        prefix={prefix}
+        below={
+          <span className="muted tiny">
+            {[tier === 'good' && `👍 bien pour ${pseudo}`, tier === 'meh' && `😐 bof pour ${pseudo}`, mine].filter(Boolean).join(' · ')}
+          </span>
+        }
+      >
+        {!mine && (
+          <button className="btn small" onClick={() => addToWishlist(t)} title="Ajouter à ta wishlist" aria-label="Ajouter à ta wishlist">
+            💖
+          </button>
+        )}
+      </TitleRow>
+    );
+  };
+
+  return (
+    <>
+      {ranking.length + unranked.length > 8 && <SearchBox value={query} onChange={setQuery} />}
+      <p className="muted small center">
+        {ranking.length} classé{ranking.length > 1 ? 's' : ''}
+        {unranked.length > 0 && ` · ${unranked.length} vu${unranked.length > 1 ? 's' : ''} sans classement`}
+      </p>
+      {!rows.length && !others.length && <p className="muted center">Aucun titre ne correspond.</p>}
+      <ol className="list">
+        {rows.slice(0, limit).map(({ t, rank }) => row(t, <span className={`rank-num ${rank <= 3 ? 'medal' : ''}`}>{rank <= 3 ? MEDALS[rank - 1] : rank}</span>))}
+      </ol>
+      {rows.length > limit && (
+        <button className="btn" onClick={() => setLimit((l) => l + PAGE)}>
+          Afficher plus ({(rows.length - limit).toLocaleString('fr-FR')} restants)
+        </button>
+      )}
+      {others.length > 0 && rows.length <= limit && (
+        <>
+          <h3 className="section-title">Vus, pas encore classés ({others.length})</h3>
+          <ul className="list">{others.map((t) => row(t))}</ul>
+        </>
+      )}
+    </>
+  );
 }
 
 function CommonWishlist({ data, type }: { data: Loaded; type: MediaType }) {

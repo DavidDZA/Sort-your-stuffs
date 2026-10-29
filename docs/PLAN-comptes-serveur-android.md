@@ -298,7 +298,8 @@ Logique pure → tests Vitest.
 **Réalisé (29/10/2026)** : `src/pages/Duo.tsx` (`#/duo/<id ami>`), logique pure dans `src/lib/together.ts`
 (testée). Données de l'ami lues à la demande (cache mémoire 5 min). « Ce soir à deux » filtre seulement sur
 mes abonnements (ceux de l'ami restent sur son appareil). Compatibilité : tau de Kendall sur les titres classés
-par les deux (5 minimum).
+par les deux (5 minimum). Onglet « Son top » (par défaut) : tout le classement de l'ami et ses vus non classés, avec
+ma situation sur chaque titre et l'ajout direct à ma wishlist.
 
 ---
 
