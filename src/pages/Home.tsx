@@ -97,6 +97,13 @@ export default function Home() {
         </a>
       )}
 
+      {cloudEnabled && cloud.ready && !cloud.user && (
+        <a className="banner-soft row-banner" href="#/settings" title="Se connecter ou créer un compte (Google ou e-mail)">
+          <span>{desktop ? '☁️ Connecte-toi pour retrouver tes titres sur tous tes appareils et comparer avec tes amis' : '☁️ Connecte-toi : synchro et amis'}</span>
+          <span className="btn small primary">Se connecter</span>
+        </a>
+      )}
+
       {backupDue && (
         <div className="banner-soft row-banner">
           <span>
@@ -109,16 +116,9 @@ export default function Home() {
                 ? `Sauvegarde il y a ${daysAgo(stats.lastExport)} j`
                 : 'Pas encore de sauvegarde'}
           </span>
-          <span className="row">
-            {cloudEnabled && (
-              <a className="btn small" href="#/settings" title="Créer un compte pour synchroniser PC et téléphone, sans sauvegarde à faire">
-                ☁️ Compte
-              </a>
-            )}
-            <button className="btn small primary" onClick={backupNow} title="Télécharger une sauvegarde de tes données">
-              Exporter
-            </button>
-          </span>
+          <button className="btn small primary" onClick={backupNow} title="Télécharger une sauvegarde de tes données">
+            Exporter
+          </button>
         </div>
       )}
 

@@ -341,6 +341,10 @@ button.link {
   justify-content: space-between;
   gap: 10px;
 }
+.row-banner .btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 
 /* ---------- Messages et confettis (lib/fun.ts) ---------- */
 
