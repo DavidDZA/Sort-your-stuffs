@@ -4,6 +4,7 @@ import { isAnimeTitle } from './category';
 import { frError, siteUrl } from './cloud';
 import { supabase } from './supabase';
 import type { Side } from './together';
+import type { Database } from './database.types';
 
 /** Amis : ajout par code, partage, lecture (seule) des données qu'un ami partage. */
 
@@ -42,7 +43,7 @@ export async function loadMyProfile(): Promise<MyProfile> {
 }
 
 export async function setSharing(patch: { shareWishlist?: boolean; shareRanking?: boolean }): Promise<void> {
-  const row: Record<string, boolean> = {};
+  const row: Database['public']['Tables']['profiles']['Update'] = {};
   if (patch.shareWishlist !== undefined) row.share_wishlist = patch.shareWishlist;
   if (patch.shareRanking !== undefined) row.share_ranking = patch.shareRanking;
   const { error } = await sb().from('profiles').update(row).eq('id', await myId());
@@ -69,14 +70,14 @@ export async function listFriends(): Promise<Friend[]> {
 export async function findByCode(code: string): Promise<string | null> {
   const { data, error } = await sb().rpc('find_friend_code', { code });
   if (error) throw new Error(frError(error));
-  return (data as string | null) ?? null;
+  return data ?? null;
 }
 
 /** Ajoute un ami avec son code ; renvoie son pseudo. */
 export async function addFriend(code: string): Promise<string> {
   const { data, error } = await sb().rpc('add_friend', { code });
   if (error) throw new Error(frError(error));
-  return data as string;
+  return data;
 }
 
 export async function removeFriend(id: string): Promise<void> {
@@ -90,7 +91,7 @@ export async function removeFriend(id: string): Promise<void> {
 export async function newFriendCode(): Promise<string> {
   const { data, error } = await sb().rpc('new_friend_code');
   if (error) throw new Error(frError(error));
-  return data as string;
+  return data;
 }
 
 // ---------------------------------------------------------------------------
@@ -122,7 +123,7 @@ export async function loadFriendData(friendId: string, fresh = false): Promise<F
     if (error) throw new Error(frError(error));
     for (const r of data) {
       answers.set(r.key, { status: r.status as Status, tier: (r.tier as Tier | null) ?? null });
-      if (r.title) titles.set(r.key, r.title as Title);
+      if (r.title) titles.set(r.key, r.title as unknown as Title); // copie envoyée par la synchro (cloud.ts)
     }
     if (data.length < PAGE) break;
   }

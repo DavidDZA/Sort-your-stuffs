@@ -5,6 +5,7 @@ import { clearChoices, db, isUserMeta, type MediaType, type Status, type Tier, t
 import { hashOf, plan, type Row } from './cloudMerge';
 import { splitAnimeRankings } from './ranking';
 import { supabase } from './supabase';
+import type { Json } from './database.types';
 import { toast } from './fun';
 
 /*
@@ -148,38 +149,43 @@ function supabaseRemote(userId: string): Remote {
   const sb = supabase!;
   return {
     async pull(table, since) {
-      const columns = table === 'answers' ? 'key, status, tier, title, deleted, client_updated_at, updated_at' : 'key, value, deleted, client_updated_at, updated_at';
       const from = since && !Number.isNaN(Date.parse(since)) ? new Date(Date.parse(since) - OVERLAP_MS).toISOString() : null;
       const rows: Row[] = [];
       let cursor = since;
       for (let offset = 0; ; offset += PAGE) {
         // Filtre indispensable : les règles d'accès laissent aussi lire ce que les amis partagent.
-        let q = sb.from(table).select(columns).eq('user_id', userId).order('updated_at').order('key');
+        let q = sb.from(table).select('*').eq('user_id', userId).order('updated_at').order('key');
         if (from) q = q.gt('updated_at', from);
         const { data, error } = await q.range(offset, offset + PAGE - 1);
         if (error) throw error;
-        for (const r of data as unknown as Record<string, unknown>[]) {
-          const deleted = r.deleted as boolean;
-          const value = table === 'answers' ? { status: r.status, tier: r.tier ?? null } : r.value;
-          rows.push({ id: PREFIX[table] + r.key, data: deleted ? undefined : value, at: Date.parse(r.client_updated_at as string), title: r.title ?? undefined });
-          cursor = r.updated_at as string;
+        for (const r of data) {
+          const value = 'status' in r ? { status: r.status, tier: r.tier ?? null } : r.value;
+          const title = 'title' in r ? (r.title ?? undefined) : undefined;
+          rows.push({ id: PREFIX[table] + r.key, data: r.deleted ? undefined : value, at: Date.parse(r.client_updated_at), title });
+          cursor = r.updated_at;
         }
         if (data.length < PAGE) break;
       }
       return { rows, cursor };
     },
     async push(table, rows) {
-      const payload = rows.map((r) => {
-        const key = r.id.slice(2);
-        const base = { user_id: userId, key, deleted: r.data === undefined, client_updated_at: new Date(r.at).toISOString() };
-        if (table === 'user_meta') return { ...base, value: r.data ?? null };
-        const d = r.data as AnswerData | undefined;
-        return { ...base, type: key.split(':')[0], status: d?.status ?? null, tier: d?.tier ?? null, title: r.title ?? null };
-      });
-      for (let i = 0; i < payload.length; i += 500) {
-        const { error } = await sb.from(table).upsert(payload.slice(i, i + 500), { onConflict: 'user_id,key' });
-        if (error) throw error;
+      const base = (r: Row) => ({ user_id: userId, key: r.id.slice(2), deleted: r.data === undefined, client_updated_at: new Date(r.at).toISOString() });
+      const send = async <T>(upsert: (batch: T[]) => PromiseLike<{ error: unknown }>, payload: T[]) => {
+        for (let i = 0; i < payload.length; i += 500) {
+          const { error } = await upsert(payload.slice(i, i + 500));
+          if (error) throw error;
+        }
+      };
+      if (table === 'user_meta') {
+        const payload = rows.map((r) => ({ ...base(r), value: (r.data ?? null) as Json }));
+        return send((batch) => sb.from('user_meta').upsert(batch, { onConflict: 'user_id,key' }), payload);
       }
+      const payload = rows.map((r) => {
+        const d = r.data as AnswerData | undefined;
+        const b = base(r);
+        return { ...b, type: b.key.split(':')[0] as MediaType, status: d?.status ?? null, tier: d?.tier ?? null, title: (r.title ?? null) as Json };
+      });
+      return send((batch) => sb.from('answers').upsert(batch, { onConflict: 'user_id,key' }), payload);
     },
   };
 }
