@@ -44,9 +44,13 @@ npm install
 npm run dev      # http://localhost:5173 (et accessible depuis le réseau local)
 npm run build
 npm test         # tests automatiques (Vitest), aussi lancés avant chaque déploiement
+npm run e2e      # tests de bout en bout (Playwright, dans le Chrome installé, formats téléphone et PC)
+npm run e2e:live # idem sur le vrai projet Supabase (comptes de test créés puis supprimés)
 ```
 
-Stack : Vite, React, TypeScript, Dexie (IndexedDB), Supabase (comptes), vite-plugin-pwa.
+Stack : Vite, React, TypeScript, Dexie (IndexedDB), Supabase (comptes), vite-plugin-pwa, dnd-kit, Playwright.
+
+Fonctionnement détaillé (données, catégories, synchro, amis, conventions) : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ### Organisation du code
 
@@ -54,7 +58,7 @@ Stack : Vite, React, TypeScript, Dexie (IndexedDB), Supabase (comptes), vite-plu
 src/
   App.tsx            routeur (#/swipe/movie…) + fenêtres globales (fiche, messages)
   lib/               logique et données, sans affichage
-    db.ts              base locale (titres, réponses, réglages internes)
+    db.ts              base locale (titres, fiches détaillées à part, réponses, réglages internes)
     tmdb.ts            API TMDB : catalogue, fiches, sagas, plateformes
     sync.ts            téléchargement / mise à jour du catalogue
     category.ts        catégories films / séries / animes (un anime reste une série pour TMDB : clé « tv:… »)
@@ -67,15 +71,16 @@ src/
     settings.ts backup.ts share.ts   préférences, sauvegarde, images à partager
     fun.ts hooks.ts    confettis / messages, hooks React partagés
   components/        briques d'interface réutilisées (carte de swipe, duels, listes, fiche…)
-  pages/             un fichier par écran ; swipe/ et settings/ découpés en sous-parties
+  pages/             un fichier par écran ; swipe/, settings/ et duo/ découpés en sous-parties
   styles/            un fichier CSS par écran, importés dans l'ordre par index.css
 tests/               tests Vitest (logique pure + base en mémoire)
+e2e/                 tests Playwright (appli construite)
 ```
 
 ## Suite du projet
 
-Comptes, données sur serveur, comparaison entre comptes et appli Android / Play Store :
-voir [docs/PLAN-comptes-serveur-android.md](docs/PLAN-comptes-serveur-android.md).
+Ce qui reste à faire (appli Android, Play Store, améliorations proposées, pistes) :
+voir [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Déploiement
 
