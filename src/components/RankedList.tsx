@@ -4,7 +4,7 @@ import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, us
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
-import { db, type Title } from '../lib/db';
+import { db, withDetails, type Title } from '../lib/db';
 import { moveInRanking, promote, readRanking, unrankedKeys, type Scope } from '../lib/ranking';
 import { matchesSearch } from '../lib/hooks';
 import { toast } from '../lib/fun';
@@ -37,7 +37,9 @@ export function RankedList({
     const unranked = await unrankedKeys(scope, ranking);
     const [r, u] = await Promise.all([db.titles.bulkGet(ranking), db.titles.bulkGet(unranked)]);
     const ok = (t: Title | undefined): t is Title => !!t;
-    return { ranked: r.filter(ok), unranked: u.filter(ok).sort((a, b) => a.title.localeCompare(b.title, 'fr')) };
+    // Fiches jointes : les filtres peuvent porter sur les plateformes (wishlist « dispo chez moi »).
+    const [ranked, rest] = await Promise.all([withDetails(r.filter(ok)), withDetails(u.filter(ok))]);
+    return { ranked, unranked: rest.sort((a, b) => a.title.localeCompare(b.title, 'fr')) };
   }, [scope.type, scope.list]);
   useEffect(() => setOptimistic(null), [data]);
 

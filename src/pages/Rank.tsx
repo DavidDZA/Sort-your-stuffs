@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Title } from '../lib/db';
+import { db, withDetails, type Title } from '../lib/db';
 import { CATEGORY_LABEL, capitalize, keysOfCategory, mediaOf, type Category } from '../lib/category';
 import { changeStatus, readRanking, unrank, type Scope } from '../lib/ranking';
 import { matchesTheme, missingFilterInfo, themeFilter, themeLabel } from '../lib/themes';
@@ -28,7 +28,7 @@ export default function Rank({ type }: { type: Category }) {
   // Titres vus de ce type : pour compter ce que gardent les filtres.
   const seen = useLiveQuery(async () => {
     const keys = await keysOfCategory(type, await db.answers.where('[type+status]').equals([media, 'seen']).primaryKeys());
-    return (await db.titles.bulkGet(keys)).filter((t): t is Title => !!t);
+    return withDetails((await db.titles.bulkGet(keys)).filter((t): t is Title => !!t));
   }, [type]);
 
   // Titres sans genre / langue (catalogue d'avant le 17/10) : complétés en arrière-plan pour les filtres.

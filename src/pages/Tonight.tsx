@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Title } from '../lib/db';
+import { db, withDetails, type Title } from '../lib/db';
 import { categoryOf, useCategories } from '../lib/category';
 import { readRanking } from '../lib/ranking';
 import { prefetchDetails, WEEK } from '../lib/tmdb';
@@ -24,7 +24,7 @@ export default function Tonight() {
 
   const data = useLiveQuery(async () => {
     const keys = await db.answers.where('status').equals('wish').primaryKeys();
-    const titles = (await db.titles.bulkGet(keys)).filter((t): t is Title => !!t);
+    const titles = await withDetails((await db.titles.bulkGet(keys)).filter((t): t is Title => !!t));
     const [movie, tv, anime] = await Promise.all(
       (['movie', 'tv', 'anime'] as const).map((type) => readRanking({ type, list: 'wish' })),
     );

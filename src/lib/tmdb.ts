@@ -1,4 +1,4 @@
-import { db, titleKey, type Details, type MediaType, type Provider, type Title } from './db';
+import { db, detailsMarks, getDetails, titleKey, type Details, type MediaType, type Provider, type Title } from './db';
 import { getToken } from './settings';
 
 const API = 'https://api.themoviedb.org/3';
@@ -195,19 +195,21 @@ export function ensureDetails(title: Title, maxAge = Infinity): Promise<Details 
   if (!p) {
     p = (async () => {
       try {
-        const stored = await db.titles.get(title.key);
-        if (fresh(stored?.details)) return stored!.details!;
+        const saved = await getDetails(title.key);
+        if (fresh(saved)) return saved!;
         const res = await tmdb<DetailsResponse>(`/${title.type}/${title.tmdbId}`, {
           append_to_response: 'credits,videos,watch/providers',
           include_video_language: 'fr,en',
         });
         const details = parseDetails(title.type, res);
-        // Complète au passage les infos absentes du titre (catalogue téléchargé avant qu'on les enregistre).
-        const patch: Partial<Title> = { details };
+        await db.details.put({ ...details, key: title.key });
+        // Repères sur le titre, et infos qui lui manquaient (catalogue téléchargé avant qu'on les enregistre).
+        const stored = await db.titles.get(title.key);
+        const patch: Partial<Title> = detailsMarks(title.type, details);
         if (!stored?.genreIds?.length && details.genreIds?.length) patch.genreIds = details.genreIds;
         if (!stored?.originalLanguage && details.originalLanguage) patch.originalLanguage = details.originalLanguage;
         if (stored?.rating === undefined && details.rating) patch.rating = details.rating;
-        await db.titles.update(title.key, patch);
+        if (stored) await db.titles.update(title.key, patch);
         return details;
       } catch {
         return null; // hors ligne ou erreur : on réessaiera au prochain affichage
@@ -222,7 +224,8 @@ export function ensureDetails(title: Title, maxAge = Infinity): Promise<Details 
 
 /** Charge les fiches manquantes ou trop anciennes, quelques-unes à la fois. */
 export async function prefetchDetails(titles: Title[], maxAge = Infinity, concurrency = 4): Promise<void> {
-  const todo = titles.filter((t) => detailsOutdated(t.details) || Date.now() - t.details!.fetchedAt >= maxAge);
+  const saved = await db.details.bulkGet(titles.map((t) => t.key));
+  const todo = titles.filter((_, i) => detailsOutdated(saved[i]) || Date.now() - saved[i]!.fetchedAt >= maxAge);
   let next = 0;
   const worker = async () => {
     while (next < todo.length) await ensureDetails(todo[next++], maxAge);

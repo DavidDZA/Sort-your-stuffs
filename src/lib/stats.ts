@@ -1,4 +1,4 @@
-import { db, type Title } from './db';
+import { db, withDetails, type Title } from './db';
 import { categoryOf, mediaOf, type Category } from './category';
 import { bestStreak, lastDays, loadActivity, streak, todayCount } from './activity';
 import { readRanking } from './ranking';
@@ -111,7 +111,7 @@ export async function computeStats(): Promise<Stats> {
     db.meta.where('key').startsWith('saga:').toArray(),
   ]);
   const seenAnswers = answers.filter((a) => a.status === 'seen');
-  const seenTitles = (await db.titles.bulkGet(seenAnswers.map((a) => a.key))).filter((t): t is Title => !!t);
+  const seenTitles = await withDetails((await db.titles.bulkGet(seenAnswers.map((a) => a.key))).filter((t): t is Title => !!t));
   const seenKeys = new Set(seenTitles.map((t) => t.key));
   const [movie, tv, anime] = await Promise.all(
     (['movie', 'tv', 'anime'] as const).map((c) => typeStats(c, seenTitles.filter((t) => categoryOf(t) === c))),

@@ -53,7 +53,8 @@ async function localRows(table: Table): Promise<Map<string, Row>> {
 /** Copie du titre jointe à une réponse envoyée (sans la fiche détaillée, rechargée à la demande). */
 function titleCopy(t: Title | undefined): Title | undefined {
   if (!t) return undefined;
-  const { details: _details, ...copy } = t;
+  // Repères propres à cet appareil (sa fiche n'est pas envoyée) : retirés de la copie.
+  const { details: _details, detailsAt: _at, collectionId: _saga, ...copy } = t;
   return copy;
 }
 

@@ -78,10 +78,12 @@ async function fetchQuery(q: Query, onProgress: Progress, seen: Set<string>): Pr
     buffer = [];
     count += batch.length;
     batch.forEach((t) => seen.add(t.key));
-    // Conserve les fiches détaillées déjà mises en cache.
+    // Conserve les repères des fiches déjà lues (les fiches elles-mêmes sont rangées à part).
     const existing = await db.titles.bulkGet(batch.map((t) => t.key));
     batch.forEach((t, i) => {
-      if (existing[i]?.details) t.details = existing[i]!.details;
+      const e = existing[i];
+      if (e?.detailsAt !== undefined) t.detailsAt = e.detailsAt;
+      if (e?.collectionId !== undefined) t.collectionId = e.collectionId;
     });
     await db.titles.bulkPut(batch);
     onProgress(`${count.toLocaleString('fr-FR')} ${q.label} récupérés…`);
@@ -132,10 +134,11 @@ export function catalogueQueries(v: MinVotes): Query[] {
  * avec leurs réponses : ils disparaissent aussi des classements.
  */
 async function removeMissing(seen: Set<string>): Promise<number> {
-  return db.transaction('rw', db.titles, db.answers, async () => {
+  return db.transaction('rw', db.titles, db.answers, db.details, async () => {
     const keys = await db.titles.filter((t) => !seen.has(t.key)).primaryKeys();
     await db.titles.bulkDelete(keys);
     await db.answers.bulkDelete(keys);
+    await db.details.bulkDelete(keys);
     return keys.length;
   });
 }

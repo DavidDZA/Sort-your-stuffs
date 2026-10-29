@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Title } from '../lib/db';
+import { db, withDetails, type Title } from '../lib/db';
 import { categoryOf, categoryOptions, mediaOf, useCategories, type Category } from '../lib/category';
 import { changeStatus, scopeId, unrank, type Scope } from '../lib/ranking';
 import { prefetchDetails, WEEK } from '../lib/tmdb';
@@ -25,7 +25,7 @@ export default function Wishlist() {
   const mine = loadMyProviders();
   const wishes = useLiveQuery(async () => {
     const keys = await db.answers.where('status').equals('wish').primaryKeys();
-    return (await db.titles.bulkGet(keys)).filter((t): t is Title => !!t);
+    return withDetails((await db.titles.bulkGet(keys)).filter((t): t is Title => !!t));
   });
 
   // Plateformes à jour (moins d'une semaine) pour toute la wishlist.
@@ -146,7 +146,7 @@ function AllWishes({ filter, below }: { filter: ((t: Title) => boolean) | null; 
   const items = useLiveQuery(async () => {
     const answers = await db.answers.where('status').equals('wish').reverse().sortBy('updatedAt');
     const titles = await db.titles.bulkGet(answers.map((a) => a.key));
-    return titles.filter((t): t is Title => !!t);
+    return withDetails(titles.filter((t): t is Title => !!t)); // plateformes, pour le filtre « dispo »
   });
 
   if (!items) return <p className="muted center">Chargement…</p>;

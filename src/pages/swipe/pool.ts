@@ -61,7 +61,7 @@ export async function loadCatalogue(type: Category): Promise<Title[]> {
 }
 
 /** La saga d'un titre se déduit sans réseau : sa fiche (même ancienne) dit déjà s'il en fait partie. */
-export const sagaKnownLocally = (t: Title) => t.type !== 'movie' || t.details?.collection !== undefined;
+export const sagaKnownLocally = (t: Title) => t.type !== 'movie' || t.collectionId !== undefined;
 
 export interface SagaInfo {
   id: number;
@@ -75,10 +75,11 @@ export interface SagaInfo {
  */
 export async function sagaOf(title: Title): Promise<SagaInfo | null> {
   if (title.type !== 'movie') return null;
-  // Une fiche ancienne suffit pour savoir si le film est dans une saga : pas besoin de la récupérer à nouveau.
-  const d = title.details?.collection !== undefined ? title.details : await ensureDetails(title);
-  if (!d?.collection) return null;
-  const saga = await fetchSaga(d.collection.id);
+  // Le titre sait déjà s'il est dans une saga dès que sa fiche a été lue : pas besoin de la relire.
+  if (title.collectionId === null) return null;
+  const id = title.collectionId ?? (await ensureDetails(title))?.collection?.id;
+  if (!id) return null;
+  const saga = await fetchSaga(id);
   if (!saga || saga.parts.length < 2) return null;
   const stored = await db.titles.bulkGet(saga.parts.map((p) => p.key));
   return { id: saga.id, name: saga.name, parts: saga.parts.map((p, i) => stored[i] ?? p) };

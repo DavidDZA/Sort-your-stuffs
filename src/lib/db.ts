@@ -20,8 +20,17 @@ export interface Title {
   genreIds?: number[];
   originalLanguage?: string;
   manual?: boolean; // ajouté via la recherche, hors catalogue
-  details?: Details; // chargé à la demande, puis gardé en cache
+  detailsAt?: number; // date de la fiche détaillée enregistrée (table details), si elle est à jour
+  collectionId?: number | null; // saga du film, connue dès que sa fiche a été lue (null : aucune)
+  /**
+   * Fiche détaillée, jointe en mémoire par `withDetails` : elle est rangée à part (table details),
+   * pour que le catalogue reste léger à lire. Jamais enregistrée avec le titre.
+   */
+  details?: Details;
 }
+
+/** Fiche détaillée telle qu'enregistrée : une ligne par titre. */
+export type DetailsRow = Details & { key: string };
 
 export interface Provider {
   id: number;
@@ -75,6 +84,7 @@ export const db = new Dexie('sort-my-stuffs') as Dexie & {
   answers: EntityTable<Answer, 'key'>;
   meta: EntityTable<Meta, 'key'>;
   synced: EntityTable<Synced, 'id'>;
+  details: EntityTable<DetailsRow, 'key'>;
 };
 
 db.version(1).stores({
@@ -84,6 +94,50 @@ db.version(1).stores({
 });
 
 db.version(2).stores({ synced: 'id' });
+
+// Les fiches détaillées quittent la table des titres : le swipe lit le catalogue sans elles.
+db.version(3)
+  .stores({ details: 'key' })
+  .upgrade(async (tx) => {
+    const rows: DetailsRow[] = [];
+    await tx
+      .table('titles')
+      .toCollection()
+      .modify((t: Title) => {
+        if (!t.details) return;
+        rows.push({ ...t.details, key: t.key });
+        Object.assign(t, detailsMarks(t.type, t.details));
+        delete t.details;
+      });
+    await tx.table('details').bulkPut(rows);
+  });
+
+/** Repères gardés sur le titre quand sa fiche est connue (sans avoir à la relire). */
+export function detailsMarks(type: MediaType, d: Details): Pick<Title, 'detailsAt' | 'collectionId'> {
+  const marks: Pick<Title, 'detailsAt' | 'collectionId'> = {};
+  if (d.genreIds !== undefined) marks.detailsAt = d.fetchedAt; // fiche d'avant le 17/10 : à récupérer à nouveau
+  if (type === 'movie' && d.collection !== undefined) marks.collectionId = d.collection?.id ?? null;
+  return marks;
+}
+
+// Garde-fou : une fiche jointe en mémoire n'est jamais enregistrée avec le titre.
+db.titles.hook('creating', (_key, t) => {
+  delete t.details;
+});
+db.titles.hook('updating', (changes) => ('details' in changes ? { details: undefined } : undefined));
+
+const withoutKey = ({ key: _key, ...d }: DetailsRow): Details => d;
+
+/** Joint aux titres leur fiche détaillée enregistrée (pour les filtres, stats, plateformes…). */
+export async function withDetails(titles: Title[]): Promise<Title[]> {
+  const rows = await db.details.bulkGet(titles.map((t) => t.key));
+  return titles.map((t, i) => (rows[i] ? { ...t, details: withoutKey(rows[i]!) } : t));
+}
+
+export async function getDetails(key: string): Promise<Details | undefined> {
+  const row = await db.details.get(key);
+  return row && withoutKey(row);
+}
 
 /** Données de la table meta qui suivent le compte (et la sauvegarde) ; le reste est propre à l'appareil. */
 export const isUserMeta = (key: string) =>
@@ -117,10 +171,12 @@ export async function clearStatus(key: string): Promise<void> {
  * (hors catalogue). Le catalogue téléchargé et la clé TMDB sont conservés.
  */
 export async function clearChoices(): Promise<void> {
-  await db.transaction('rw', db.titles, db.answers, db.meta, async () => {
+  await db.transaction('rw', db.titles, db.answers, db.meta, db.details, async () => {
     await db.answers.clear();
     await db.meta.where('key').notEqual('lastSync').delete();
-    await db.titles.bulkDelete(await db.titles.filter((t) => !!t.manual).primaryKeys());
+    const manual = await db.titles.filter((t) => !!t.manual).primaryKeys();
+    await db.titles.bulkDelete(manual);
+    await db.details.bulkDelete(manual);
   });
 }
 

@@ -76,7 +76,10 @@ export const genreIdsOf = (t: Title): number[] => (t.genreIds?.length ? t.genreI
 export const languageOf = (t: Title): string | undefined => t.originalLanguage ?? t.details?.originalLanguage;
 
 /** Il manque des infos utiles aux filtres (langue, ou fiche détaillée absente / d'avant le 17/10) : à récupérer. */
-export const missingFilterInfo = (t: Title) => !languageOf(t) || !t.details || t.details.genreIds === undefined;
+/** Fiche à jour connue : jointe au titre (avec ses genres), ou signalée sur le titre (table details). */
+const hasDetails = (t: Title) => (t.details ? t.details.genreIds !== undefined : !!t.detailsAt);
+
+export const missingFilterInfo = (t: Title) => !languageOf(t) || !hasDetails(t);
 
 /** Note TMDB connue du titre : celle du catalogue, sinon celle de sa fiche détaillée. */
 export const ratingOf = (t: Title): number | null => t.rating ?? t.details?.rating ?? null;
@@ -85,7 +88,7 @@ export const ratingOf = (t: Title): number | null => t.rating ?? t.details?.rati
  * Note pas encore récupérée (catalogue téléchargé avant qu'on l'enregistre, fiche absente ou ancienne).
  * Un titre dont la fiche récente n'a pas de note n'est pas noté sur TMDB : rien à récupérer.
  */
-export const ratingMissing = (t: Title) => ratingOf(t) === null && (!t.details || t.details.genreIds === undefined);
+export const ratingMissing = (t: Title) => ratingOf(t) === null && !hasDetails(t);
 
 export function matchesTheme(title: Title, theme: Theme): boolean {
   const period = PERIODS.find((p) => p.id === theme.period);

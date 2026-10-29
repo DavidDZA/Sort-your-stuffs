@@ -1,5 +1,5 @@
 import { splitAnimeRankings } from './ranking';
-import { db, isUserMeta, setMeta, type Answer, type Meta, type Title } from './db';
+import { db, detailsMarks, isUserMeta, setMeta, type Answer, type Meta, type Title } from './db';
 
 interface Backup {
   app: 'sort-my-stuffs';
@@ -30,11 +30,15 @@ export async function exportData(): Promise<void> {
 export async function importData(file: File): Promise<number> {
   const backup = JSON.parse(await file.text()) as Backup;
   if (backup.app !== 'sort-my-stuffs' || !Array.isArray(backup.answers)) throw new Error('Fichier de sauvegarde invalide.');
-  await db.transaction('rw', db.titles, db.answers, db.meta, async () => {
+  // Sauvegardes d'avant le 30/10 : les fiches détaillées sont dans les titres, on les range à part.
+  const details = backup.titles.filter((t) => t.details).map((t) => ({ ...t.details!, key: t.key }));
+  const titles = backup.titles.map((t) => (t.details ? { ...t, ...detailsMarks(t.type, t.details), details: undefined } : t));
+  await db.transaction('rw', [db.titles, db.answers, db.meta, db.details], async () => {
     await db.answers.clear();
     await db.meta.where('key').startsWith('ranking:').delete();
     await db.meta.where('key').startsWith('insert:').delete();
-    await db.titles.bulkPut(backup.titles);
+    await db.titles.bulkPut(titles);
+    await db.details.bulkPut(details);
     await db.answers.bulkPut(backup.answers);
     await db.meta.bulkPut(backup.meta.map((m) => ({ ...m, updatedAt: Date.now() }))); // restaurés = modifiés maintenant
   });

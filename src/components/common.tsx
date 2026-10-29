@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Answer, type Tier, type Title } from '../lib/db';
+import { getDetails, type Answer, type Tier, type Title } from '../lib/db';
 import { CATEGORY_LABEL, categoryOf } from '../lib/category';
 import { changeStatus } from '../lib/ranking';
 import { boostFrom } from '../lib/recommend';
@@ -56,7 +56,7 @@ export function TitleText({ title, showType = false, credits = false }: { title:
 
 /** Fiche détaillée à jour du titre (depuis la base), chargée depuis TMDB si besoin. */
 export function useDetails(title: Title, maxAge = Infinity) {
-  const stored = useLiveQuery(() => db.titles.get(title.key).then((t) => t?.details ?? null), [title.key]);
+  const stored = useLiveQuery(() => getDetails(title.key).then((d) => d ?? null), [title.key]);
   const [fetched, setFetched] = useState<Title['details'] | null>(null);
   useEffect(() => {
     let alive = true;

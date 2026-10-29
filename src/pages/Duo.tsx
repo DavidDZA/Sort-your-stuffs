@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { db, type Title } from '../lib/db';
+import { db, withDetails, type Title } from '../lib/db';
 import { CATEGORY_LABEL, categoryOf, categoryOptions, useCategories, type Category } from '../lib/category';
 import { changeStatus } from '../lib/ranking';
 import { useCloud } from '../lib/cloud';
@@ -41,7 +41,7 @@ export default function Duo({ friendId }: { friendId: string }) {
       // Mes titres locaux (avec fiches) d'abord, sinon les copies jointes aux réponses de l'ami.
       const keys = [...new Set([...them.answers.keys(), ...me.answers.keys()])];
       const titles = new Map(them.titles);
-      (await db.titles.bulkGet(keys)).forEach((t) => t && titles.set(t.key, t));
+      (await withDetails((await db.titles.bulkGet(keys)).filter((t): t is Title => !!t))).forEach((t) => titles.set(t.key, t));
       const catOf = (key: string) => {
         const t = titles.get(key);
         return t && categoryOf(t);
@@ -274,7 +274,8 @@ function TonightDuo({ data, type }: { data: Loaded; type: Category }) {
     const t = choice ? data.titles.get(choice) : undefined;
     if (!t) return;
     // Fiche à jour (résumé, plateformes) pour le titre tiré.
-    setPicked((await db.titles.get(t.key)) ?? t);
+    const stored = await db.titles.get(t.key);
+    setPicked((await withDetails([stored ?? t]))[0]);
     burst(['🍿', '🎬', '✨'], undefined, 16);
   };
 
