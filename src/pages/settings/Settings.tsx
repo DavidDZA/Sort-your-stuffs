@@ -173,6 +173,8 @@ export default function Settings() {
         Données et affiches fournies par TMDB.
         <br />
         This product uses the TMDB API but is not endorsed or certified by TMDB.
+        <br />
+        <a href={`${import.meta.env.BASE_URL}confidentialite.html`}>Politique de confidentialité</a>
       </p>
     </main>
   );

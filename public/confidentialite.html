@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Confidentialité · Sort my stuffs</title>
+    <link rel="icon" href="icons/favicon.svg" type="image/svg+xml" />
+    <style>
+      :root {
+        --bg: #fafafc;
+        --text: #1d1d27;
+        --muted: #5c5c6e;
+        --accent: #6c4ee0;
+        --line: #e2e2ea;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #12121a;
+          --text: #ececf3;
+          --muted: #a3a3b5;
+          --accent: #a996ff;
+          --line: #2a2a38;
+        }
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 32px 16px 64px;
+      }
+      h1 {
+        font-size: 1.7rem;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 1.15rem;
+        margin: 32px 0 8px;
+        padding-top: 16px;
+        border-top: 1px solid var(--line);
+      }
+      p,
+      li {
+        margin: 0 0 8px;
+      }
+      ul {
+        padding-left: 20px;
+      }
+      a {
+        color: var(--accent);
+      }
+      .muted {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Politique de confidentialité</h1>
+      <p class="muted">Sort my stuffs · mise à jour le 29 octobre 2026</p>
+
+      <p>
+        Sort my stuffs est une application gratuite, sans publicité et open source, pour trier les films et séries que
+        l’on a vus, sa wishlist et ses classements. Cette page explique quelles données elle utilise et comment les
+        supprimer.
+      </p>
+
+      <h2>Sans compte</h2>
+      <p>
+        Toutes tes données (titres vus, wishlist, classements, réglages) restent dans ton navigateur ou sur ton
+        appareil. Rien n’est envoyé à un serveur de l’application.
+      </p>
+
+      <h2>Avec un compte</h2>
+      <p>Le compte est optionnel. Il sert à synchroniser tes données entre tes appareils. Sont alors enregistrés :</p>
+      <ul>
+        <li>ton adresse e-mail et ton mot de passe (chiffré), ou l’identifiant de ton compte Google ou Facebook si tu te connectes avec ;</li>
+        <li>ton pseudo (par défaut, le nom de ton compte Google ou Facebook, modifiable) ;</li>
+        <li>tes réponses (vu, pas vu, wishlist, avis « bien » / « bof »), tes classements et ton activité dans l’application.</li>
+      </ul>
+      <p>
+        Avec Google ou Facebook, l’application ne reçoit que ton nom, ton adresse e-mail et ta photo de profil. Elle
+        ne publie rien en ton nom et n’accède ni à tes contacts ni à tes publications.
+      </p>
+      <p>
+        Ces données sont hébergées par <a href="https://supabase.com/privacy">Supabase</a>. Chaque compte n’a accès
+        qu’à ses propres données. Si tu ajoutes des amis dans l’application, ils ne voient que ce que tu choisis de
+        partager (par défaut ta wishlist et ton classement).
+      </p>
+
+      <h2>Ce que l’application ne fait pas</h2>
+      <ul>
+        <li>aucune publicité, aucun traceur, aucune mesure d’audience ;</li>
+        <li>aucune vente ni transmission de tes données à des tiers.</li>
+      </ul>
+
+      <h2>Services utilisés</h2>
+      <ul>
+        <li>
+          <a href="https://www.themoviedb.org/privacy-policy">TMDB</a> fournit le catalogue, les affiches et les fiches des
+          titres. Ton appareil les télécharge directement : TMDB voit ton adresse IP, mais pas tes réponses.
+        </li>
+        <li>JustWatch (via TMDB) fournit les plateformes de streaming.</li>
+        <li>Supabase héberge les comptes et les données synchronisées.</li>
+        <li>GitHub Pages héberge le site.</li>
+      </ul>
+
+      <h2 id="suppression">Supprimer tes données</h2>
+      <ul>
+        <li>
+          <strong>Ton compte et toutes ses données</strong> : dans l’application, <em>Réglages → Compte → Supprimer mon
+          compte</em>. La suppression est immédiate et définitive (profil, réponses, classements). Cela vaut aussi pour
+          un compte créé avec Google ou Facebook.
+        </li>
+        <li>
+          <strong>Les données de cet appareil</strong> : <em>Réglages → Effacer tous mes choix</em>, ou effacer les
+          données du site dans ton navigateur.
+        </li>
+        <li>
+          Tu peux aussi retirer l’accès de l’application depuis les paramètres de ton compte Google ou Facebook.
+        </li>
+      </ul>
+
+      <h2>Contact</h2>
+      <p>
+        Pour toute question, ouvre un ticket sur le
+        <a href="https://github.com/DavidDZA/Sort-your-stuffs/issues">dépôt GitHub du projet</a>.
+      </p>
+
+      <p class="muted"><a href="./">← Retour à l’application</a></p>
+    </main>
+  </body>
+</html>

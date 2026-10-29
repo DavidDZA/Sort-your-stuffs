@@ -101,10 +101,10 @@ les données du navigateur (sans serveur, l'utilisateur perdrait ses données en
 
 | # | Question | Recommandation |
 |---|---|---|
-| D1 | Connexion par **e-mail + mot de passe** (demandé) ou lien magique ? | E-mail + mot de passe, avec « mot de passe oublié » |
-| D2 | Ce qu'un ami peut voir : tout (vus, classement, wishlist) ou une sélection ? | Réglage par compte : wishlist + top visibles, le reste optionnel |
-| D3 | Public visé : l'utilisateur et quelques proches, ou ouvert à tous ? | Proches au départ ; conditionne l'anti-abus et la publication Play Store |
-| D4 | Garder l'usage **sans compte** (100 % local) ? | Oui : le compte reste optionnel |
+| D1 | Connexion par **e-mail + mot de passe** (demandé) ou lien magique ? | ✅ Validé (29/10) : e-mail + mot de passe avec « mot de passe oublié », **plus Google et Facebook** |
+| D2 | Ce qu'un ami peut voir : tout (vus, classement, wishlist) ou une sélection ? | ✅ Validé : réglage par compte, wishlist + top visibles, les vus en option |
+| D3 | Public visé : l'utilisateur et quelques proches, ou ouvert à tous ? | ✅ Validé : proches au départ |
+| D4 | Garder l'usage **sans compte** (100 % local) ? | ✅ Validé : le compte reste optionnel |
 | D5 | Appli Android : **Capacitor** (appli native qui embarque le site) ou **TWA** (le site en plein écran) ? | Capacitor (voir § 7) |
 | D6 | Nom de l'appli sur le Play Store, nom de package (ex. `fr.<nom>.sortmystuffs`) | À choisir par l'utilisateur |
 | D7 | **Licence open source** du dépôt (fichier `LICENSE` à ajouter) | MIT (simple, permissive) ; GPL-3.0 si l'on veut que les dérivés restent open source |
@@ -132,7 +132,13 @@ réinitialisation), base **PostgreSQL**, règles d'accès par ligne (**Row Level
 2. Transmettre l'**URL du projet** et la **clé `anon` publique** (faite pour être embarquée dans le site ; la
    sécurité repose sur les règles RLS). Les ajouter comme secrets GitHub `SUPABASE_URL` et `SUPABASE_ANON_KEY`,
    injectés au build (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`), comme `TMDB_TOKEN`.
-3. Coller le script SQL fourni (§ 4.3) dans l'éditeur SQL de Supabase.
+3. Coller le script `supabase/schema.sql` (version définitive du § 4.3) dans l'éditeur SQL de Supabase.
+3 bis. Google et Facebook : créer un client OAuth (Google Cloud Console) et une appli Meta (developers.facebook.com),
+   redirection `https://<projet>.supabase.co/auth/v1/callback`, puis saisir identifiant + secret dans
+   *Authentication → Sign In / Providers* (les secrets restent dans Supabase, jamais dans le dépôt). Facebook
+   n'accepte tout le monde qu'une fois l'appli Meta « en ligne » : URL de politique de confidentialité et de
+   suppression des données requises (pages statiques à ajouter dans `public/`, utiles aussi pour le Play Store).
+   Dans l'appli Android (phase 4), la connexion Google / Facebook demandera un lien de retour vers l'appli.
 4. Dans *Authentication → URL configuration*, ajouter l'URL du site (pour les liens de réinitialisation).
 5. Optionnel : personnaliser les e-mails (en français).
 
