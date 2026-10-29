@@ -58,12 +58,23 @@ export interface Answer {
 export interface Meta {
   key: string;
   value: unknown;
+  updatedAt?: number; // date de modification (absente des lignes écrites avant la synchro par compte)
+}
+
+/**
+ * Synchro par compte : dernière version envoyée au compte ou reçue de lui, par ligne (« a:<clé> » réponse,
+ * « m:<clé> » meta), et état de la synchro (« state:… » : compte, curseurs), hors de la table meta.
+ */
+export interface Synced {
+  id: string;
+  hash: string;
 }
 
 export const db = new Dexie('sort-my-stuffs') as Dexie & {
   titles: EntityTable<Title, 'key'>;
   answers: EntityTable<Answer, 'key'>;
   meta: EntityTable<Meta, 'key'>;
+  synced: EntityTable<Synced, 'id'>;
 };
 
 db.version(1).stores({
@@ -71,6 +82,12 @@ db.version(1).stores({
   answers: 'key, type, status, [type+status], updatedAt',
   meta: 'key',
 });
+
+db.version(2).stores({ synced: 'id' });
+
+/** Données de la table meta qui suivent le compte (et la sauvegarde) ; le reste est propre à l'appareil. */
+export const isUserMeta = (key: string) =>
+  /^(ranking:|saga:|boosts:)/.test(key) || key === 'activity' || key === 'badges' || key === 'min-votes';
 
 export const TYPE_LABEL: Record<MediaType, string> = { movie: 'Film', tv: 'Série' };
 
@@ -82,7 +99,7 @@ export async function getMeta<T>(key: string, fallback: T): Promise<T> {
 }
 
 export async function setMeta(key: string, value: unknown): Promise<void> {
-  await db.meta.put({ key, value });
+  await db.meta.put({ key, value, updatedAt: Date.now() });
 }
 
 /** Enregistre une réponse ; ajoute le titre à la base s'il n'y est pas encore (ajout manuel). */

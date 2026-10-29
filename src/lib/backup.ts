@@ -1,4 +1,4 @@
-import { db, setMeta, type Answer, type Meta, type Title } from './db';
+import { db, isUserMeta, setMeta, type Answer, type Meta, type Title } from './db';
 
 interface Backup {
   app: 'sort-my-stuffs';
@@ -13,7 +13,7 @@ interface Backup {
 export async function exportData(): Promise<void> {
   const answers = await db.answers.toArray();
   const titles = (await db.titles.bulkGet(answers.map((a) => a.key))).filter((t): t is Title => !!t);
-  const meta = (await db.meta.toArray()).filter((m) => /^(ranking:|saga:|boosts:)/.test(m.key) || m.key === 'activity' || m.key === 'badges');
+  const meta = (await db.meta.toArray()).filter((m) => isUserMeta(m.key));
   const backup: Backup = { app: 'sort-my-stuffs', version: 1, exportedAt: new Date().toISOString(), titles, answers, meta };
 
   const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' });
@@ -35,7 +35,7 @@ export async function importData(file: File): Promise<number> {
     await db.meta.where('key').startsWith('insert:').delete();
     await db.titles.bulkPut(backup.titles);
     await db.answers.bulkPut(backup.answers);
-    await db.meta.bulkPut(backup.meta);
+    await db.meta.bulkPut(backup.meta.map((m) => ({ ...m, updatedAt: Date.now() }))); // restaurés = modifiés maintenant
   });
   return backup.answers.length;
 }

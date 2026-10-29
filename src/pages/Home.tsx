@@ -9,6 +9,8 @@ import { BADGES } from '../lib/badges';
 import { pick, toast } from '../lib/fun';
 import { useIsDesktop } from '../lib/hooks';
 import { loadCatalogue } from './swipe/pool';
+import { useCloud } from '../lib/cloud';
+import { cloudEnabled } from '../lib/supabase';
 
 const fmt = (n: number) => Math.max(0, n).toLocaleString('fr-FR');
 const DAY = 86_400_000;
@@ -36,6 +38,7 @@ export default function Home() {
   }, []);
   const [tagline] = useState(() => pick(TAGLINES));
   const desktop = useIsDesktop();
+  const cloud = useCloud();
   const stats = useLiveQuery(async () => {
     const byType = async (type: MediaType) => {
       const [total, answered, seen, ranking] = await Promise.all([
@@ -61,7 +64,8 @@ export default function Home() {
   const noToken = !getToken();
   const emptyCatalogue = stats && stats.movie.total + stats.tv.total === 0;
   const answered = stats ? stats.movie.answered + stats.tv.answered : 0;
-  const backupDue = stats && answered >= 20 && (!stats.lastExport || daysAgo(stats.lastExport) >= 14);
+  // Avec un compte, les données sont synchronisées : plus de rappel de sauvegarde.
+  const backupDue = !cloud.user && stats && answered >= 20 && (!stats.lastExport || daysAgo(stats.lastExport) >= 14);
   const catalogueOld = stats?.lastSync && daysAgo(stats.lastSync) >= 30;
 
   const backupNow = async () => {
@@ -100,9 +104,16 @@ export default function Home() {
                 ? `Sauvegarde il y a ${daysAgo(stats.lastExport)} j`
                 : 'Pas encore de sauvegarde'}
           </span>
-          <button className="btn small primary" onClick={backupNow} title="Télécharger une sauvegarde de tes données">
-            Exporter
-          </button>
+          <span className="row">
+            {cloudEnabled && (
+              <a className="btn small" href="#/settings" title="Créer un compte pour synchroniser PC et téléphone, sans sauvegarde à faire">
+                ☁️ Compte
+              </a>
+            )}
+            <button className="btn small primary" onClick={backupNow} title="Télécharger une sauvegarde de tes données">
+              Exporter
+            </button>
+          </span>
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { clearChoices, db, getMeta, requestPersistentStorage } from '../../lib/db';
 import { DEFAULT_MIN_VOTES, getMinVotes, getToken, getUserToken, hasBuiltInToken, setMinVotes, setToken, type MinVotes } from '../../lib/settings';
@@ -8,20 +8,30 @@ import { exportData, importData } from '../../lib/backup';
 import { TopBar } from '../../components/common';
 import { MyProviders } from './MyProviders';
 import { SwipeModeSetting } from './SwipeModeSetting';
+import { Account } from './Account';
+import { syncAndWait, useCloud } from '../../lib/cloud';
 
 export default function Settings() {
   const [token, setTokenInput] = useState(getUserToken() ?? '');
   const [tokenMsg, setTokenMsg] = useState<string | null>(null);
+  // Seuils enregistrés (et mis à jour par la synchro tant qu'on ne les a pas modifiés ici).
+  const saved = useLiveQuery(getMinVotes);
   // Saisie brute (le champ peut être vidé pendant la frappe) ; valeur par défaut remise à la sortie du champ.
-  const [votes, setVotes] = useState<Record<keyof MinVotes, string>>(() => {
-    const v = getMinVotes();
-    return { movie: String(v.movie), tv: String(v.tv) };
-  });
+  const [votes, setVotes] = useState<Record<keyof MinVotes, string>>({ movie: '', tv: '' });
+  const edited = useRef(false);
+  useEffect(() => {
+    if (saved && !edited.current) setVotes({ movie: String(saved.movie), tv: String(saved.tv) });
+  }, [saved?.movie, saved?.tv]);
+  const editVotes = (field: keyof MinVotes, value: string) => {
+    edited.current = true;
+    setVotes((v) => ({ ...v, [field]: value }));
+  };
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [backupMsg, setBackupMsg] = useState<string | null>(null);
   const [clearMsg, setClearMsg] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const signedIn = !!useCloud().user;
 
   const info = useLiveQuery(async () => ({
     movies: await db.titles.where('type').equals('movie').count(),
@@ -47,13 +57,16 @@ export default function Settings() {
   const resetIfInvalid = (field: keyof MinVotes) => setVotes((v) => ({ ...v, [field]: String(minVotes(field)) }));
 
   const sync = async () => {
-    const chosen = { movie: minVotes('movie'), tv: minVotes('tv') };
-    setVotes({ movie: String(chosen.movie), tv: String(chosen.tv) });
-    setMinVotes(chosen);
     setSyncing(true);
     setSyncMsg('Démarrage…');
     await requestPersistentStorage();
     try {
+      // Sans saisie ici : les seuils du compte, à jour (ceux d'un autre appareil ont pu changer).
+      if (!edited.current) await syncAndWait();
+      const chosen = edited.current ? { movie: minVotes('movie'), tv: minVotes('tv') } : await getMinVotes();
+      setVotes({ movie: String(chosen.movie), tv: String(chosen.tv) });
+      edited.current = false;
+      await setMinVotes(chosen);
       const { movie, tv, removed } = await syncCatalogue(chosen, setSyncMsg);
       setSyncMsg(
         `✓ Terminé : ${movie.toLocaleString('fr-FR')} films et ${tv.toLocaleString('fr-FR')} séries à jour.` +
@@ -69,7 +82,7 @@ export default function Settings() {
   const clear = async () => {
     if (
       !confirm(
-        'Êtes-vous sûr ? Tous tes choix (titres vus et pas vus, wishlist, classements, activité) seront définitivement effacés. Le catalogue est conservé.\n\nPense à exporter une sauvegarde avant si tu veux pouvoir les récupérer.',
+        `Êtes-vous sûr ? Tous tes choix (titres vus et pas vus, wishlist, classements, activité) seront définitivement effacés${signedIn ? ', sur cet appareil et sur ton compte (donc sur tous tes appareils)' : ''}. Le catalogue est conservé.\n\nPense à exporter une sauvegarde avant si tu veux pouvoir les récupérer.`,
       )
     )
       return;
@@ -96,6 +109,8 @@ export default function Settings() {
   return (
     <main className="page">
       <TopBar title="⚙️ Réglages" />
+
+      <Account />
 
       <section className="card">
         <h3>🔑 Clé TMDB</h3>
@@ -124,16 +139,16 @@ export default function Settings() {
           {info?.lastSync ? `Dernière mise à jour : ${new Date(info.lastSync).toLocaleString('fr-FR')}` : 'Jamais téléchargé'}
         </p>
         <p className="muted small">
-          Seuls les titres ayant un minimum de votes sur TMDB sont récupérés (pour éviter les titres introuvables). Baisse ces seuils pour en avoir plus.
+          Seuls les titres ayant un minimum de votes sur TMDB sont récupérés (pour éviter les titres introuvables). Baisse ces seuils pour en avoir plus. Avec un compte, ils sont les mêmes sur tous tes appareils.
         </p>
         <div className="row">
           <label className="field">
             Films : votes min.
-            <input className="input" type="number" min={1} value={votes.movie} onChange={(e) => setVotes({ ...votes, movie: e.target.value })} onBlur={() => resetIfInvalid('movie')} />
+            <input className="input" type="number" min={1} value={votes.movie} onChange={(e) => editVotes('movie', e.target.value)} onBlur={() => resetIfInvalid('movie')} />
           </label>
           <label className="field">
             Séries : votes min.
-            <input className="input" type="number" min={1} value={votes.tv} onChange={(e) => setVotes({ ...votes, tv: e.target.value })} onBlur={() => resetIfInvalid('tv')} />
+            <input className="input" type="number" min={1} value={votes.tv} onChange={(e) => editVotes('tv', e.target.value)} onBlur={() => resetIfInvalid('tv')} />
           </label>
         </div>
         <button className="btn primary" onClick={sync} disabled={syncing || !getToken()} title="Récupérer les films et séries depuis TMDB (environ 1 minute)">
@@ -147,7 +162,11 @@ export default function Settings() {
 
       <section className="card">
         <h3>💾 Sauvegarde</h3>
-        <p className="muted small">Tes données ne sont stockées que dans ce navigateur. Exporte-les régulièrement.</p>
+        <p className="muted small">
+          {signedIn
+            ? 'Tes données sont synchronisées avec ton compte. Tu peux quand même en garder une copie dans un fichier.'
+            : 'Sans compte, tes données ne sont stockées que dans ce navigateur. Exporte-les régulièrement.'}
+        </p>
         <div className="row">
           <button className="btn" onClick={() => exportData()} title="Télécharger un fichier avec tes réponses et classements">
             Exporter

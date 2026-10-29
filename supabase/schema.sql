@@ -72,8 +72,8 @@ create trigger user_meta_touch before insert or update on public.user_meta
   for each row execute function public.touch_updated_at();
 
 -- ---------------------------------------------------------------------------
--- Profil créé automatiquement à l'inscription (e-mail, Google ou Facebook).
--- Pseudo : celui saisi à l'inscription, sinon le nom du compte Google / Facebook, sinon le début de l'e-mail.
+-- Profil créé automatiquement à l'inscription (e-mail ou Google).
+-- Pseudo : celui saisi à l'inscription, sinon le nom du compte Google, sinon le début de l'e-mail.
 -- ---------------------------------------------------------------------------
 create or replace function public.handle_new_user()
 returns trigger

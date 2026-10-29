@@ -5,6 +5,7 @@ import { personFilmography, searchPeople, type Person, type PersonRole } from '.
 import { getMinVotes, readPref, writePref } from '../lib/settings';
 import { requestPersistentStorage } from '../lib/db';
 import { syncCatalogue } from '../lib/sync';
+import { syncAndWait } from '../lib/cloud';
 import { PersonAvatar, Sheet } from './common';
 
 /**
@@ -41,7 +42,8 @@ export function FilterSheet(props: {
     setSync('Démarrage…');
     await requestPersistentStorage();
     try {
-      const { movie, tv } = await syncCatalogue(getMinVotes(), setSync);
+      await syncAndWait(); // seuils de votes du compte
+      const { movie, tv } = await syncCatalogue(await getMinVotes(), setSync);
       setSync(`✓ Catalogue à jour (${(movie + tv).toLocaleString('fr-FR')} titres) : les notes sont là.`);
       props.onCatalogueUpdated?.();
     } catch (e) {

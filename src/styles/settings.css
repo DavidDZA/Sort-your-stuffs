@@ -66,3 +66,57 @@
 .mode-diagram span:nth-child(even) {
   text-align: right;
 }
+
+/* Compte : connexion Google / e-mail. */
+.btn.provider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.provider-logo {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.auth-links {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.field .row .input {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+.link-danger {
+  color: var(--red);
+}
+.auth-leave {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.auth-links .link {
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

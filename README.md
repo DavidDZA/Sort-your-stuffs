@@ -23,7 +23,12 @@ Exclus : documentaires, courts métrages (< 40 min), émissions (télé-réalit�
 ## Données
 
 - Catalogue : [TMDB](https://www.themoviedb.org/) (`/discover`), filtré par un nombre minimum de votes (réglable). Mise à jour manuelle depuis les réglages.
-- Tout est stocké dans le navigateur (IndexedDB). Penser à **exporter** régulièrement (Réglages → Sauvegarde).
+- Tout est stocké dans le navigateur (IndexedDB). Sans compte, penser à **exporter** régulièrement (Réglages → Sauvegarde).
+- **Compte optionnel** (Réglages → Compte : e-mail ou Google) : réponses et classements synchronisés
+  entre appareils via [Supabase](https://supabase.com/). Schéma et règles d'accès : [supabase/schema.sql](supabase/schema.sql).
+  L'adresse du projet et sa clé publique sont injectées au build (secrets `SUPABASE_URL` et
+  `SUPABASE_PUBLISHABLE_KEY`) ; en local, les mettre dans `.env.local` (`VITE_SUPABASE_URL`,
+  `VITE_SUPABASE_PUBLISHABLE_KEY`). Sans elles, l'appli fonctionne sans compte.
 - La clé TMDB n'est jamais dans le code : elle est injectée au déploiement depuis le secret GitHub `TMDB_TOKEN`
   (Settings → Secrets and variables → Actions). Une autre clé peut être saisie dans les réglages (prioritaire).
   En local, sans secret, il faut la saisir dans les réglages.
@@ -37,7 +42,7 @@ npm run build
 npm test         # tests automatiques (Vitest), aussi lancés avant chaque déploiement
 ```
 
-Stack : Vite, React, TypeScript, Dexie (IndexedDB), vite-plugin-pwa.
+Stack : Vite, React, TypeScript, Dexie (IndexedDB), Supabase (comptes), vite-plugin-pwa.
 
 ### Organisation du code
 
@@ -48,6 +53,7 @@ src/
     db.ts              base locale (titres, réponses, réglages internes)
     tmdb.ts            API TMDB : catalogue, fiches, sagas, plateformes
     sync.ts            téléchargement / mise à jour du catalogue
+    cloud.ts cloudMerge.ts supabase.ts   compte et synchro (fusion pure dans cloudMerge.ts)
     ranking.ts         classement par insertion dichotomique, vérifications
     stats.ts badges.ts activity.ts   statistiques, badges, séries de jours
     themes.ts tonight.ts recommend.ts tiers.ts   thèmes de swipe, tirage du soir,

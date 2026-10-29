@@ -2,7 +2,7 @@
 
 > **À lire en premier par toute nouvelle session de travail.** Ce document est autonome : il décrit l'appli
 > telle qu'elle existe, les conventions du projet, puis le plan des prochaines évolutions, étape par étape.
-> Rien de ce plan n'est encore implémenté (état au 15/10/2026).
+> État au 29/10/2026 : **phase 1 implémentée** (comptes e-mail / Google, synchro). Phases 2 à 5 à faire.
 
 ---
 
@@ -101,7 +101,7 @@ les données du navigateur (sans serveur, l'utilisateur perdrait ses données en
 
 | # | Question | Recommandation |
 |---|---|---|
-| D1 | Connexion par **e-mail + mot de passe** (demandé) ou lien magique ? | ✅ Validé (29/10) : e-mail + mot de passe avec « mot de passe oublié », **plus Google et Facebook** |
+| D1 | Connexion par **e-mail + mot de passe** (demandé) ou lien magique ? | ✅ Validé (29/10) : e-mail + mot de passe avec « mot de passe oublié », **plus Google** (Facebook abandonné : Meta exige une entreprise vérifiée) |
 | D2 | Ce qu'un ami peut voir : tout (vus, classement, wishlist) ou une sélection ? | ✅ Validé : réglage par compte, wishlist + top visibles, les vus en option |
 | D3 | Public visé : l'utilisateur et quelques proches, ou ouvert à tous ? | ✅ Validé : proches au départ |
 | D4 | Garder l'usage **sans compte** (100 % local) ? | ✅ Validé : le compte reste optionnel |
@@ -133,12 +133,12 @@ réinitialisation), base **PostgreSQL**, règles d'accès par ligne (**Row Level
    sécurité repose sur les règles RLS). Les ajouter comme secrets GitHub `SUPABASE_URL` et `SUPABASE_ANON_KEY`,
    injectés au build (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`), comme `TMDB_TOKEN`.
 3. Coller le script `supabase/schema.sql` (version définitive du § 4.3) dans l'éditeur SQL de Supabase.
-3 bis. Google et Facebook : créer un client OAuth (Google Cloud Console) et une appli Meta (developers.facebook.com),
-   redirection `https://<projet>.supabase.co/auth/v1/callback`, puis saisir identifiant + secret dans
-   *Authentication → Sign In / Providers* (les secrets restent dans Supabase, jamais dans le dépôt). Facebook
-   n'accepte tout le monde qu'une fois l'appli Meta « en ligne » : URL de politique de confidentialité et de
-   suppression des données requises (pages statiques à ajouter dans `public/`, utiles aussi pour le Play Store).
-   Dans l'appli Android (phase 4), la connexion Google / Facebook demandera un lien de retour vers l'appli.
+3 bis. Google : créer un client OAuth (Google Cloud Console), redirection
+   `https://<projet>.supabase.co/auth/v1/callback`, puis saisir identifiant + secret dans
+   *Authentication → Sign In / Providers* (les secrets restent dans Supabase, jamais dans le dépôt).
+   Publication de l'écran de consentement : page d'accueil, politique de confidentialité
+   (`public/confidentialite.html`) et domaines autorisés obligatoires. Dans l'appli Android (phase 4),
+   la connexion Google demandera un lien de retour vers l'appli.
 4. Dans *Authentication → URL configuration*, ajouter l'URL du site (pour les liens de réinitialisation).
 5. Optionnel : personnaliser les e-mails (en français).
 
@@ -237,6 +237,23 @@ un module `src/lib/cloud.ts` synchronise en arrière-plan.
 - Aucune régression sans compte (mêmes captures qu'avant).
 
 **Effort : gros** (le cœur du chantier).
+
+### 4.7 Réalisé (29/10/2026)
+
+- `src/lib/cloud.ts` (synchro, état du compte, actions), `src/lib/cloudMerge.ts` (fusion pure, testée),
+  `src/lib/supabase.ts` (client, flux PKCE pour ne pas toucher à l'ancre du routeur), écran
+  `src/pages/settings/Account.tsx`.
+- Pas de file d'envoi : chaque ligne est comparée à une « ombre » (table Dexie `synced`, empreinte de la dernière
+  version synchronisée). Différente = modifiée localement ; fonctionne quel que soit le chemin d'écriture
+  (import, effacement, mise à jour du catalogue…). Conflit : la date la plus récente gagne (`Answer.updatedAt`,
+  `Meta.updatedAt` écrit par `setMeta`) ; activité et badges fusionnés. Relecture de 60 s de recouvrement.
+- Lignes meta synchronisées : `isUserMeta` (`ranking:`, `saga:`, `boosts:`, `activity`, `badges`) — les mêmes que
+  la sauvegarde. `insert:*`, `lastSync`, `lastExport` restent propres à l'appareil.
+- Synchro : au démarrage, 5 s après une modification, au retour sur l'onglet, au retour du réseau, toutes les 2 min.
+- ⚠️ La mise à jour du catalogue supprime les titres absents (avec leurs réponses) et cette suppression se propage
+  à tous les appareils : des seuils de votes différents entre appareils peuvent effacer des titres partout.
+  Piste : synchroniser les seuils (`min-votes`) avec le compte.
+- Facebook abandonné : la publication de l'appli Meta exige la vérification d'une entreprise.
 
 ---
 

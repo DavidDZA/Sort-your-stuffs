@@ -1,3 +1,5 @@
+import { db, getMeta, setMeta } from './db';
+
 const TOKEN_KEY = 'tmdb-token';
 const VOTES_KEY = 'min-votes';
 
@@ -33,15 +35,27 @@ export const getUserToken = () => read(TOKEN_KEY)?.trim() || null;
 export const getToken = () => getUserToken() || BUILT_IN_TOKEN || null;
 export const setToken = (token: string) => write(TOKEN_KEY, token.trim());
 
-export function getMinVotes(): MinVotes {
-  try {
-    return { ...DEFAULT_MIN_VOTES, ...JSON.parse(read(VOTES_KEY) ?? '{}') };
-  } catch {
-    return DEFAULT_MIN_VOTES;
-  }
+// Seuils de votes du catalogue : dans la base (meta « min-votes »), synchronisés avec le compte.
+// Deux appareils avec des seuils différents s'effaceraient l'un l'autre des titres à chaque mise à jour.
+const VOTES_META = 'min-votes';
+
+export async function getMinVotes(): Promise<MinVotes> {
+  return { ...DEFAULT_MIN_VOTES, ...(await getMeta<Partial<MinVotes> | null>(VOTES_META, null)) };
 }
 
-export const setMinVotes = (v: MinVotes) => write(VOTES_KEY, JSON.stringify(v));
+export const setMinVotes = (v: MinVotes) => setMeta(VOTES_META, v);
+
+/** Les seuils étaient dans localStorage avant la synchro par compte : repris une fois dans la base. */
+export async function migrateMinVotes(): Promise<void> {
+  const raw = read(VOTES_KEY);
+  if (!raw) return;
+  try {
+    if (!(await db.meta.get(VOTES_META))) await setMinVotes({ ...DEFAULT_MIN_VOTES, ...JSON.parse(raw) });
+    localStorage.removeItem(VOTES_KEY);
+  } catch {
+    // Valeur illisible ou stockage indisponible : les seuils par défaut s'appliquent.
+  }
+}
 
 const PROVIDERS_KEY = 'my-providers';
 
