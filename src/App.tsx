@@ -17,7 +17,7 @@ const pages = {
   tonight: () => import('./pages/Tonight'),
   settings: () => import('./pages/settings/Settings'),
   friends: () => import('./pages/Friends'),
-  duo: () => import('./pages/Duo'),
+  duo: () => import('./pages/duo/Duo'),
 };
 const Swipe = lazy(pages.swipe);
 const Rank = lazy(pages.rank);
