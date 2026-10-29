@@ -158,15 +158,6 @@ export default function Home() {
           progress={stats && ratio(stats.movie.answered, stats.movie.total)}
         />
         <Tile
-          color="orange"
-          href="#/swipe/tv"
-          icon="📺"
-          label="Swiper les séries"
-          tip="Dire si tu as vu des séries, une par une"
-          sub={stats && `${fmt(stats.tv.toSwipe)} à découvrir`}
-          progress={stats && ratio(stats.tv.answered, stats.tv.total)}
-        />
-        <Tile
           color="violet"
           href="#/rank/movie"
           icon="🏆"
@@ -174,6 +165,15 @@ export default function Home() {
           tip="Classer les films vus par duels"
           sub={stats && `${fmt(stats.movie.unranked)} non classés`}
           progress={stats && ratio(stats.movie.ranked, stats.movie.seen)}
+        />
+        <Tile
+          color="orange"
+          href="#/swipe/tv"
+          icon="📺"
+          label="Swiper les séries"
+          tip="Dire si tu as vu des séries, une par une"
+          sub={stats && `${fmt(stats.tv.toSwipe)} à découvrir`}
+          progress={stats && ratio(stats.tv.answered, stats.tv.total)}
         />
         <Tile
           color="cyan"
