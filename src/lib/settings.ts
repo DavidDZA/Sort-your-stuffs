@@ -57,6 +57,7 @@ export const setShowAnime = (v: boolean) => setMeta(SHOW_ANIME_META, v);
 
 /** Les seuils étaient dans localStorage avant la synchro par compte : repris une fois dans la base. */
 export async function migrateMinVotes(): Promise<void> {
+  await db.meta.delete('include-anime'); // réglage remplacé par la catégorie Animes (29/10)
   const raw = read(VOTES_KEY);
   if (!raw) return;
   try {

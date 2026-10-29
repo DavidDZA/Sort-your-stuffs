@@ -8,8 +8,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users on delete cascade,
   pseudo text not null check (char_length(pseudo) between 1 and 40),
   friend_code text unique not null default upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)),
-  -- Ce que les amis pourront voir (phase 2) : wishlist et top par défaut, les vus en option.
-  share_seen boolean not null default false,
+  -- Ce que voient les amis : la wishlist, et les titres vus avec le classement (les deux par défaut).
   share_ranking boolean not null default true,
   share_wishlist boolean not null default true,
   created_at timestamptz not null default now()
@@ -129,10 +128,13 @@ alter table public.profiles enable row level security;
 alter table public.answers enable row level security;
 alter table public.user_meta enable row level security;
 
+-- Colonne prévue au départ, jamais utilisée (les « vus » sont partagés avec le classement).
+alter table public.profiles drop column if exists share_seen;
+
 revoke all on public.profiles, public.answers, public.user_meta from anon;
 revoke update on public.profiles from authenticated;
 grant select on public.profiles to authenticated;
-grant update (pseudo, share_seen, share_ranking, share_wishlist) on public.profiles to authenticated; -- pas le code ami
+grant update (pseudo, share_ranking, share_wishlist) on public.profiles to authenticated; -- pas le code ami
 grant select, insert, update, delete on public.answers, public.user_meta to authenticated;
 
 drop policy if exists "profil : lecture du sien" on public.profiles;
