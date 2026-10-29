@@ -45,6 +45,11 @@ export async function getMinVotes(): Promise<MinVotes> {
 
 export const setMinVotes = (v: MinVotes) => setMeta(VOTES_META, v);
 
+// Inclure les animes (séries d'animation japonaises) au catalogue : synchronisé avec le compte, comme les seuils.
+const ANIME_META = 'include-anime';
+export const getIncludeAnime = () => getMeta<boolean>(ANIME_META, false);
+export const setIncludeAnime = (v: boolean) => setMeta(ANIME_META, v);
+
 /** Les seuils étaient dans localStorage avant la synchro par compte : repris une fois dans la base. */
 export async function migrateMinVotes(): Promise<void> {
   const raw = read(VOTES_KEY);

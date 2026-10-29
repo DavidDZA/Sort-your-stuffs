@@ -1,6 +1,6 @@
 import { db, setMeta, type MediaType, type Title } from './db';
-import { EXCLUDED_GENRES, isExcluded, tmdb, toTitle, type Page } from './tmdb';
-import type { MinVotes } from './settings';
+import { EXCLUDED_GENRES, isExcluded, setAnimeIncluded, tmdb, toTitle, type Page } from './tmdb';
+import { getIncludeAnime, type MinVotes } from './settings';
 
 const MAX_PAGES = 500; // limite imposée par TMDB sur /discover
 const CONCURRENCY = 6;
@@ -108,6 +108,7 @@ async function removeMissing(seen: Set<string>): Promise<number> {
  */
 export async function syncCatalogue(minVotes: MinVotes, onProgress: Progress): Promise<{ movie: number; tv: number; removed: number }> {
   const seen = new Set<string>();
+  setAnimeIncluded(await getIncludeAnime()); // réglage à jour (il a pu changer sur un autre appareil)
   const movie = await syncType('movie', minVotes.movie, onProgress, seen);
   const tv = await syncType('tv', minVotes.tv, onProgress, seen);
   const removed = await removeMissing(seen);

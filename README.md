@@ -18,7 +18,7 @@ fiche complète d'un titre (appui long : durée, note, bande-annonce, où regard
 rappels de sauvegarde et de mise à jour du catalogue, « Ce soir, je regarde quoi ? » (tirage dans la wishlist),
 tier list partageable, duels de vérification (les titres « bien » classés en priorité), recommandations d'après les titres aimés, note TMDB sur les cartes.
 
-Exclus : documentaires, courts métrages (< 40 min), émissions (télé-réalité, talk-shows, infos), animes (séries d'animation japonaises) et dessins animés jeunesse. Les films d'animation et les séries animées adultes sont inclus.
+Exclus : documentaires, courts métrages (< 40 min), émissions (télé-réalité, talk-shows, infos), animes (séries d'animation japonaises, sauf si on les inclut dans Réglages → Catalogue) et dessins animés jeunesse. Les films d'animation et les séries animées adultes sont inclus.
 
 ## Données
 

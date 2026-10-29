@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { clearChoices, db, getMeta, requestPersistentStorage } from '../../lib/db';
-import { DEFAULT_MIN_VOTES, getMinVotes, getToken, getUserToken, hasBuiltInToken, setMinVotes, setToken, type MinVotes } from '../../lib/settings';
+import { DEFAULT_MIN_VOTES, getIncludeAnime, getMinVotes, getToken, getUserToken, hasBuiltInToken, setIncludeAnime, setMinVotes, setToken, type MinVotes } from '../../lib/settings';
 import { syncCatalogue } from '../../lib/sync';
-import { tmdb } from '../../lib/tmdb';
+import { isAnimeTitle, tmdb } from '../../lib/tmdb';
 import { exportData, importData } from '../../lib/backup';
 import { TopBar } from '../../components/common';
 import { MyProviders } from './MyProviders';
@@ -18,6 +18,7 @@ export default function Settings({ section }: { section?: string }) {
   const [tokenMsg, setTokenMsg] = useState<string | null>(null);
   // Seuils enregistrés (et mis à jour par la synchro tant qu'on ne les a pas modifiés ici).
   const saved = useLiveQuery(getMinVotes);
+  const includeAnime = useLiveQuery(getIncludeAnime);
   // Saisie brute (le champ peut être vidé pendant la frappe) ; valeur par défaut remise à la sortie du champ.
   const [votes, setVotes] = useState<Record<keyof MinVotes, string>>({ movie: '', tv: '' });
   const edited = useRef(false);
@@ -79,6 +80,22 @@ export default function Settings({ section }: { section?: string }) {
     } finally {
       setSyncing(false);
     }
+  };
+
+  const toggleAnime = async () => {
+    const next = !includeAnime;
+    if (!next) {
+      // Animes déjà triés : ils partiront à la prochaine mise à jour du catalogue, avec leurs réponses.
+      const keys = await db.answers.where('type').equals('tv').primaryKeys();
+      const n = (await db.titles.bulkGet(keys)).filter((t) => t && isAnimeTitle(t)).length;
+      const where = signedIn ? ', sur tous tes appareils' : '';
+      if (n && !confirm(`Tu as déjà trié ${n} anime${n > 1 ? 's' : ''}. À la prochaine mise à jour du catalogue, ${n > 1 ? 'ils seront supprimés' : 'il sera supprimé'} avec tes réponses et tes classements${where}.
+
+Ne plus inclure les animes ?`))
+        return;
+    }
+    await setIncludeAnime(next);
+    setSyncMsg(next ? '🎌 Animes inclus : mets à jour le catalogue pour les récupérer.' : 'Animes exclus : ils disparaîtront à la prochaine mise à jour du catalogue.');
   };
 
   const clear = async () => {
@@ -156,6 +173,16 @@ export default function Settings({ section }: { section?: string }) {
             Séries : votes min.
             <input className="input" type="number" min={1} value={votes.tv} onChange={(e) => editVotes('tv', e.target.value)} onBlur={() => resetIfInvalid('tv')} />
           </label>
+        </div>
+        <div className="chips">
+          <button
+            className={`chip ${includeAnime ? 'active' : ''}`}
+            onClick={toggleAnime}
+            disabled={syncing || includeAnime === undefined}
+            title="Ajouter au catalogue les séries d’animation japonaises (les films d’animation sont toujours inclus)"
+          >
+            🎌 Inclure les animes
+          </button>
         </div>
         <button className="btn primary" onClick={sync} disabled={syncing || !getToken()} title="Récupérer les films et séries depuis TMDB (environ 1 minute)">
           {syncing ? 'Mise à jour en cours…' : info?.lastSync ? 'Mettre à jour le catalogue' : 'Télécharger le catalogue'}

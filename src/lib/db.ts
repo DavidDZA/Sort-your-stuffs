@@ -87,7 +87,7 @@ db.version(2).stores({ synced: 'id' });
 
 /** Données de la table meta qui suivent le compte (et la sauvegarde) ; le reste est propre à l'appareil. */
 export const isUserMeta = (key: string) =>
-  /^(ranking:|saga:|boosts:)/.test(key) || key === 'activity' || key === 'badges' || key === 'min-votes';
+  /^(ranking:|saga:|boosts:)/.test(key) || key === 'activity' || key === 'badges' || key === 'min-votes' || key === 'include-anime';
 
 export const TYPE_LABEL: Record<MediaType, string> = { movie: 'Film', tv: 'Série' };
 
