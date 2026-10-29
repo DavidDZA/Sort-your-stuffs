@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, getMeta, type MediaType } from '../lib/db';
+import { db, getMeta } from '../lib/db';
+import { keysOfCategory, mediaOf, useCategories, type Category } from '../lib/category';
 import { readRanking } from '../lib/ranking';
 import { getToken } from '../lib/settings';
 import { loadActivity, streak, todayCount } from '../lib/activity';
@@ -25,13 +26,14 @@ const TAGLINES = [
   'Ta mémoire de cinéphile, en ordre ✨',
 ];
 
-/** Accueil : format complet sur PC, compact sur téléphone (les 8 tuiles tiennent à l'écran). */
+/** Accueil : format complet sur PC, compact sur téléphone. */
 export default function Home() {
   // Précharge le catalogue pendant qu'on est sur l'accueil : le swipe s'ouvre ensuite sans attendre.
   useEffect(() => {
     const timer = setTimeout(() => {
       loadCatalogue('movie')
         .then(() => loadCatalogue('tv'))
+        .then(() => loadCatalogue('anime'))
         .catch(() => undefined);
     }, 500);
     return () => clearTimeout(timer);
@@ -39,31 +41,43 @@ export default function Home() {
   const [tagline] = useState(() => pick(TAGLINES));
   const desktop = useIsDesktop();
   const cloud = useCloud();
+  const showAnime = useCategories().includes('anime');
   const stats = useLiveQuery(async () => {
-    const byType = async (type: MediaType) => {
-      const [total, answered, seen, ranking] = await Promise.all([
-        db.titles.where('type').equals(type).count(),
-        db.answers.where('type').equals(type).count(),
-        db.answers.where('[type+status]').equals([type, 'seen']).count(),
+    const byType = async (type: Category) => {
+      const media = mediaOf(type);
+      const [catalogue, answeredKeys, seenKeys, ranking] = await Promise.all([
+        loadCatalogue(type),
+        db.answers.where('type').equals(media).primaryKeys(),
+        db.answers.where('[type+status]').equals([media, 'seen']).primaryKeys(),
         readRanking({ type, list: 'seen' }),
       ]);
-      return { total, answered, toSwipe: total - answered, seen, ranked: ranking.length, unranked: seen - ranking.length };
+      const [answered, seen] = await Promise.all([keysOfCategory(type, answeredKeys), keysOfCategory(type, seenKeys)]);
+      const total = catalogue.length;
+      return {
+        total,
+        answered: answered.length,
+        toSwipe: Math.max(0, total - answered.length),
+        seen: seen.length,
+        ranked: ranking.length,
+        unranked: seen.length - ranking.length,
+      };
     };
-    const [movie, tv, wish, activity, lastSync, lastExport, badges] = await Promise.all([
+    const [movie, tv, anime, wish, activity, lastSync, lastExport, badges] = await Promise.all([
       byType('movie'),
       byType('tv'),
+      byType('anime'),
       db.answers.where('status').equals('wish').count(),
       loadActivity(),
       getMeta<number | null>('lastSync', null),
       getMeta<number | null>('lastExport', null),
       getMeta<string[]>('badges', []),
     ]);
-    return { movie, tv, wish, today: todayCount(activity), streak: streak(activity), lastSync, lastExport, badges: badges.length };
+    return { movie, tv, anime, wish, today: todayCount(activity), streak: streak(activity), lastSync, lastExport, badges: badges.length };
   });
 
   const noToken = !getToken();
-  const emptyCatalogue = stats && stats.movie.total + stats.tv.total === 0;
-  const answered = stats ? stats.movie.answered + stats.tv.answered : 0;
+  const emptyCatalogue = stats && stats.movie.total + stats.tv.total + stats.anime.total === 0;
+  const answered = stats ? stats.movie.answered + stats.tv.answered + stats.anime.answered : 0;
   // Avec un compte, les données sont synchronisées : plus de rappel de sauvegarde.
   const backupDue = !cloud.user && stats && answered >= 20 && (!stats.lastExport || daysAgo(stats.lastExport) >= 14);
   const catalogueOld = stats?.lastSync && daysAgo(stats.lastSync) >= 30;
@@ -170,6 +184,28 @@ export default function Home() {
           sub={stats && `${fmt(stats.tv.unranked)} non classées`}
           progress={stats && ratio(stats.tv.ranked, stats.tv.seen)}
         />
+        {showAnime && (
+          <>
+            <Tile
+              color="coral"
+              href="#/swipe/anime"
+              icon="🎌"
+              label="Swiper les animes"
+              tip="Dire si tu as vu des animes (séries d’animation japonaises), un par un"
+              sub={stats && `${fmt(stats.anime.toSwipe)} à découvrir`}
+              progress={stats && ratio(stats.anime.answered, stats.anime.total)}
+            />
+            <Tile
+              color="teal"
+              href="#/rank/anime"
+              icon="🏯"
+              label="Classer les animes"
+              tip="Classer les animes vus par duels"
+              sub={stats && `${fmt(stats.anime.unranked)} non classés`}
+              progress={stats && ratio(stats.anime.ranked, stats.anime.seen)}
+            />
+          </>
+        )}
         <Tile color="red" href="#/wishlist" icon="💖" label="Wishlist" tip="Consulter et prioriser ta wishlist" sub={stats && `${fmt(stats.wish)} titres`} />
         <Tile color="green" href="#/add" icon="🔍" label="Ajout manuel" tip="Chercher un titre précis pour l’ajouter" sub="Rechercher un titre" />
         <Tile color="yellow" href="#/lists" icon="📚" label="Mes listes" tip="Tous tes titres vus et pas vus, pour corriger une erreur" sub="Vus · Pas vus" />
@@ -186,7 +222,7 @@ export default function Home() {
 
       {stats && (
         <p className="muted center small">
-          👀 Vus : {fmt(stats.movie.seen)} films · {fmt(stats.tv.seen)} séries
+          👀 Vus : {fmt(stats.movie.seen)} films · {fmt(stats.tv.seen)} séries{showAnime && ` · ${fmt(stats.anime.seen)} animes`}
         </p>
       )}
     </main>

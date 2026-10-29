@@ -18,7 +18,9 @@ fiche complète d'un titre (appui long : durée, note, bande-annonce, où regard
 rappels de sauvegarde et de mise à jour du catalogue, « Ce soir, je regarde quoi ? » (tirage dans la wishlist),
 tier list partageable, duels de vérification (les titres « bien » classés en priorité), recommandations d'après les titres aimés, note TMDB sur les cartes.
 
-Exclus : documentaires, courts métrages (< 40 min), émissions (télé-réalité, talk-shows, infos), animes (séries d'animation japonaises, sauf si on les inclut dans Réglages → Catalogue) et dessins animés jeunesse. Les films d'animation et les séries animées adultes sont inclus.
+Trois catégories : **films**, **séries** et **animes** (séries d'animation japonaises : une série TMDB du genre Animation en japonais ; les films d'animation japonais restent dans les films). Chacune a son swipe, son classement et sa wishlist ; la catégorie Animes peut être masquée (Réglages → Catalogue).
+
+Exclus : documentaires, courts métrages (< 40 min), émissions (télé-réalité, talk-shows, infos) et dessins animés jeunesse.
 
 ## Données
 
@@ -55,6 +57,7 @@ src/
     db.ts              base locale (titres, réponses, réglages internes)
     tmdb.ts            API TMDB : catalogue, fiches, sagas, plateformes
     sync.ts            téléchargement / mise à jour du catalogue
+    category.ts        catégories films / séries / animes (un anime reste une série pour TMDB : clé « tv:… »)
     cloud.ts cloudMerge.ts supabase.ts   compte et synchro (fusion pure dans cloudMerge.ts)
     friends.ts together.ts   amis, comparaison entre deux comptes (logique pure dans together.ts)
     ranking.ts         classement par insertion dichotomique, vérifications

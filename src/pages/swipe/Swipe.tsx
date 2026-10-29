@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { clearStatus, db, setStatus, type MediaType, type Status, type Tier, type Title } from '../../lib/db';
+import { clearStatus, db, setStatus, type Status, type Tier, type Title } from '../../lib/db';
+import { CATEGORY_LABEL, capitalize, categoryOf, mediaOf, type Category } from '../../lib/category';
 import { burst, centerOf, MILESTONES, pick, toast } from '../../lib/fun';
 import { recordActivity } from '../../lib/activity';
 import { boostFactor, boostFrom, loadBoosts, type Boosts } from '../../lib/recommend';
@@ -30,7 +31,8 @@ import { KNOWN_VOTES, personFilmography } from '../../lib/tmdb';
 
 const FLIP_MS = 350; // durée du retournement de la carte (animation flip-in)
 
-export default function Swipe({ type }: { type: MediaType }) {
+export default function Swipe({ type }: { type: Category }) {
+  const media = mediaOf(type); // type TMDB (les animes sont des séries pour TMDB)
   const [mode] = useState(getSwipeMode);
   const themeKey = `swipe-theme:${type}`;
   const pool = useRef<Pool>({ items: [], total: 0 });
@@ -104,7 +106,7 @@ export default function Swipe({ type }: { type: MediaType }) {
   /** Ajoute au catalogue du swipe les titres connus de ce type qu'il n'a pas (filmographie d'une personne) ; renvoie les ajouts. */
   const addTitles = (titles: Title[]): Title[] => {
     const known = new Set(catalogue.current.map((t) => t.key));
-    const added = titles.filter((t) => t.type === type && t.voteCount >= KNOWN_VOTES && !known.has(t.key));
+    const added = titles.filter((t) => categoryOf(t) === type && t.voteCount >= KNOWN_VOTES && !known.has(t.key));
     catalogue.current.push(...added);
     // Enregistrés : ils restent là au prochain chargement, même sans réseau.
     if (added.length) db.titles.bulkPut(added).catch(() => undefined);
@@ -116,7 +118,7 @@ export default function Swipe({ type }: { type: MediaType }) {
     let cancelled = false;
     setLoaded(false);
     setLoadError(null);
-    Promise.all([loadCatalogue(type), db.answers.where('type').equals(type).primaryKeys(), loadBoosts(type)])
+    Promise.all([loadCatalogue(type), db.answers.where('type').equals(media).primaryKeys(), loadBoosts(media)])
       .then(([titles, keys, saved]) => {
         if (cancelled) return;
         catalogue.current = titles;
@@ -235,7 +237,7 @@ export default function Swipe({ type }: { type: MediaType }) {
   const boostRecommendations = async (liked: Title) => {
     const titles = await boostFrom(liked);
     if (!titles.length) return;
-    boosts.current = await loadBoosts(type);
+    boosts.current = await loadBoosts(media);
     const inPool = new Map(pool.current.items.map((i) => [i.title.key, i]));
     const known = new Set(catalogue.current.map((t) => t.key));
     for (const t of titles) {
@@ -327,7 +329,7 @@ export default function Swipe({ type }: { type: MediaType }) {
       onClick={() => press(c)}
     />
   );
-  const typeTitle = type === 'movie' ? '🎬 Films' : '📺 Séries';
+  const typeTitle = `${CATEGORY_LABEL[type].emoji} ${capitalize(CATEGORY_LABEL[type].plural)}`;
 
   return (
     <main className={`page swipe-page ${mode}`}>
@@ -338,7 +340,7 @@ export default function Swipe({ type }: { type: MediaType }) {
         </h2>
         <FilterButton
           active={!isNoTheme(theme)}
-          label={`${themeLabel(type, theme)} · ${remaining.toLocaleString('fr-FR')} titres restants`}
+          label={`${themeLabel(media, theme)} · ${remaining.toLocaleString('fr-FR')} titres restants`}
           onClick={() => setShowThemes(true)}
         />
         <span className="pill" title="Titres triés pendant cette session">
@@ -347,7 +349,7 @@ export default function Swipe({ type }: { type: MediaType }) {
       </header>
       {!isNoTheme(theme) && (
         <button className="theme-strip" onClick={() => setShowThemes(true)} title="Changer les filtres">
-          <FilterIcon /> {themeLabel(type, theme)} · {remaining.toLocaleString('fr-FR')} restants
+          <FilterIcon /> {themeLabel(media, theme)} · {remaining.toLocaleString('fr-FR')} restants
         </button>
       )}
 
@@ -449,7 +451,7 @@ export default function Swipe({ type }: { type: MediaType }) {
 
       {showThemes && (
         <FilterSheet
-          type={type}
+          type={media}
           initial={theme}
           count={(t) => catalogue.current.filter((x) => !answered.current.has(x.key) && matchesTheme(x, t)).length}
           applyLabel={(n) => `C’est parti (${n.toLocaleString('fr-FR')})`}

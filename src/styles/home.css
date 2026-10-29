@@ -158,6 +158,9 @@
 .tile:nth-child(8) {
   animation-delay: 0.28s;
 }
+.tile:nth-child(n + 9) {
+  animation-delay: 0.32s;
+}
 .tile:active {
   transform: scale(0.96);
 }
@@ -188,6 +191,12 @@
 }
 .tile-blue {
   --c: #5b8cff;
+}
+.tile-coral {
+  --c: #ff7a59;
+}
+.tile-teal {
+  --c: #2ec4b6;
 }
 .tile-icon {
   font-size: 2.2rem;

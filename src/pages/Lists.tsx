@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { clearStatus, db, type Answer, type MediaType, type Title } from '../lib/db';
+import { clearStatus, db, type Answer, type Title } from '../lib/db';
+import { categoryOf, categoryOptions, useCategories, type Category } from '../lib/category';
 import { changeStatus } from '../lib/ranking';
 import { matchesSearch } from '../lib/hooks';
 import { SearchBox, SeenButtons, TitleRow, TopBar, TypeFilter } from '../components/common';
 
 type ListId = 'seen' | 'unseen';
-type Filter = 'all' | MediaType;
+type Filter = 'all' | Category;
 
 const PAGE = 100;
 
@@ -16,12 +17,14 @@ export default function Lists() {
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
+  const categories = useCategories();
 
   const items = useLiveQuery(async () => {
     const answers = await db.answers.where('status').equals(list).reverse().sortBy('updatedAt');
-    const keep = answers.filter((a) => filter === 'all' || a.type === filter);
-    const titles = await db.titles.bulkGet(keep.map((a) => a.key));
-    return keep.map((a, i) => ({ a, t: titles[i] })).filter((x): x is { a: Answer; t: Title } => !!x.t);
+    const titles = await db.titles.bulkGet(answers.map((a) => a.key));
+    return answers
+      .map((a, i) => ({ a, t: titles[i] }))
+      .filter((x): x is { a: Answer; t: Title } => !!x.t && (filter === 'all' || categoryOf(x.t) === filter));
   }, [list, filter]);
 
   const shown = items?.filter(({ t }) => matchesSearch(t, query)) ?? [];
@@ -44,9 +47,8 @@ export default function Lists() {
       <TypeFilter<Filter>
         value={filter}
         options={[
-          ['all', 'Tous', 'Films et séries'],
-          ['movie', 'Films', 'Films seulement'],
-          ['tv', 'Séries', 'Séries seulement'],
+          ['all', 'Tous', 'Tous les titres'],
+          ...categoryOptions(categories, (c) => (c === 'movie' ? 'Films seulement' : c === 'tv' ? 'Séries seulement' : 'Animes seulement')),
         ]}
         onChange={(v) => {
           setFilter(v);

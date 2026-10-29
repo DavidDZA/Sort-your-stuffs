@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getMeta, type MediaType } from '../lib/db';
+import { getMeta } from '../lib/db';
+import { CATEGORY_LABEL, categoryOptions, useCategories, type Category } from '../lib/category';
 import { computeStats, formatHours, TOP_SIZE, type Bar, type Stats } from '../lib/stats';
 import { BADGES } from '../lib/badges';
 import { prefetchDetails } from '../lib/tmdb';
@@ -8,7 +9,8 @@ import { TopBar, TypeFilter } from '../components/common';
 export default function StatsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
-  const [type, setType] = useState<MediaType>('movie');
+  const [type, setType] = useState<Category>('movie');
+  const categories = useCategories();
   const [completing, setCompleting] = useState(0);
 
   const refresh = async () => {
@@ -45,9 +47,10 @@ export default function StatsPage() {
   }
 
   const t = stats[type];
-  const minutes = stats.movie.minutes + stats.tv.minutes;
-  const seenTotal = stats.movie.seen + stats.tv.seen;
-  const coverage = seenTotal ? Math.round(((stats.movie.withDetails + stats.tv.withDetails) / seenTotal) * 100) : 100;
+  const all = [stats.movie, stats.tv, stats.anime];
+  const minutes = all.reduce((s, x) => s + x.minutes, 0);
+  const seenTotal = all.reduce((s, x) => s + x.seen, 0);
+  const coverage = seenTotal ? Math.round((all.reduce((s, x) => s + x.withDetails, 0) / seenTotal) * 100) : 100;
 
   return (
     <main className="page">
@@ -56,6 +59,7 @@ export default function StatsPage() {
       <div className="stat-tiles">
         <StatTile emoji="🎬" value={stats.movie.seen} label="films vus" />
         <StatTile emoji="📺" value={stats.tv.seen} label="séries vues" />
+        {categories.includes('anime') && <StatTile emoji="🎌" value={stats.anime.seen} label="animes vus" />}
         <StatTile emoji="💖" value={stats.wish} label="en wishlist" />
         <StatTile emoji="⏱️" value={formatHours(minutes)} label={`devant l’écran${coverage < 100 ? ` (sur ${coverage} % des titres)` : ''}`} />
       </div>
@@ -71,17 +75,14 @@ export default function StatsPage() {
         </div>
       </section>
 
-      <TypeFilter<MediaType>
+      <TypeFilter<Category>
         value={type}
-        options={[
-          ['movie', 'Films', 'Statistiques des films vus'],
-          ['tv', 'Séries', 'Statistiques des séries vues'],
-        ]}
+        options={categoryOptions(categories, (c) => `Statistiques des ${CATEGORY_LABEL[c].plural} ${CATEGORY_LABEL[c].seen}`)}
         onChange={setType}
       />
 
       <section className="card">
-        <h3>⭐ Les {TOP_SIZE[type]} {type === 'movie' ? 'films' : 'séries'} les plus populaires</h3>
+        <h3>⭐ Les {TOP_SIZE[type]} {CATEGORY_LABEL[type].plural} les plus populaires</h3>
         <div className="big-progress" title={`${t.top.seen} / ${t.top.total}`}>
           <span style={{ width: `${t.top.total ? (t.top.seen / t.top.total) * 100 : 0}%` }} />
         </div>

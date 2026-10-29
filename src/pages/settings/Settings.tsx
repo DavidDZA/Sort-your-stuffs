@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { clearChoices, db, getMeta, requestPersistentStorage } from '../../lib/db';
-import { DEFAULT_MIN_VOTES, getIncludeAnime, getMinVotes, getToken, getUserToken, hasBuiltInToken, setIncludeAnime, setMinVotes, setToken, type MinVotes } from '../../lib/settings';
+import { DEFAULT_MIN_VOTES, getMinVotes, getShowAnime, getToken, getUserToken, hasBuiltInToken, setMinVotes, setShowAnime, setToken, type MinVotes } from '../../lib/settings';
 import { syncCatalogue } from '../../lib/sync';
-import { isAnimeTitle, tmdb } from '../../lib/tmdb';
+import { tmdb } from '../../lib/tmdb';
+import { isAnimeTitle } from '../../lib/category';
 import { exportData, importData } from '../../lib/backup';
 import { TopBar } from '../../components/common';
 import { MyProviders } from './MyProviders';
@@ -18,13 +19,13 @@ export default function Settings({ section }: { section?: string }) {
   const [tokenMsg, setTokenMsg] = useState<string | null>(null);
   // Seuils enregistrés (et mis à jour par la synchro tant qu'on ne les a pas modifiés ici).
   const saved = useLiveQuery(getMinVotes);
-  const includeAnime = useLiveQuery(getIncludeAnime);
+  const showAnime = useLiveQuery(getShowAnime);
   // Saisie brute (le champ peut être vidé pendant la frappe) ; valeur par défaut remise à la sortie du champ.
-  const [votes, setVotes] = useState<Record<keyof MinVotes, string>>({ movie: '', tv: '' });
+  const [votes, setVotes] = useState<Record<keyof MinVotes, string>>({ movie: '', tv: '', anime: '' });
   const edited = useRef(false);
   useEffect(() => {
-    if (saved && !edited.current) setVotes({ movie: String(saved.movie), tv: String(saved.tv) });
-  }, [saved?.movie, saved?.tv]);
+    if (saved && !edited.current) setVotes(asText(saved));
+  }, [saved?.movie, saved?.tv, saved?.anime]);
   const editVotes = (field: keyof MinVotes, value: string) => {
     edited.current = true;
     setVotes((v) => ({ ...v, [field]: value }));
@@ -39,6 +40,7 @@ export default function Settings({ section }: { section?: string }) {
   const info = useLiveQuery(async () => ({
     movies: await db.titles.where('type').equals('movie').count(),
     series: await db.titles.where('type').equals('tv').count(),
+    animes: await db.titles.where('type').equals('tv').filter(isAnimeTitle).count(),
     lastSync: await getMeta<number | null>('lastSync', null),
   }));
 
@@ -66,13 +68,14 @@ export default function Settings({ section }: { section?: string }) {
     try {
       // Sans saisie ici : les seuils du compte, à jour (ceux d'un autre appareil ont pu changer).
       if (!edited.current) await syncAndWait();
-      const chosen = edited.current ? { movie: minVotes('movie'), tv: minVotes('tv') } : await getMinVotes();
-      setVotes({ movie: String(chosen.movie), tv: String(chosen.tv) });
+      const chosen = edited.current ? { movie: minVotes('movie'), tv: minVotes('tv'), anime: minVotes('anime') } : await getMinVotes();
+      setVotes(asText(chosen));
       edited.current = false;
       await setMinVotes(chosen);
-      const { movie, tv, removed } = await syncCatalogue(chosen, setSyncMsg);
+      const { movie, tv, anime, removed } = await syncCatalogue(chosen, setSyncMsg);
+      const n = (x: number) => x.toLocaleString('fr-FR');
       setSyncMsg(
-        `✓ Terminé : ${movie.toLocaleString('fr-FR')} films et ${tv.toLocaleString('fr-FR')} séries à jour.` +
+        `✓ Terminé : ${n(movie)} films, ${n(tv)} séries et ${n(anime)} animes à jour.` +
           (removed ? ` ${removed.toLocaleString('fr-FR')} titres absents du nouveau catalogue supprimés.` : ''),
       );
     } catch (e) {
@@ -82,20 +85,10 @@ export default function Settings({ section }: { section?: string }) {
     }
   };
 
-  const toggleAnime = async () => {
-    const next = !includeAnime;
-    if (!next) {
-      // Animes déjà triés : ils partiront à la prochaine mise à jour du catalogue, avec leurs réponses.
-      const keys = await db.answers.where('type').equals('tv').primaryKeys();
-      const n = (await db.titles.bulkGet(keys)).filter((t) => t && isAnimeTitle(t)).length;
-      const where = signedIn ? ', sur tous tes appareils' : '';
-      if (n && !confirm(`Tu as déjà trié ${n} anime${n > 1 ? 's' : ''}. À la prochaine mise à jour du catalogue, ${n > 1 ? 'ils seront supprimés' : 'il sera supprimé'} avec tes réponses et tes classements${where}.
-
-Ne plus inclure les animes ?`))
-        return;
-    }
-    await setIncludeAnime(next);
-    setSyncMsg(next ? '🎌 Animes inclus : mets à jour le catalogue pour les récupérer.' : 'Animes exclus : ils disparaîtront à la prochaine mise à jour du catalogue.');
+  const toggleShowAnime = () => {
+    if (showAnime === undefined) return;
+    setShowAnime(!showAnime);
+    setSyncMsg(showAnime ? 'Catégorie Animes masquée : les animes restent au catalogue, sans apparaître dans les séries.' : '🎌 Catégorie Animes affichée.');
   };
 
   const clear = async () => {
@@ -157,31 +150,36 @@ Ne plus inclure les animes ?`))
       <section className="card" id="catalogue">
         <h3>📦 Catalogue</h3>
         <p className="muted small">
-          {info ? `${info.movies.toLocaleString('fr-FR')} films · ${info.series.toLocaleString('fr-FR')} séries` : '…'}
+          {info ? `${info.movies.toLocaleString('fr-FR')} films · ${(info.series - info.animes).toLocaleString('fr-FR')} séries · ${info.animes.toLocaleString('fr-FR')} animes` : '…'}
           <br />
           {info?.lastSync ? `Dernière mise à jour : ${new Date(info.lastSync).toLocaleString('fr-FR')}` : 'Jamais téléchargé'}
         </p>
         <p className="muted small">
           Seuls les titres ayant un minimum de votes sur TMDB sont récupérés (pour éviter les titres introuvables). Baisse ces seuils pour en avoir plus. Avec un compte, ils sont les mêmes sur tous tes appareils.
         </p>
+        <p className="small">Votes minimum :</p>
         <div className="row">
           <label className="field">
-            Films : votes min.
+            🎬 Films
             <input className="input" type="number" min={1} value={votes.movie} onChange={(e) => editVotes('movie', e.target.value)} onBlur={() => resetIfInvalid('movie')} />
           </label>
           <label className="field">
-            Séries : votes min.
+            📺 Séries
             <input className="input" type="number" min={1} value={votes.tv} onChange={(e) => editVotes('tv', e.target.value)} onBlur={() => resetIfInvalid('tv')} />
+          </label>
+          <label className="field">
+            🎌 Animes
+            <input className="input" type="number" min={1} value={votes.anime} onChange={(e) => editVotes('anime', e.target.value)} onBlur={() => resetIfInvalid('anime')} />
           </label>
         </div>
         <div className="chips">
           <button
-            className={`chip ${includeAnime ? 'active' : ''}`}
-            onClick={toggleAnime}
-            disabled={syncing || includeAnime === undefined}
-            title="Ajouter au catalogue les séries d’animation japonaises (les films d’animation sont toujours inclus)"
+            className={`chip ${showAnime ? 'active' : ''}`}
+            onClick={toggleShowAnime}
+            disabled={showAnime === undefined}
+            title="Afficher les tuiles et onglets Animes (séries d’animation japonaises). Masquée, la catégorie reste au catalogue."
           >
-            🎌 Inclure les animes
+            🎌 Afficher la catégorie Animes
           </button>
         </div>
         <button className="btn primary" onClick={sync} disabled={syncing || !getToken()} title="Récupérer les films et séries depuis TMDB (environ 1 minute)">
@@ -256,3 +254,5 @@ function useScrollToSection(id: string | undefined) {
     };
   }, [id]);
 }
+
+const asText = (v: MinVotes): Record<keyof MinVotes, string> => ({ movie: String(v.movie), tv: String(v.tv), anime: String(v.anime) });

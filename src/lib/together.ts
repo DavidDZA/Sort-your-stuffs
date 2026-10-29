@@ -1,4 +1,5 @@
-import type { MediaType, Status, Tier } from './db';
+import type { Status, Tier } from './db';
+import type { Category } from './category';
 import { priorityWeight } from './tonight';
 
 /**
@@ -7,11 +8,12 @@ import { priorityWeight } from './tonight';
  */
 export interface Side {
   answers: Map<string, { status: Status; tier: Tier | null }>;
-  /** Classements par liste, comme les clés meta : « movie », « tv », « wish:movie », « wish:tv ». */
+  /** Classements par liste, comme les clés meta : « movie », « tv », « anime », « wish:movie »… */
   rankings: Record<string, string[]>;
 }
 
-const ofType = (key: string, type: MediaType) => key.startsWith(`${type}:`);
+/** Catégorie d'une clé (d'après les titres connus) ; `undefined` si le titre est inconnu. */
+export type CategoryOf = (key: string) => Category | undefined;
 
 /** Position relative dans un classement : 0 = premier, 1 = dernier ; `undefined` si non classé. */
 function relRank(ranking: string[], key: string): number | undefined {
@@ -33,12 +35,12 @@ export interface CommonWish {
  * Titres présents dans les deux wishlists, triés par priorités combinées
  * (un titre non priorisé compte comme le milieu de la liste).
  */
-export function commonWishlist(me: Side, them: Side, type: MediaType): CommonWish[] {
+export function commonWishlist(me: Side, them: Side, type: Category, catOf: CategoryOf): CommonWish[] {
   const myRank = me.rankings[`wish:${type}`] ?? [];
   const theirRank = them.rankings[`wish:${type}`] ?? [];
   const list: (CommonWish & { score: number })[] = [];
   for (const [key, a] of me.answers) {
-    if (a.status !== 'wish' || !ofType(key, type) || them.answers.get(key)?.status !== 'wish') continue;
+    if (a.status !== 'wish' || catOf(key) !== type || them.answers.get(key)?.status !== 'wish') continue;
     const i = myRank.indexOf(key);
     const j = theirRank.indexOf(key);
     list.push({
@@ -65,11 +67,11 @@ export interface Advice {
  * Ce que `from` a aimé (avis « bien » ou premier tiers de son classement) et que `to` n'a pas vu.
  * Les « pas envie » de `to` sont écartés quand on les connaît (pour soi ; un ami ne les partage pas).
  */
-export function advice(from: Side, to: Side, type: MediaType, limit = 40): Advice[] {
+export function advice(from: Side, to: Side, type: Category, catOf: CategoryOf, limit = 40): Advice[] {
   const ranking = from.rankings[type] ?? [];
   const list: (Advice & { score: number })[] = [];
   for (const [key, a] of from.answers) {
-    if (a.status !== 'seen' || !ofType(key, type)) continue;
+    if (a.status !== 'seen' || catOf(key) !== type) continue;
     const r = relRank(ranking, key);
     const good = a.tier === 'good';
     if (!good && (r === undefined || r > 1 / 3)) continue;
@@ -96,7 +98,7 @@ export interface Match {
 }
 
 /** Compatibilité des classements (tau de Kendall sur les titres classés par les deux). Au moins 5 titres communs. */
-export function compatibility(me: Side, them: Side, type: MediaType, top = 5): Match | null {
+export function compatibility(me: Side, them: Side, type: Category, top = 5): Match | null {
   const mine = me.rankings[type] ?? [];
   const theirs = them.rankings[type] ?? [];
   const theirPos = new Map(theirs.map((k, i) => [k, i]));

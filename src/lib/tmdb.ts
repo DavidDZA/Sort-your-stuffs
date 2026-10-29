@@ -78,33 +78,21 @@ export const EXCLUDED_GENRES: Record<MediaType, number[]> = {
   tv: [G.documentary, G.news, G.reality, G.talk],
 };
 
-/** Réglage « Inclure les animes » (Réglages → Catalogue), tenu à jour depuis la base au démarrage. */
-let animeIncluded = false;
-export const setAnimeIncluded = (v: boolean) => {
-  animeIncluded = v;
-};
-
 /**
- * Règles d'exclusion : documentaires, émissions (télé-réalité, talk-shows, infos),
- * animes (séries d'animation japonaises, sauf si le réglage les inclut) et dessins animés jeunesse.
- * Les films d'animation et les séries animées adultes restent inclus.
+ * Règles d'exclusion : documentaires, émissions (télé-réalité, talk-shows, infos) et dessins animés jeunesse.
+ * Les films d'animation, les séries animées adultes et les animes (catégorie à part, voir category.ts) sont inclus.
  * Les courts métrages sont filtrés par durée dans /discover (la recherche ne donne pas la durée).
  */
-export function isExcluded(type: MediaType, r: RawResult, anime = animeIncluded): boolean {
+export function isExcluded(type: MediaType, r: RawResult): boolean {
   if (r.adult) return true;
   const genres = r.genre_ids ?? [];
   if (genres.some((g) => EXCLUDED_GENRES[type].includes(g))) return true;
-  if (type === 'tv' && genres.includes(G.animation)) {
-    if (genres.includes(G.kids)) return true;
-    const japanese = r.original_language === 'ja' || (r.origin_country ?? []).includes('JP');
-    if (japanese && !anime) return true;
-  }
-  return false;
+  return type === 'tv' && genres.includes(G.animation) && genres.includes(G.kids);
 }
 
-/** Anime déjà dans la base (le pays d'origine n'y est pas gardé : la langue suffit). */
-export const isAnimeTitle = (t: Title) =>
-  t.type === 'tv' && (t.genreIds ?? t.details?.genreIds ?? []).includes(G.animation) && (t.originalLanguage ?? t.details?.originalLanguage) === 'ja';
+/** Anime au sens de TMDB (avant conversion en titre) : série d'animation japonaise. */
+export const isAnimeResult = (r: RawResult) =>
+  (r.genre_ids ?? []).includes(G.animation) && (r.original_language === 'ja' || (r.origin_country ?? []).includes('JP'));
 
 export function toTitle(type: MediaType, r: RawResult): Title {
   const date = type === 'movie' ? r.release_date : r.first_air_date;

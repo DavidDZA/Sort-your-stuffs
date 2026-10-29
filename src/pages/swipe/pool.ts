@@ -1,4 +1,5 @@
-import { db, getMeta, type MediaType, type Title } from '../../lib/db';
+import { db, getMeta, type Title } from '../../lib/db';
+import { categoryOf, mediaOf, type Category } from '../../lib/category';
 import { ensureDetails, fetchSaga, posterUrl } from '../../lib/tmdb';
 
 /**
@@ -44,14 +45,15 @@ export function prefetch(title: Title) {
 
 // Catalogue gardé en mémoire d'une visite du swipe à l'autre (sa lecture prend du temps sur un gros
 // catalogue), préchargé depuis l'accueil ; relu après une mise à jour du catalogue.
-const catalogues = new Map<MediaType, { lastSync: number | null; titles: Promise<Title[]> }>();
+const catalogues = new Map<Category, { lastSync: number | null; titles: Promise<Title[]> }>();
 
-/** Titres du catalogue de ce type (le tableau gardé en mémoire : les ajouts du swipe y restent). */
-export async function loadCatalogue(type: MediaType): Promise<Title[]> {
+/** Titres du catalogue de cette catégorie (le tableau gardé en mémoire : les ajouts du swipe y restent). */
+export async function loadCatalogue(type: Category): Promise<Title[]> {
   const lastSync = await getMeta<number | null>('lastSync', null);
   let cached = catalogues.get(type);
   if (!cached || cached.lastSync !== lastSync) {
-    cached = { lastSync, titles: db.titles.where('type').equals(type).toArray() };
+    const titles = db.titles.where('type').equals(mediaOf(type)).toArray();
+    cached = { lastSync, titles: type === 'movie' ? titles : titles.then((list) => list.filter((t) => categoryOf(t) === type)) };
     cached.titles.catch(() => catalogues.delete(type));
     catalogues.set(type, cached);
   }

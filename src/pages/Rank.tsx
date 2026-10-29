@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type MediaType, type Title } from '../lib/db';
+import { db, type Title } from '../lib/db';
+import { CATEGORY_LABEL, capitalize, keysOfCategory, mediaOf, type Category } from '../lib/category';
 import { changeStatus, readRanking, unrank, type Scope } from '../lib/ranking';
 import { matchesTheme, missingFilterInfo, themeFilter, themeLabel } from '../lib/themes';
 import { prefetchDetails } from '../lib/tmdb';
@@ -14,18 +15,19 @@ import { toast } from '../lib/fun';
 
 type View = 'duel' | 'list' | 'tiers';
 
-export default function Rank({ type }: { type: MediaType }) {
+export default function Rank({ type }: { type: Category }) {
+  const media = mediaOf(type);
   const [view, setView] = useState<View>('duel');
   const [sharing, setSharing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [theme, setTheme] = useSavedFilter(`rank-filter:${type}`);
   const scope: Scope = { type, list: 'seen' };
   const filter = themeFilter(theme);
-  const label = themeLabel(type, theme);
+  const label = themeLabel(media, theme);
 
   // Titres vus de ce type : pour compter ce que gardent les filtres.
   const seen = useLiveQuery(async () => {
-    const keys = await db.answers.where('[type+status]').equals([type, 'seen']).primaryKeys();
+    const keys = await keysOfCategory(type, await db.answers.where('[type+status]').equals([media, 'seen']).primaryKeys());
     return (await db.titles.bulkGet(keys)).filter((t): t is Title => !!t);
   }, [type]);
 
@@ -61,7 +63,7 @@ export default function Rank({ type }: { type: MediaType }) {
   return (
     <main className="page wide">
       <TopBar
-        title={type === 'movie' ? '🏆 Films' : '🥇 Séries'}
+        title={`${{ movie: '🏆', tv: '🥇', anime: '🏯' }[type]} ${capitalize(CATEGORY_LABEL[type].plural)}`}
         right={<FilterButton active={!!filter} label={label} onClick={() => setShowFilters(true)} />}
       />
       {filter && <FilterStrip label={label} onClick={() => setShowFilters(true)} />}
@@ -111,7 +113,7 @@ export default function Rank({ type }: { type: MediaType }) {
 
       {showFilters && (
         <FilterSheet
-          type={type}
+          type={media}
           initial={theme}
           count={(t) => (seen ?? []).filter((x) => matchesTheme(x, t)).length}
           applyLabel={(n) => `Appliquer (${n.toLocaleString('fr-FR')} vus)`}

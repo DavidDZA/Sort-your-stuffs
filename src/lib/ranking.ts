@@ -1,8 +1,9 @@
-import { db, getMeta, setMeta, setStatus, type MediaType, type Status, type Tier, type Title } from './db';
+import { db, getMeta, setMeta, setStatus, type Status, type Tier, type Title } from './db';
+import { categoryOf, keysOfCategory, mediaOf, type Category } from './category';
 
-/** Une liste classable : les titres vus ou la wishlist, pour les films ou les séries. */
+/** Une liste classable : les titres vus ou la wishlist, d'une catégorie (films, séries, animes). */
 export interface Scope {
-  type: MediaType;
+  type: Category;
   list: 'seen' | 'wish';
 }
 
@@ -18,7 +19,8 @@ const rankingKey = (s: Scope) => `ranking:${scopeId(s)}`;
 const insertKey = (s: Scope) => `insert:${scopeId(s)}`;
 
 async function poolKeys(s: Scope): Promise<Set<string>> {
-  return new Set(await db.answers.where('[type+status]').equals([s.type, s.list]).primaryKeys());
+  const keys = await db.answers.where('[type+status]').equals([mediaOf(s.type), s.list]).primaryKeys();
+  return new Set(await keysOfCategory(s.type, keys));
 }
 
 /** Classement (du premier au dernier), sans les titres qui ont quitté la liste. Lecture seule. */
@@ -68,7 +70,7 @@ export async function unrank(s: Scope, key: string): Promise<void> {
 export async function changeStatus(title: Title, status: Status, tier?: Tier): Promise<void> {
   const current = await db.answers.get(title.key);
   if (current && current.status !== status && current.status !== 'unseen') {
-    await unrank({ type: title.type, list: current.status as 'seen' | 'wish' }, title.key);
+    await unrank({ type: categoryOf(title), list: current.status as 'seen' | 'wish' }, title.key);
   }
   await setStatus(title, status, status === 'seen' ? tier : undefined);
 }
@@ -120,3 +122,33 @@ export function promote(ranking: string[], from: number, to: number): string[] {
 
 /** Nombre de duels restants (au pire) pour placer le titre. */
 export const duelsLeft = (s: InsertState) => Math.ceil(Math.log2(s.hi - s.lo + 1));
+
+/**
+ * Sépare les animes d'un classement de séries : ceux qui n'y sont pas déjà rejoignent le classement anime,
+ * à la suite, dans leur ordre relatif ; le classement de séries garde le reste.
+ */
+export function splitAnime(tv: string[], anime: string[], isAnime: (key: string) => boolean): { tv: string[]; anime: string[] } {
+  const inAnime = new Set(anime);
+  const moved = tv.filter((k) => isAnime(k) && !inAnime.has(k));
+  return { tv: tv.filter((k) => !isAnime(k)), anime: [...anime, ...moved] };
+}
+
+/**
+ * Les animes étaient classés avec les séries avant d'avoir leur catégorie (et un appareil pas encore à jour
+ * peut encore les y mettre) : on les déplace, sans perdre leur ordre. Sans effet s'il n'y a rien à déplacer.
+ */
+export async function splitAnimeRankings(): Promise<void> {
+  for (const list of ['seen', 'wish'] as const) {
+    const tvScope: Scope = { type: 'tv', list };
+    const animeScope: Scope = { type: 'anime', list };
+    const tv = [...new Set(await getMeta<string[]>(rankingKey(tvScope), []))];
+    if (!tv.length) continue;
+    const animeKeys = new Set(await keysOfCategory('anime', tv));
+    if (!animeKeys.size) continue;
+    const split = splitAnime(tv, await getMeta<string[]>(rankingKey(animeScope), []), (k) => animeKeys.has(k));
+    await saveRanking(animeScope, split.anime);
+    await saveRanking(tvScope, split.tv);
+    // Les positions du classement de séries ont changé : placement en cours annulé.
+    if (await loadInsert(tvScope)) await saveInsert(tvScope, null);
+  }
+}

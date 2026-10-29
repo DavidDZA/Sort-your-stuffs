@@ -1,5 +1,6 @@
 import { db, type Status, type Tier, type Title } from './db';
-import { readRanking } from './ranking';
+import { readRanking, splitAnime } from './ranking';
+import { isAnimeTitle } from './category';
 import { frError, siteUrl } from './cloud';
 import { supabase } from './supabase';
 import type { Side } from './together';
@@ -129,6 +130,14 @@ export async function loadFriendData(friendId: string, fresh = false): Promise<F
   if (error) throw new Error(frError(error));
   const rankings: Record<string, string[]> = {};
   for (const m of meta) if (Array.isArray(m.value)) rankings[m.key.slice('ranking:'.length)] = m.value as string[];
+  // Ami sur une version d'avant la catégorie Animes : ses animes sont dans ses classements de séries.
+  const isAnime = (k: string) => { const t = titles.get(k); return !!t && isAnimeTitle(t); };
+  for (const list of ['', 'wish:']) {
+    if (!rankings[`${list}tv`]) continue;
+    const split = splitAnime(rankings[`${list}tv`], rankings[`${list}anime`] ?? [], isAnime);
+    rankings[`${list}tv`] = split.tv;
+    rankings[`${list}anime`] = split.anime;
+  }
   const data = { answers, rankings, titles };
   friendCache.set(friendId, { at: Date.now(), data });
   return data;
@@ -138,11 +147,10 @@ export async function loadFriendData(friendId: string, fresh = false): Promise<F
 export async function loadMySide(): Promise<Side> {
   const answers: Side['answers'] = new Map();
   for (const a of await db.answers.toArray()) answers.set(a.key, { status: a.status, tier: a.tier ?? null });
-  const [movie, tv, wishMovie, wishTv] = await Promise.all([
-    readRanking({ type: 'movie', list: 'seen' }),
-    readRanking({ type: 'tv', list: 'seen' }),
-    readRanking({ type: 'movie', list: 'wish' }),
-    readRanking({ type: 'tv', list: 'wish' }),
-  ]);
-  return { answers, rankings: { movie, tv, 'wish:movie': wishMovie, 'wish:tv': wishTv } };
+  const rankings: Record<string, string[]> = {};
+  for (const type of ['movie', 'tv', 'anime'] as const) {
+    rankings[type] = await readRanking({ type, list: 'seen' });
+    rankings[`wish:${type}`] = await readRanking({ type, list: 'wish' });
+  }
+  return { answers, rankings };
 }

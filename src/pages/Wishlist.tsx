@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type MediaType, type Title } from '../lib/db';
+import { db, type Title } from '../lib/db';
+import { categoryOf, categoryOptions, mediaOf, useCategories, type Category } from '../lib/category';
 import { changeStatus, scopeId, unrank, type Scope } from '../lib/ranking';
 import { prefetchDetails, WEEK } from '../lib/tmdb';
 import { availableOnMine, hasMyProviders, loadMyProviders } from '../lib/providers';
@@ -12,7 +13,7 @@ import { Duel } from '../components/Duel';
 import { RankedList } from '../components/RankedList';
 
 type View = 'list' | 'duel';
-type Filter = 'all' | MediaType;
+type Filter = 'all' | Category;
 
 export default function Wishlist() {
   const [view, setView] = useState<View>('list');
@@ -20,6 +21,7 @@ export default function Wishlist() {
   const [onlyMine, setOnlyMine] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [savedTheme, setTheme] = useSavedFilter('wish-filter');
+  const categories = useCategories();
   const mine = loadMyProviders();
   const wishes = useLiveQuery(async () => {
     const keys = await db.answers.where('status').equals('wish').primaryKeys();
@@ -31,11 +33,12 @@ export default function Wishlist() {
     if (wishes) prefetchDetails(wishes, WEEK);
   }, [wishes?.length]);
 
-  // Les duels se font par type : « Tous » n'a pas de sens ici.
-  const type: MediaType = filter === 'all' ? 'movie' : filter;
+  // Les duels se font par catégorie : « Tous » n'a pas de sens ici.
+  const type: Category = filter === 'all' ? 'movie' : filter;
   const scope: Scope = { type, list: 'wish' };
-  // Films et séries mélangés : le genre ne s'applique pas (les genres diffèrent).
-  const listType: MediaType | null = view === 'duel' ? type : filter === 'all' ? null : filter;
+  // Catégories mélangées : le genre ne s'applique pas (les genres diffèrent entre films et séries).
+  const listCat: Category | null = view === 'duel' ? type : filter === 'all' ? null : filter;
+  const listType = listCat && mediaOf(listCat);
   const theme = listType ? savedTheme : { ...savedTheme, genre: null };
   const byTheme = themeFilter(theme);
   const byMine = onlyMine ? (t: Title) => !!t.details && availableOnMine(t.details.providers.flatrate, mine) : null;
@@ -72,9 +75,8 @@ export default function Wishlist() {
       <TypeFilter<Filter>
         value={view === 'duel' ? type : filter}
         options={[
-          ...(view === 'list' ? [['all', 'Tous', 'Films et séries, du plus récent au plus ancien ajout'] as [Filter, string, string]] : []),
-          ['movie', 'Films', 'Films seulement, par ordre de priorité'],
-          ['tv', 'Séries', 'Séries seulement, par ordre de priorité'],
+          ...(view === 'list' ? [['all', 'Tous', 'Tous les titres, du plus récent au plus ancien ajout'] as [Filter, string, string]] : []),
+          ...categoryOptions(categories, (c) => `${c === 'movie' ? 'Films' : c === 'tv' ? 'Séries' : 'Animes'} seulement, par ordre de priorité`),
         ]}
         onChange={setFilter}
       />
@@ -111,7 +113,7 @@ export default function Wishlist() {
         <FilterSheet
           type={listType}
           initial={savedTheme}
-          count={(t) => (wishes ?? []).filter((x) => (!listType || x.type === listType) && matchesTheme(x, listType ? t : { ...t, genre: null })).length}
+          count={(t) => (wishes ?? []).filter((x) => (!listCat || categoryOf(x) === listCat) && matchesTheme(x, listType ? t : { ...t, genre: null })).length}
           applyLabel={(n) => `Appliquer (${n.toLocaleString('fr-FR')} titres)`}
           hasCatalogueData={(wishes ?? []).some((t) => t.rating !== undefined || t.details?.rating)}
           pendingInfo={(wishes ?? []).filter(missingFilterInfo).length}
@@ -138,7 +140,7 @@ function WishActions({ title }: { title: Title }) {
   );
 }
 
-/** Films et séries mélangés, du plus récent ajout au plus ancien. */
+/** Toutes catégories mélangées, du plus récent ajout au plus ancien. */
 function AllWishes({ filter, below }: { filter: ((t: Title) => boolean) | null; below: (t: Title) => ReactNode }) {
   const [query, setQuery] = useState('');
   const items = useLiveQuery(async () => {

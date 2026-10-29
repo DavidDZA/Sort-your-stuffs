@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Title } from '../lib/db';
+import { categoryOf, useCategories } from '../lib/category';
 import { readRanking } from '../lib/ranking';
 import { prefetchDetails, WEEK } from '../lib/tmdb';
 import { readPref, writePref } from '../lib/settings';
@@ -19,12 +20,15 @@ export default function Tonight() {
   const [rolling, setRolling] = useState<Title | null>(null);
   const shown = useRef(new Set<string>());
   const mine = loadMyProviders();
+  const categories = useCategories();
 
   const data = useLiveQuery(async () => {
     const keys = await db.answers.where('status').equals('wish').primaryKeys();
     const titles = (await db.titles.bulkGet(keys)).filter((t): t is Title => !!t);
-    const [movieRank, tvRank] = await Promise.all([readRanking({ type: 'movie', list: 'wish' }), readRanking({ type: 'tv', list: 'wish' })]);
-    return { titles, ranks: { movie: movieRank, tv: tvRank } };
+    const [movie, tv, anime] = await Promise.all(
+      (['movie', 'tv', 'anime'] as const).map((type) => readRanking({ type, list: 'wish' })),
+    );
+    return { titles, ranks: { movie, tv, anime } };
   });
 
   // Plateformes et durées à jour pour filtrer.
@@ -60,7 +64,7 @@ export default function Tonight() {
       pool = candidates;
     }
     const weighted = pool.map((t) => {
-      const rank = data.ranks[t.type];
+      const rank = data.ranks[categoryOf(t)];
       const i = rank.indexOf(t.key);
       return { item: t, w: priorityWeight(i === -1 ? undefined : i, rank.length) };
     });
@@ -93,9 +97,10 @@ export default function Tonight() {
       <TypeFilter<TonightFilters['type']>
         value={filters.type}
         options={[
-          ['all', 'Tout', 'Films et séries'],
+          ['all', 'Tout', 'Toute la wishlist'],
           ['movie', 'Un film', 'Seulement les films'],
           ['tv', 'Une série', 'Seulement les séries'],
+          ...(categories.includes('anime') ? [['anime', 'Un anime', 'Seulement les animes'] as ['anime', string, string]] : []),
         ]}
         onChange={(type) => update({ ...filters, type })}
       />
@@ -105,7 +110,7 @@ export default function Tonight() {
             📺 Sur mes abonnements
           </button>
         )}
-        {filters.type !== 'tv' && (
+        {(filters.type === 'all' || filters.type === 'movie') && (
           <button className={`chip ${filters.short ? 'active' : ''}`} onClick={() => update({ ...filters, short: !filters.short })} title="Films de 2 h maximum">
             ⏱️ Moins de 2 h
           </button>

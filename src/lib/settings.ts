@@ -6,9 +6,10 @@ const VOTES_KEY = 'min-votes';
 export interface MinVotes {
   movie: number;
   tv: number;
+  anime: number;
 }
 
-export const DEFAULT_MIN_VOTES: MinVotes = { movie: 1000, tv: 50 };
+export const DEFAULT_MIN_VOTES: MinVotes = { movie: 1000, tv: 50, anime: 50 };
 
 function read(key: string): string | null {
   try {
@@ -45,10 +46,10 @@ export async function getMinVotes(): Promise<MinVotes> {
 
 export const setMinVotes = (v: MinVotes) => setMeta(VOTES_META, v);
 
-// Inclure les animes (séries d'animation japonaises) au catalogue : synchronisé avec le compte, comme les seuils.
-const ANIME_META = 'include-anime';
-export const getIncludeAnime = () => getMeta<boolean>(ANIME_META, false);
-export const setIncludeAnime = (v: boolean) => setMeta(ANIME_META, v);
+// Afficher la catégorie Animes (tuiles, onglets) : synchronisé avec le compte. Les animes restent au catalogue.
+const SHOW_ANIME_META = 'show-anime';
+export const getShowAnime = () => getMeta<boolean>(SHOW_ANIME_META, true);
+export const setShowAnime = (v: boolean) => setMeta(SHOW_ANIME_META, v);
 
 /** Les seuils étaient dans localStorage avant la synchro par compte : repris une fois dans la base. */
 export async function migrateMinVotes(): Promise<void> {

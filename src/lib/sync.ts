@@ -1,6 +1,7 @@
 import { db, setMeta, type MediaType, type Title } from './db';
-import { EXCLUDED_GENRES, isExcluded, setAnimeIncluded, tmdb, toTitle, type Page } from './tmdb';
-import { getIncludeAnime, type MinVotes } from './settings';
+import { EXCLUDED_GENRES, isAnimeResult, isExcluded, tmdb, toTitle, type Page, type RawResult } from './tmdb';
+import type { MinVotes } from './settings';
+import { forgetCategories } from './category';
 
 const MAX_PAGES = 500; // limite imposée par TMDB sur /discover
 const CONCURRENCY = 6;
@@ -48,8 +49,19 @@ async function runPool(tasks: (() => Promise<void>)[], concurrency: number) {
 
 export type Progress = (message: string) => void;
 
-async function syncType(type: MediaType, minVotes: number, onProgress: Progress, seen: Set<string>): Promise<number> {
-  const label = type === 'movie' ? 'films' : 'séries';
+/**
+ * Récupère un type de titres ; `accept` affine le seuil de votes (séries et animes ont chacun le leur).
+ * Renvoie le nombre de titres gardés, dont les animes.
+ */
+async function syncType(
+  type: MediaType,
+  minVotes: number,
+  onProgress: Progress,
+  seen: Set<string>,
+  accept: (r: RawResult) => boolean = () => true,
+): Promise<{ count: number; anime: number }> {
+  const label = type === 'movie' ? 'films' : 'séries et animes';
+  let anime = 0;
   onProgress(`Préparation des ${label}…`);
   const to = Date.UTC(new Date().getUTCFullYear() + 1, 11, 31);
   const ranges = await splitRanges(type, Date.UTC(1870, 0, 1), to, minVotes);
@@ -57,7 +69,11 @@ async function syncType(type: MediaType, minVotes: number, onProgress: Progress,
   let buffer: Title[] = [];
   let count = 0;
   const keep = (page: Page) => {
-    for (const r of page.results) if (!isExcluded(type, r)) buffer.push(toTitle(type, r));
+    for (const r of page.results) {
+      if (isExcluded(type, r) || !accept(r)) continue;
+      if (type === 'tv' && isAnimeResult(r)) anime++;
+      buffer.push(toTitle(type, r));
+    }
   };
   const flush = async () => {
     const batch = buffer;
@@ -86,7 +102,7 @@ async function syncType(type: MediaType, minVotes: number, onProgress: Progress,
   }
   await runPool(tasks, CONCURRENCY);
   await flush();
-  return count;
+  return { count, anime };
 }
 
 /**
@@ -106,12 +122,13 @@ async function removeMissing(seen: Set<string>): Promise<number> {
  * Télécharge ou met à jour le catalogue. Les titres qui n'en font plus partie sont supprimés,
  * même s'ils avaient une réponse ou une place dans un classement, y compris les ajouts manuels.
  */
-export async function syncCatalogue(minVotes: MinVotes, onProgress: Progress): Promise<{ movie: number; tv: number; removed: number }> {
+export async function syncCatalogue(minVotes: MinVotes, onProgress: Progress): Promise<{ movie: number; tv: number; anime: number; removed: number }> {
   const seen = new Set<string>();
-  setAnimeIncluded(await getIncludeAnime()); // réglage à jour (il a pu changer sur un autre appareil)
-  const movie = await syncType('movie', minVotes.movie, onProgress, seen);
-  const tv = await syncType('tv', minVotes.tv, onProgress, seen);
+  const { count: movie } = await syncType('movie', minVotes.movie, onProgress, seen);
+  // Séries et animes viennent de la même liste TMDB : on demande le plus bas des deux seuils, puis on trie.
+  const series = await syncType('tv', Math.min(minVotes.tv, minVotes.anime), onProgress, seen, (r) => (r.vote_count ?? 0) >= (isAnimeResult(r) ? minVotes.anime : minVotes.tv));
   const removed = await removeMissing(seen);
+  forgetCategories();
   await setMeta('lastSync', Date.now());
-  return { movie, tv, removed };
+  return { movie, tv: series.count - series.anime, anime: series.anime, removed };
 }

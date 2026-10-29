@@ -1,4 +1,8 @@
-import type { MediaType, Title } from './db';
+import type { Title } from './db';
+import { CATEGORY_LABEL, type Category } from './category';
+
+const plural = (c: Category) => CATEGORY_LABEL[c].plural;
+const slug = (c: Category) => plural(c).normalize('NFD').replace(/[̀-ͯ]/g, '');
 import { posterUrl } from './tmdb';
 
 const FONT = '"Fredoka Variable", system-ui, sans-serif';
@@ -28,7 +32,7 @@ function fitText(ctx: CanvasRenderingContext2D, text: string, max: number): stri
 }
 
 /** Dessine une image « Mon top 10 » avec les affiches, puis la partage (ou la télécharge). */
-export async function shareTop(type: MediaType, titles: Title[], filterLabel?: string): Promise<void> {
+export async function shareTop(type: Category, titles: Title[], filterLabel?: string): Promise<void> {
   const top = titles.slice(0, 10);
   await document.fonts.load(`700 64px ${FONT}`).catch(() => undefined);
 
@@ -48,7 +52,7 @@ export async function shareTop(type: MediaType, titles: Title[], filterLabel?: s
   canvas.height = H;
   const ctx = canvas.getContext('2d')!;
   paintBackground(ctx, W, H);
-  paintTitle(ctx, W, `Mon top ${top.length} ${type === 'movie' ? 'films' : 'séries'}`, filterLabel ? `🏆 ${filterLabel}` : '🏆 classé duel après duel');
+  paintTitle(ctx, W, `Mon top ${top.length} ${plural(type)}`, filterLabel ? `🏆 ${filterLabel}` : '🏆 classé duel après duel');
 
   const images = await Promise.all(top.map((t) => loadImage(posterUrl(t.posterPath, 'w342'))));
 
@@ -107,7 +111,7 @@ export async function shareTop(type: MediaType, titles: Title[], filterLabel?: s
   ctx.font = `500 24px ${FONT}`;
   ctx.fillText('Fait avec Sort my stuffs 🍿', W / 2, H - 32);
 
-  await shareCanvas(canvas, `mon-top-${type === 'movie' ? 'films' : 'series'}.png`, `Mon top ${top.length}`);
+  await shareCanvas(canvas, `mon-top-${slug(type)}.png`, `Mon top ${top.length}`);
 }
 
 function paintBackground(ctx: CanvasRenderingContext2D, W: number, H: number) {
@@ -165,7 +169,7 @@ async function shareCanvas(canvas: HTMLCanvasElement, filename: string, title: s
 }
 
 /** Image de la tier list : une rangée colorée par palier, avec les affiches des titres. */
-export async function shareTierList(type: MediaType, tiers: { label: string; color: string; items: Title[] }[], filterLabel?: string): Promise<void> {
+export async function shareTierList(type: Category, tiers: { label: string; color: string; items: Title[] }[], filterLabel?: string): Promise<void> {
   await document.fonts.load(`700 64px ${FONT}`).catch(() => undefined);
   const count = tiers.reduce((s, t) => s + t.items.length, 0);
   const W = 1080;
@@ -184,7 +188,7 @@ export async function shareTierList(type: MediaType, tiers: { label: string; col
   canvas.height = H;
   const ctx = canvas.getContext('2d')!;
   paintBackground(ctx, W, H);
-  paintTitle(ctx, W, `Ma tier list ${type === 'movie' ? 'films' : 'séries'}`, filterLabel ? `🏆 ${count} titres · ${filterLabel}` : `🏆 ${count} titres classés duel après duel`);
+  paintTitle(ctx, W, `Ma tier list ${plural(type)}`, filterLabel ? `🏆 ${count} titres · ${filterLabel}` : `🏆 ${count} titres classés duel après duel`);
 
   const images = await Promise.all(tiers.flatMap((t) => t.items).map((t) => loadImage(posterUrl(t.posterPath, 'w185'))));
   let index = 0;
@@ -224,5 +228,5 @@ export async function shareTierList(type: MediaType, tiers: { label: string; col
   ctx.fillStyle = 'rgba(246,244,255,0.55)';
   ctx.font = `500 24px ${FONT}`;
   ctx.fillText('Fait avec Sort my stuffs 🍿', W / 2, H - 28);
-  await shareCanvas(canvas, `ma-tier-list-${type === 'movie' ? 'films' : 'series'}.png`, 'Ma tier list');
+  await shareCanvas(canvas, `ma-tier-list-${slug(type)}.png`, 'Ma tier list');
 }

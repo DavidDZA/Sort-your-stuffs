@@ -303,6 +303,15 @@ ma situation sur chaque titre et l'ajout direct à ma wishlist.
 
 ---
 
+## 6 bis. Catégorie Animes (29/10/2026)
+
+Troisième catégorie à côté des films et des séries (`src/lib/category.ts`). Pour TMDB un anime reste une série
+(clé `tv:…`) : la catégorie se déduit du titre (genre Animation + langue japonaise). Classements séparés
+(`ranking:anime`, `ranking:wish:anime`) ; `splitAnimeRankings` sort les animes des classements de séries sans perdre
+leur ordre (au démarrage, après chaque synchro et après un import). Seuil de votes propre (`min-votes.anime`) ;
+réglage « Afficher la catégorie Animes » (`show-anime`, synchronisé). Les films d'animation japonais restent des films.
+Règle RLS des amis étendue aux classements anime.
+
 ## 7. Phase 4 — Appli Android
 
 ### 7.1 Options

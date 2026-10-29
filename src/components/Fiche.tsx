@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, TYPE_LABEL, type Provider, type Status, type Title } from '../lib/db';
+import { db, type Provider, type Status, type Title } from '../lib/db';
+import { CATEGORY_LABEL, categoryOf } from '../lib/category';
 import { changeStatus } from '../lib/ranking';
 import { providerLogo, WEEK } from '../lib/tmdb';
 import { groupProviders, isMineGroup, loadMyProviders } from '../lib/providers';
@@ -41,7 +42,7 @@ function Fiche({ title, onClose }: { title: Title; onClose: () => void }) {
   const status = answer?.status;
 
   const facts = [
-    TYPE_LABEL[title.type],
+    CATEGORY_LABEL[categoryOf(title)].badge,
     title.year,
     title.type === 'movie' && d?.runtime ? `${Math.floor(d.runtime / 60)} h ${String(d.runtime % 60).padStart(2, '0')}` : null,
     title.type === 'tv' && d?.seasons ? `${d.seasons} saison${d.seasons > 1 ? 's' : ''}` : null,

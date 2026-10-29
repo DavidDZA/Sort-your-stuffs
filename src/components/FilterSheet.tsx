@@ -43,8 +43,8 @@ export function FilterSheet(props: {
     await requestPersistentStorage();
     try {
       await syncAndWait(); // seuils de votes du compte
-      const { movie, tv } = await syncCatalogue(await getMinVotes(), setSync);
-      setSync(`✓ Catalogue à jour (${(movie + tv).toLocaleString('fr-FR')} titres) : les notes sont là.`);
+      const { movie, tv, anime } = await syncCatalogue(await getMinVotes(), setSync);
+      setSync(`✓ Catalogue à jour (${(movie + tv + anime).toLocaleString('fr-FR')} titres) : les notes sont là.`);
       props.onCatalogueUpdated?.();
     } catch (e) {
       setSync(`✕ ${(e as Error).message}`);

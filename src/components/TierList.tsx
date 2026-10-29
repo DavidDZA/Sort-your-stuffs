@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type MediaType, type Title } from '../lib/db';
+import { db, type Title } from '../lib/db';
+import type { Category } from '../lib/category';
 import { readRanking } from '../lib/ranking';
 import { tierize } from '../lib/tiers';
 import { shareTierList } from '../lib/share';
@@ -10,7 +11,7 @@ import { Poster } from './common';
 import { openFiche } from './Fiche';
 
 /** Classement en paliers S → D, d'après la position de chaque titre. */
-export function TierList({ type, filter = null, filterLabel }: { type: MediaType; filter?: ((t: Title) => boolean) | null; filterLabel?: string }) {
+export function TierList({ type, filter = null, filterLabel }: { type: Category; filter?: ((t: Title) => boolean) | null; filterLabel?: string }) {
   const [sharing, setSharing] = useState(false);
   const titles = useLiveQuery(async () => {
     const keys = await readRanking({ type, list: 'seen' });

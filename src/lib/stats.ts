@@ -1,4 +1,5 @@
-import { db, type MediaType, type Title } from './db';
+import { db, type Title } from './db';
+import { categoryOf, mediaOf, type Category } from './category';
 import { bestStreak, lastDays, loadActivity, streak, todayCount } from './activity';
 import { readRanking } from './ranking';
 import { genreName } from './genres';
@@ -24,6 +25,7 @@ export interface TypeStats {
 export interface Stats {
   movie: TypeStats;
   tv: TypeStats;
+  anime: TypeStats;
   wish: number;
   unseen: number;
   today: number;
@@ -36,20 +38,20 @@ export interface Stats {
   missingDetails: Title[]; // titres vus sans fiche, ou fiche ancienne (pour compléter les stats)
 }
 
-export const TOP_SIZE: Record<MediaType, number> = { movie: 250, tv: 100 };
+export const TOP_SIZE: Record<Category, number> = { movie: 250, tv: 100, anime: 50 };
 
 // Les titres les plus populaires changent peu : calculés une fois par session.
-const topCache = new Map<MediaType, Promise<string[]>>();
-function topKeys(type: MediaType): Promise<string[]> {
+const topCache = new Map<Category, Promise<string[]>>();
+function topKeys(type: Category): Promise<string[]> {
   let p = topCache.get(type);
   if (!p) {
     p = db.titles
       .where('type')
-      .equals(type)
+      .equals(mediaOf(type))
       .toArray()
       .then((all) =>
         all
-          .filter((t) => !t.manual)
+          .filter((t) => !t.manual && categoryOf(t) === type)
           .sort((a, b) => b.voteCount - a.voteCount)
           .slice(0, TOP_SIZE[type])
           .map((t) => t.key),
@@ -74,7 +76,7 @@ function minutesOf(t: Title): number {
   return t.type === 'movie' ? d.runtime : d.runtime * (d.episodes ?? 0);
 }
 
-async function typeStats(type: MediaType, seen: Title[]): Promise<TypeStats> {
+async function typeStats(type: Category, seen: Title[]): Promise<TypeStats> {
   const seenKeys = new Set(seen.map((t) => t.key));
   const top = await topKeys(type);
   const decades = new Map<number, number>();
@@ -86,7 +88,7 @@ async function typeStats(type: MediaType, seen: Title[]): Promise<TypeStats> {
     withDetails: seen.filter((t) => t.details).length,
     decades: [...decades.entries()].sort((a, b) => a[0] - b[0]).map(([d, n]) => ({ label: d < 2000 ? `${String(d).slice(2)}s` : `${d}s`, count: n })),
     genres: count(
-      seen.flatMap((t) => (t.genreIds?.length ? t.genreIds.map((g) => genreName(type, g)).filter(Boolean) : (t.details?.genres ?? []))),
+      seen.flatMap((t) => (t.genreIds?.length ? t.genreIds.map((g) => genreName(mediaOf(type), g)).filter(Boolean) : (t.details?.genres ?? []))),
       8,
     ),
     people: count(
@@ -111,10 +113,9 @@ export async function computeStats(): Promise<Stats> {
   const seenAnswers = answers.filter((a) => a.status === 'seen');
   const seenTitles = (await db.titles.bulkGet(seenAnswers.map((a) => a.key))).filter((t): t is Title => !!t);
   const seenKeys = new Set(seenTitles.map((t) => t.key));
-  const [movie, tv] = await Promise.all([
-    typeStats('movie', seenTitles.filter((t) => t.type === 'movie')),
-    typeStats('tv', seenTitles.filter((t) => t.type === 'tv')),
-  ]);
+  const [movie, tv, anime] = await Promise.all(
+    (['movie', 'tv', 'anime'] as const).map((c) => typeStats(c, seenTitles.filter((t) => categoryOf(t) === c))),
+  );
 
   const sagas = sagaRows
     .map((r) => r.value as { name: string; keys: string[] })
@@ -124,6 +125,7 @@ export async function computeStats(): Promise<Stats> {
   return {
     movie,
     tv,
+    anime,
     wish: answers.filter((a) => a.status === 'wish').length,
     unseen: answers.filter((a) => a.status === 'unseen').length,
     today: todayCount(activity),

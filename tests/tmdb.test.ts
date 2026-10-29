@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filmography, isAnimeTitle, isExcluded, parseDetails, pickTrailer, toTitle, type CreditItem, type RawResult } from '../src/lib/tmdb';
+import { filmography, isAnimeResult, isExcluded, parseDetails, pickTrailer, toTitle, type CreditItem, type RawResult } from '../src/lib/tmdb';
 
 const raw = (extra: Partial<RawResult>): RawResult => ({ id: 1, poster_path: null, ...extra });
 
@@ -14,23 +14,18 @@ describe('exclusions', () => {
     expect(isExcluded('movie', raw({ genre_ids: [16], original_language: 'ja' }))).toBe(false);
   });
 
-  it('exclut les animes et dessins animés jeunesse, garde les séries animées adultes', () => {
-    expect(isExcluded('tv', raw({ genre_ids: [16], original_language: 'ja' }))).toBe(true);
-    expect(isExcluded('tv', raw({ genre_ids: [16], origin_country: ['JP'] }))).toBe(true);
+  it('garde les animes et les séries animées adultes, exclut les dessins animés jeunesse', () => {
+    expect(isExcluded('tv', raw({ genre_ids: [16], original_language: 'ja' }))).toBe(false);
+    expect(isExcluded('tv', raw({ genre_ids: [16], origin_country: ['JP'] }))).toBe(false);
+    expect(isExcluded('tv', raw({ genre_ids: [16, 10762], original_language: 'ja' }))).toBe(true);
     expect(isExcluded('tv', raw({ genre_ids: [16, 10762], original_language: 'en' }))).toBe(true);
     expect(isExcluded('tv', raw({ genre_ids: [16, 35], original_language: 'en' }))).toBe(false); // Les Simpson
   });
 
-  it('inclut les animes quand le réglage est activé, jamais les dessins animés jeunesse', () => {
-    expect(isExcluded('tv', raw({ genre_ids: [16], original_language: 'ja' }), true)).toBe(false);
-    expect(isExcluded('tv', raw({ genre_ids: [16], origin_country: ['JP'] }), true)).toBe(false);
-    expect(isExcluded('tv', raw({ genre_ids: [16, 10762], original_language: 'ja' }), true)).toBe(true);
-  });
-
-  it('reconnaît un anime déjà dans la base', () => {
-    expect(isAnimeTitle(toTitle('tv', raw({ genre_ids: [16, 10759], original_language: 'ja' })))).toBe(true);
-    expect(isAnimeTitle(toTitle('movie', raw({ genre_ids: [16], original_language: 'ja' })))).toBe(false);
-    expect(isAnimeTitle(toTitle('tv', raw({ genre_ids: [16], original_language: 'en' })))).toBe(false);
+  it('reconnaît un anime dans une réponse TMDB', () => {
+    expect(isAnimeResult(raw({ genre_ids: [16, 10759], original_language: 'ja' }))).toBe(true);
+    expect(isAnimeResult(raw({ genre_ids: [16], origin_country: ['JP'] }))).toBe(true);
+    expect(isAnimeResult(raw({ genre_ids: [16], original_language: 'en' }))).toBe(false);
   });
 
   it('exclut télé-réalité, talk-shows et infos', () => {

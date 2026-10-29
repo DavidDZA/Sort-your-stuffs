@@ -287,7 +287,7 @@ create policy "meta : classements partagés par mes amis" on public.user_meta
   for select to authenticated using (
     not deleted
     and (
-      (key in ('ranking:wish:movie', 'ranking:wish:tv') and public.friend_shares(user_id, 'wishlist'))
-      or (key in ('ranking:movie', 'ranking:tv') and public.friend_shares(user_id, 'ranking'))
+      (key in ('ranking:wish:movie', 'ranking:wish:tv', 'ranking:wish:anime') and public.friend_shares(user_id, 'wishlist'))
+      or (key in ('ranking:movie', 'ranking:tv', 'ranking:anime') and public.friend_shares(user_id, 'ranking'))
     )
   );

@@ -3,6 +3,9 @@ import { advice, commonWishlist, compatibility, type Side } from '../src/lib/tog
 import { plan } from '../src/lib/cloudMerge';
 import type { Status, Tier } from '../src/lib/db';
 
+// Dans ces tests, toutes les clés « movie:… » sont des films.
+const catOf = (key: string) => (key.startsWith('movie:') ? ('movie' as const) : undefined);
+
 const m = (id: number) => `movie:${id}`;
 
 function side(answers: [number, Status, Tier?][], rankings: Record<string, number[]> = {}): Side {
@@ -17,7 +20,7 @@ describe('wishlist commune', () => {
     const me = side([[1, 'wish'], [2, 'wish'], [3, 'wish'], [4, 'seen']], { 'wish:movie': [3, 2, 1] });
     const them = side([[1, 'wish'], [2, 'wish'], [3, 'wish'], [4, 'wish']], { 'wish:movie': [3, 1] });
     // 3 : n°1 des deux ; 2 : mon milieu, non priorisé chez lui (= milieu) ; 1 : dernier des deux.
-    expect(commonWishlist(me, them, 'movie').map((w) => [w.key, w.mine, w.theirs])).toEqual([
+    expect(commonWishlist(me, them, 'movie', catOf).map((w) => [w.key, w.mine, w.theirs])).toEqual([
       [m(3), 1, 1],
       [m(2), 2, undefined],
       [m(1), 3, 2],
@@ -26,7 +29,7 @@ describe('wishlist commune', () => {
 
   it('ne mélange pas films et séries', () => {
     const me = side([[1, 'wish']]);
-    expect(commonWishlist(me, me, 'tv')).toEqual([]);
+    expect(commonWishlist(me, me, 'tv', catOf)).toEqual([]);
   });
 });
 
@@ -37,7 +40,7 @@ describe('conseils', () => {
       { movie: [2, 1, 3, 4, 5, 6] },
     );
     const me = side([[6, 'seen'], [7, 'unseen'], [1, 'wish']]);
-    const list = advice(them, me, 'movie');
+    const list = advice(them, me, 'movie', catOf);
     // 2 : n°1 sans avis ; 1 : « bien » et dans ma wishlist. 3, 4, 5 : bas du classement sans « bien ». 6 vu, 7 refusé.
     expect(list.map((a) => [a.key, a.rank, a.good, a.inWishlist])).toEqual([
       [m(2), 1, false, false],

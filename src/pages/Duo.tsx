@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { db, type MediaType, type Title } from '../lib/db';
+import { db, type Title } from '../lib/db';
+import { CATEGORY_LABEL, categoryOf, categoryOptions, useCategories, type Category } from '../lib/category';
 import { changeStatus } from '../lib/ranking';
 import { useCloud } from '../lib/cloud';
 import { listFriends, loadFriendData, loadMySide, type Friend, type FriendData } from '../lib/friends';
@@ -19,6 +20,8 @@ interface Loaded {
   me: Side;
   them: FriendData;
   titles: Map<string, Title>;
+  /** Catégorie d'une clé, d'après les titres connus. */
+  catOf: (key: string) => Category | undefined;
 }
 
 /** « À deux » avec un ami : wishlist commune, tirage du soir, conseils croisés, compatibilité des classements. */
@@ -26,7 +29,8 @@ export default function Duo({ friendId }: { friendId: string }) {
   const cloud = useCloud();
   const [data, setData] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [type, setType] = useState<MediaType>('movie');
+  const [type, setType] = useState<Category>('movie');
+  const categories = useCategories();
   const [tab, setTab] = useState<Tab>('top');
 
   const load = async (fresh = false) => {
@@ -38,7 +42,11 @@ export default function Duo({ friendId }: { friendId: string }) {
       const keys = [...new Set([...them.answers.keys(), ...me.answers.keys()])];
       const titles = new Map(them.titles);
       (await db.titles.bulkGet(keys)).forEach((t) => t && titles.set(t.key, t));
-      setData({ friend, me, them, titles });
+      const catOf = (key: string) => {
+        const t = titles.get(key);
+        return t && categoryOf(t);
+      };
+      setData({ friend, me, them, titles, catOf });
       setError(null);
     } catch (e) {
       setError((e as Error).message);
@@ -90,12 +98,9 @@ export default function Duo({ friendId }: { friendId: string }) {
             ]}
             onChange={setTab}
           />
-          <TypeFilter<MediaType>
+          <TypeFilter<Category>
             value={type}
-            options={[
-              ['movie', 'Films', 'Les films'],
-              ['tv', 'Séries', 'Les séries'],
-            ]}
+            options={categoryOptions(categories, (c) => `Les ${CATEGORY_LABEL[c].plural}`)}
             onChange={setType}
           />
           {tab === 'top' && <FriendTop key={type} data={data} type={type} onWish={refreshMe} />}
@@ -124,7 +129,7 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 const PAGE = 100;
 
 /** Où j'en suis avec un titre de l'ami : classé, vu, dans ma wishlist, pas envie. */
-function myStatus(me: Side, key: string, type: MediaType): string | null {
+function myStatus(me: Side, key: string, type: Category): string | null {
   const a = me.answers.get(key);
   if (!a) return null;
   if (a.status === 'wish') return 'Toi : 💖 dans ta wishlist';
@@ -134,14 +139,14 @@ function myStatus(me: Side, key: string, type: MediaType): string | null {
 }
 
 /** Tout le classement de l'ami, puis ses titres vus pas encore classés ; ma situation sur chacun. */
-function FriendTop({ data, type, onWish }: { data: Loaded; type: MediaType; onWish: () => void }) {
+function FriendTop({ data, type, onWish }: { data: Loaded; type: Category; onWish: () => void }) {
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
   const pseudo = data.friend.pseudo;
   const ranking = data.them.rankings[type] ?? [];
   const ranked = new Set(ranking);
   const unranked = [...data.them.answers]
-    .filter(([key, a]) => a.status === 'seen' && key.startsWith(`${type}:`) && !ranked.has(key))
+    .filter(([key, a]) => a.status === 'seen' && data.catOf(key) === type && !ranked.has(key))
     .map(([key]) => data.titles.get(key))
     .filter((t): t is Title => !!t)
     .sort((a, b) => a.title.localeCompare(b.title, 'fr'));
@@ -152,7 +157,7 @@ function FriendTop({ data, type, onWish }: { data: Loaded; type: MediaType; onWi
     .filter((x): x is { t: Title; rank: number } => !!x.t && matchesSearch(x.t, query));
   const others = unranked.filter((t) => matchesSearch(t, query));
   if (!ranking.length && !unranked.length) {
-    return <p className="muted center">{pseudo} n’a pas encore de {type === 'movie' ? 'film' : 'série'} vu{type === 'tv' ? 'e' : ''}.</p>;
+    return <p className="muted center">Rien de vu chez {pseudo} dans les {CATEGORY_LABEL[type].plural} pour l’instant.</p>;
   }
 
   const addToWishlist = async (t: Title) => {
@@ -209,11 +214,11 @@ function FriendTop({ data, type, onWish }: { data: Loaded; type: MediaType; onWi
   );
 }
 
-function CommonWishlist({ data, type }: { data: Loaded; type: MediaType }) {
-  const list = useMemo(() => commonWishlist(data.me, data.them, type), [data, type]);
+function CommonWishlist({ data, type }: { data: Loaded; type: Category }) {
+  const list = useMemo(() => commonWishlist(data.me, data.them, type, data.catOf), [data, type]);
   const pseudo = data.friend.pseudo;
   if (!data.friend.shareWishlist) return <NeedsSharing pseudo={pseudo} what="sa wishlist" />;
-  if (!list.length) return <p className="muted center">Aucun {type === 'movie' ? 'film' : 'série'} dans vos deux wishlists pour l’instant.</p>;
+  if (!list.length) return <p className="muted center">Aucun{type === 'tv' ? 'e' : ''} {CATEGORY_LABEL[type].one} dans vos deux wishlists pour l’instant.</p>;
   return (
     <>
       <p className="muted small center">
@@ -244,11 +249,11 @@ function CommonWishlist({ data, type }: { data: Loaded; type: MediaType }) {
   );
 }
 
-function TonightDuo({ data, type }: { data: Loaded; type: MediaType }) {
+function TonightDuo({ data, type }: { data: Loaded; type: Category }) {
   const [mineOnly, setMineOnly] = useState(false);
   const [picked, setPicked] = useState<Title | null>(null);
   const mine = loadMyProviders();
-  const list = useMemo(() => commonWishlist(data.me, data.them, type), [data, type]);
+  const list = useMemo(() => commonWishlist(data.me, data.them, type, data.catOf), [data, type]);
   const titles = list.map((w) => data.titles.get(w.key)).filter((t): t is Title => !!t);
 
   // Plateformes à jour pour le filtre « sur mes abonnements ».
@@ -312,10 +317,10 @@ function TonightDuo({ data, type }: { data: Loaded; type: MediaType }) {
   );
 }
 
-function AdviceLists({ data, type, onWish }: { data: Loaded; type: MediaType; onWish: () => void }) {
+function AdviceLists({ data, type, onWish }: { data: Loaded; type: Category; onWish: () => void }) {
   const pseudo = data.friend.pseudo;
-  const forMe = useMemo(() => advice(data.them, data.me, type), [data, type]);
-  const forThem = useMemo(() => advice(data.me, data.them, type), [data, type]);
+  const forMe = useMemo(() => advice(data.them, data.me, type, data.catOf), [data, type]);
+  const forThem = useMemo(() => advice(data.me, data.them, type, data.catOf), [data, type]);
   if (!data.friend.shareRanking) return <NeedsSharing pseudo={pseudo} what="ses titres vus" />;
 
   const addToWishlist = async (t: Title) => {
@@ -385,14 +390,14 @@ function verdict(p: number): string {
   return 'Goûts opposés : de beaux débats en perspective !';
 }
 
-function MatchView({ data, type }: { data: Loaded; type: MediaType }) {
+function MatchView({ data, type }: { data: Loaded; type: Category }) {
   const pseudo = data.friend.pseudo;
   const match = useMemo(() => compatibility(data.me, data.them, type), [data, type]);
   if (!data.friend.shareRanking) return <NeedsSharing pseudo={pseudo} what="son classement" />;
   if (!match) {
     return (
       <p className="muted center">
-        Pas assez de {type === 'movie' ? 'films' : 'séries'} classés par vous deux (il en faut au moins 5 en commun). Continuez les duels !
+        Pas assez de {CATEGORY_LABEL[type].plural} classé{type === 'tv' ? 'e' : ''}s par vous deux (il en faut au moins 5 en commun). Continuez les duels !
       </p>
     );
   }
@@ -410,7 +415,7 @@ function MatchView({ data, type }: { data: Loaded; type: MediaType }) {
         <p className="duo-percent">{match.percent} %</p>
         <p>{verdict(match.percent)}</p>
         <p className="muted small">
-          Sur {match.common} {type === 'movie' ? 'films' : 'séries'} classés par vous deux.
+          Sur {match.common} {CATEGORY_LABEL[type].plural} classé{type === 'tv' ? 'e' : ''}s par vous deux.
         </p>
       </section>
       {match.agree.length > 0 && (

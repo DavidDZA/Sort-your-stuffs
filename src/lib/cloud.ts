@@ -3,6 +3,7 @@ import Dexie from 'dexie';
 import type { Session } from '@supabase/supabase-js';
 import { clearChoices, db, isUserMeta, type MediaType, type Status, type Tier, type Title } from './db';
 import { hashOf, plan, type Row } from './cloudMerge';
+import { splitAnimeRankings } from './ranking';
 import { supabase } from './supabase';
 import { toast } from './fun';
 
@@ -130,6 +131,8 @@ export async function syncWith(remote: Remote, userId: string): Promise<void> {
     }
     if (cursor) await writeState(`cursor:${table}`, cursor);
   }
+  // Un appareil pas encore à jour a pu remettre des animes dans un classement de séries.
+  await splitAnimeRankings();
 }
 
 // ---------------------------------------------------------------------------

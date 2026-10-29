@@ -4,18 +4,18 @@ import { registerSW } from 'virtual:pwa-register';
 import '@fontsource-variable/fredoka';
 import App from './App';
 import { startCloud } from './lib/cloud';
-import { liveQuery } from 'dexie';
-import { getIncludeAnime, migrateMinVotes } from './lib/settings';
-import { setAnimeIncluded } from './lib/tmdb';
+import { migrateMinVotes } from './lib/settings';
+import { splitAnimeRankings } from './lib/ranking';
 import './styles/index.css';
 
 registerSW({ immediate: true });
-migrateMinVotes().finally(startCloud);
-// Réglage « Inclure les animes », suivi en direct (modifié ici ou reçu d'un autre appareil).
-liveQuery(getIncludeAnime).subscribe({ next: setAnimeIncluded, error: () => undefined });
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+// Avant l'affichage : seuils repris de l'ancien stockage, animes sortis des classements de séries.
+Promise.allSettled([migrateMinVotes(), splitAnimeRankings()]).finally(() => {
+  startCloud();
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+});

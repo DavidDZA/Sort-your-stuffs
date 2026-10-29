@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import type { MediaType } from './lib/db';
+import { asCategory } from './lib/category';
 import { checkBadges, checkBadgesSoon } from './lib/badges';
 import { FicheHost } from './components/Fiche';
 import { Toaster } from './components/Toaster';
@@ -26,14 +26,13 @@ function useRoute(): string[] {
   return hash.replace(/^#\/?/, '').split('/');
 }
 
-const asType = (s: string | undefined): MediaType => (s === 'tv' ? 'tv' : 'movie');
 
 function page(name: string, arg: string | undefined): ReactNode {
   switch (name) {
     case 'swipe':
-      return <Swipe key={arg} type={asType(arg)} />;
+      return <Swipe key={arg} type={asCategory(arg)} />;
     case 'rank':
-      return <Rank key={arg} type={asType(arg)} />;
+      return <Rank key={arg} type={asCategory(arg)} />;
     case 'add':
       return <AddManual />;
     case 'wishlist':

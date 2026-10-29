@@ -1,3 +1,4 @@
+import { splitAnimeRankings } from './ranking';
 import { db, isUserMeta, setMeta, type Answer, type Meta, type Title } from './db';
 
 interface Backup {
@@ -37,5 +38,6 @@ export async function importData(file: File): Promise<number> {
     await db.answers.bulkPut(backup.answers);
     await db.meta.bulkPut(backup.meta.map((m) => ({ ...m, updatedAt: Date.now() }))); // restaurés = modifiés maintenant
   });
+  await splitAnimeRankings(); // sauvegarde d'avant la catégorie Animes
   return backup.answers.length;
 }

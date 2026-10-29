@@ -183,7 +183,7 @@ describe('seuils de votes', () => {
     try {
       expect(await getMinVotes()).toEqual(DEFAULT_MIN_VOTES);
       await migrateMinVotes();
-      expect(await getMinVotes()).toEqual({ movie: 150, tv: 50 });
+      expect(await getMinVotes()).toEqual({ movie: 150, tv: 50, anime: 50 });
       expect(store.has('min-votes')).toBe(false);
 
       const remote = fakeRemote();
@@ -191,7 +191,7 @@ describe('seuils de votes', () => {
       await restore([[], [], [], []]); // autre appareil
       expect(await getMinVotes()).toEqual(DEFAULT_MIN_VOTES);
       await syncWith(remote, USER);
-      expect(await getMinVotes()).toEqual({ movie: 150, tv: 50 });
+      expect(await getMinVotes()).toEqual({ movie: 150, tv: 50, anime: 50 });
     } finally {
       delete (globalThis as { localStorage?: Storage }).localStorage;
     }

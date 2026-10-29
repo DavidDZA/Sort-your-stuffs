@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, TYPE_LABEL, type Answer, type Tier, type Title } from '../lib/db';
+import { db, type Answer, type Tier, type Title } from '../lib/db';
+import { CATEGORY_LABEL, categoryOf } from '../lib/category';
 import { changeStatus } from '../lib/ranking';
 import { boostFrom } from '../lib/recommend';
 import { ensureDetails, posterUrl, profileUrl, providerLogo } from '../lib/tmdb';
@@ -45,7 +46,7 @@ export function TitleText({ title, showType = false, credits = false }: { title:
       <div className="title-main">{title.title}</div>
       {title.originalTitle && title.originalTitle !== title.title && <div className="title-original">{title.originalTitle}</div>}
       <div className="title-meta">
-        {showType && <span className="badge">{TYPE_LABEL[title.type]}</span>}
+        {showType && <span className="badge">{CATEGORY_LABEL[categoryOf(title)].badge}</span>}
         {title.year ?? ''}
       </div>
       {credits && <CreditsLines title={title} />}
