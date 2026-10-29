@@ -81,6 +81,11 @@ export default function Home() {
           <h1>Sort my stuffs</h1>
           <p className="tagline">{tagline}</p>
         </div>
+        {cloud.user && (
+          <a className="icon-btn" href="#/friends" aria-label="Amis" title="Amis : wishlist commune, conseils, compatibilité">
+            👥
+          </a>
+        )}
         <a className="icon-btn" href="#/settings" aria-label="Réglages" title="Réglages : clé TMDB, abonnements, catalogue, sauvegarde">
           ⚙️
         </a>

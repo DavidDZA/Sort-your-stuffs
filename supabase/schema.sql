@@ -1,6 +1,5 @@
--- Sort my stuffs — schéma Supabase, phase 1 (comptes et synchro).
--- À coller dans Supabase : SQL Editor → New query → Run. Peut être relancé sans risque.
--- Les amis (phase 2) ajouteront la table friendships et les règles de lecture entre amis.
+-- Sort my stuffs — schéma Supabase : comptes et synchro (phase 1), amis (phase 2).
+-- À coller en entier dans Supabase : SQL Editor → New query → Run. Peut être relancé sans risque.
 
 -- ---------------------------------------------------------------------------
 -- Profil public minimal
@@ -151,3 +150,144 @@ create policy "réponses : les siennes" on public.answers
 drop policy if exists "meta : les siennes" on public.user_meta;
 create policy "meta : les siennes" on public.user_meta
   for all to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+
+-- ===========================================================================
+-- Phase 2 : amis
+-- ===========================================================================
+
+-- Une ligne par paire d'amis (user_a < user_b), créée quand l'un utilise le code ami de l'autre :
+-- partager son code (ou son lien d'invitation) vaut accord. Chacun peut retirer l'autre.
+create table if not exists public.friendships (
+  user_a uuid not null references auth.users on delete cascade,
+  user_b uuid not null references auth.users on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_a, user_b),
+  check (user_a < user_b)
+);
+create index if not exists friendships_b_idx on public.friendships (user_b);
+
+alter table public.friendships enable row level security;
+revoke all on public.friendships from anon;
+grant select, delete on public.friendships to authenticated;
+
+drop policy if exists "amitiés : les miennes" on public.friendships;
+create policy "amitiés : les miennes" on public.friendships
+  for select to authenticated using ((select auth.uid()) in (user_a, user_b));
+
+drop policy if exists "amitiés : retirer un ami" on public.friendships;
+create policy "amitiés : retirer un ami" on public.friendships
+  for delete to authenticated using ((select auth.uid()) in (user_a, user_b));
+
+-- « other » est-il mon ami ?
+create or replace function public.is_friend(other uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.friendships f
+    where f.user_a = least(other, auth.uid()) and f.user_b = greatest(other, auth.uid())
+  );
+$$;
+
+-- « owner » est mon ami et partage « what » (« wishlist » ou « ranking » : titres vus et classement).
+create or replace function public.friend_shares(owner uuid, what text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select public.is_friend(owner) and exists (
+    select 1 from public.profiles p
+    where p.id = owner
+      and case what when 'wishlist' then p.share_wishlist when 'ranking' then p.share_ranking else false end
+  );
+$$;
+
+-- Ajouter un ami avec son code ; renvoie son pseudo.
+create or replace function public.add_friend(code text)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  other uuid;
+  name text;
+begin
+  if auth.uid() is null then
+    raise exception 'not_authenticated';
+  end if;
+  select p.id, p.pseudo into other, name from public.profiles p where p.friend_code = upper(trim(code));
+  if other is null then
+    raise exception 'unknown_code';
+  end if;
+  if other = auth.uid() then
+    raise exception 'own_code';
+  end if;
+  insert into public.friendships (user_a, user_b)
+  values (least(other, auth.uid()), greatest(other, auth.uid()))
+  on conflict do nothing;
+  return name;
+end;
+$$;
+
+-- Pseudo du propriétaire d'un code (aperçu d'une invitation avant de l'accepter).
+create or replace function public.find_friend_code(code text)
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p.pseudo from public.profiles p where auth.uid() is not null and p.friend_code = upper(trim(code));
+$$;
+
+-- Nouveau code ami (l'ancien ne marche plus ; les amis déjà ajoutés le restent).
+create or replace function public.new_friend_code()
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  c text := upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8));
+begin
+  update public.profiles set friend_code = c where id = auth.uid();
+  return c;
+end;
+$$;
+
+revoke all on function public.is_friend(uuid), public.friend_shares(uuid, text), public.add_friend(text),
+  public.find_friend_code(text), public.new_friend_code() from public, anon;
+grant execute on function public.is_friend(uuid), public.friend_shares(uuid, text), public.add_friend(text),
+  public.find_friend_code(text), public.new_friend_code() to authenticated;
+
+-- Lecture chez un ami, en lecture seule et selon ce qu'il partage :
+-- pseudo et réglages de partage, wishlist (+ son ordre de priorité), titres vus (+ classement).
+drop policy if exists "profil : lecture de mes amis" on public.profiles;
+create policy "profil : lecture de mes amis" on public.profiles
+  for select to authenticated using (public.is_friend(id));
+
+drop policy if exists "réponses : partagées par mes amis" on public.answers;
+create policy "réponses : partagées par mes amis" on public.answers
+  for select to authenticated using (
+    not deleted
+    and (
+      (status = 'wish' and public.friend_shares(user_id, 'wishlist'))
+      or (status = 'seen' and public.friend_shares(user_id, 'ranking'))
+    )
+  );
+
+drop policy if exists "meta : classements partagés par mes amis" on public.user_meta;
+create policy "meta : classements partagés par mes amis" on public.user_meta
+  for select to authenticated using (
+    not deleted
+    and (
+      (key in ('ranking:wish:movie', 'ranking:wish:tv') and public.friend_shares(user_id, 'wishlist'))
+      or (key in ('ranking:movie', 'ranking:tv') and public.friend_shares(user_id, 'ranking'))
+    )
+  );

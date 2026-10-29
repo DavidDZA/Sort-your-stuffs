@@ -177,6 +177,13 @@ h3,
 .link {
   color: var(--cyan);
 }
+button.link {
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
 .big-emoji {
   font-size: 3.6rem;

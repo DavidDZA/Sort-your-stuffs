@@ -113,10 +113,3 @@
   flex-direction: column;
   gap: 8px;
 }
-.auth-links .link {
-  background: none;
-  border: none;
-  padding: 0;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}

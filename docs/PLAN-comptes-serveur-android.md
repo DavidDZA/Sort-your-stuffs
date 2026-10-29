@@ -2,7 +2,7 @@
 
 > **À lire en premier par toute nouvelle session de travail.** Ce document est autonome : il décrit l'appli
 > telle qu'elle existe, les conventions du projet, puis le plan des prochaines évolutions, étape par étape.
-> État au 29/10/2026 : **phase 1 implémentée** (comptes e-mail / Google, synchro). Phases 2 à 5 à faire.
+> État au 29/10/2026 : **phases 1 à 3 implémentées** (comptes e-mail / Google, synchro, amis, « À deux »). Phases 4 et 5 à faire.
 
 ---
 
@@ -267,6 +267,13 @@ un module `src/lib/cloud.ts` synchronise en arrière-plan.
 
 **Effort : moyen.**
 
+**Réalisé (29/10/2026)** : `src/pages/Friends.tsx`, `src/lib/friends.ts`, SQL dans `supabase/schema.sql`.
+- Pas de demande en attente : utiliser le code (ou le lien `#/invite/<code>`) d'un ami crée l'amitié tout de suite
+  (partager son code vaut accord) ; « Nouveau code » si un code a trop circulé ; chacun peut retirer l'autre.
+- Partage (D2) simplifié en deux réglages : `share_wishlist` (wishlist + priorités) et `share_ranking` (titres
+  vus, avis, classement). Les « pas vu / pas envie » ne sont jamais partagés ; `share_seen` n'est pas utilisé.
+- La synchro filtre sur `user_id` (les règles RLS laissent aussi lire ce que partagent les amis).
+
 ---
 
 ## 6. Phase 3 — Comparer deux comptes
@@ -287,6 +294,11 @@ Calculs côté appli (deux listes de quelques milliers de clés : instantané), 
 Logique pure → tests Vitest.
 
 **Effort : moyen.**
+
+**Réalisé (29/10/2026)** : `src/pages/Duo.tsx` (`#/duo/<id ami>`), logique pure dans `src/lib/together.ts`
+(testée). Données de l'ami lues à la demande (cache mémoire 5 min). « Ce soir à deux » filtre seulement sur
+mes abonnements (ceux de l'ami restent sur son appareil). Compatibilité : tau de Kendall sur les titres classés
+par les deux (5 minimum).
 
 ---
 

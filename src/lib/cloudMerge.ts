@@ -105,7 +105,8 @@ export function plan(local: Map<string, Row>, shadow: Map<string, string>, remot
       const row = { id: r.id, data: merged, at: now };
       apply.push(row);
       changed.set(r.id, row);
-    } else if (r.at > mine.at) {
+    } else if (r.at >= mine.at) {
+      // À égalité (anciennes lignes sans date), le compte gagne : le premier appareil connecté fait référence.
       apply.push(r);
       changed.delete(r.id);
       shadowNext.set(r.id, theirs ?? null);

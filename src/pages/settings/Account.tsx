@@ -186,6 +186,9 @@ function SignedIn({ cloud }: { cloud: CloudState }) {
         {cloud.syncing ? '🔄 Synchronisation…' : cloud.error ? `✕ ${cloud.error}` : cloud.lastSync ? `✓ À jour · ${ago(cloud.lastSync)}` : '🔄 En attente de synchronisation…'}
       </p>
       <div className="row">
+        <a className="btn small primary" href="#/friends" title="Ajouter des amis, comparer vos wishlists et vos classements">
+          👥 Mes amis
+        </a>
         <button className="btn small" onClick={syncNow} disabled={cloud.syncing} title="Envoyer et recevoir les dernières modifications maintenant">
           Synchroniser maintenant
         </button>

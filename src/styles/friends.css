@@ -1,0 +1,69 @@
+/* ---------- Amis et « À deux » ---------- */
+
+.friend-code {
+  font-family: var(--display);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-align: center;
+  user-select: all;
+}
+.code-input {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  font-family: var(--display);
+  letter-spacing: 0.12em;
+}
+.invitation {
+  border-color: rgb(139 124 255 / 0.6);
+  box-shadow: 0 0 24px rgb(139 124 255 / 0.2);
+}
+
+.friend-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.friend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.friend-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.duo-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.duo-section h3 {
+  margin: 8px 0 0;
+  font-weight: 600;
+}
+.duo-match {
+  align-items: center;
+  text-align: center;
+}
+.duo-percent {
+  font-family: var(--display);
+  font-size: 3.4rem;
+  font-weight: 700;
+  line-height: 1;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

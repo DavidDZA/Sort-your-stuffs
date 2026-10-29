@@ -29,6 +29,8 @@ Exclus : documentaires, courts métrages (< 40 min), émissions (télé-réalit�
   L'adresse du projet et sa clé publique sont injectées au build (secrets `SUPABASE_URL` et
   `SUPABASE_PUBLISHABLE_KEY`) ; en local, les mettre dans `.env.local` (`VITE_SUPABASE_URL`,
   `VITE_SUPABASE_PUBLISHABLE_KEY`). Sans elles, l'appli fonctionne sans compte.
+- **Amis** (avec un compte) : ajout par code ou lien d'invitation, puis page « À deux » : wishlist commune,
+  tirage du soir, conseils croisés, compatibilité des classements. Chacun choisit ce qu'il partage.
 - La clé TMDB n'est jamais dans le code : elle est injectée au déploiement depuis le secret GitHub `TMDB_TOKEN`
   (Settings → Secrets and variables → Actions). Une autre clé peut être saisie dans les réglages (prioritaire).
   En local, sans secret, il faut la saisir dans les réglages.
@@ -54,6 +56,7 @@ src/
     tmdb.ts            API TMDB : catalogue, fiches, sagas, plateformes
     sync.ts            téléchargement / mise à jour du catalogue
     cloud.ts cloudMerge.ts supabase.ts   compte et synchro (fusion pure dans cloudMerge.ts)
+    friends.ts together.ts   amis, comparaison entre deux comptes (logique pure dans together.ts)
     ranking.ts         classement par insertion dichotomique, vérifications
     stats.ts badges.ts activity.ts   statistiques, badges, séries de jours
     themes.ts tonight.ts recommend.ts tiers.ts   thèmes de swipe, tirage du soir,

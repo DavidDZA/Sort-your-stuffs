@@ -149,7 +149,8 @@ function supabaseRemote(userId: string): Remote {
       const rows: Row[] = [];
       let cursor = since;
       for (let offset = 0; ; offset += PAGE) {
-        let q = sb.from(table).select(columns).order('updated_at').order('key');
+        // Filtre indispensable : les règles d'accès laissent aussi lire ce que les amis partagent.
+        let q = sb.from(table).select(columns).eq('user_id', userId).order('updated_at').order('key');
         if (from) q = q.gt('updated_at', from);
         const { data, error } = await q.range(offset, offset + PAGE - 1);
         if (error) throw error;
@@ -224,6 +225,8 @@ export function frError(e: unknown): string {
     [/rate limit|too many requests/i, 'Trop de tentatives : réessaie dans quelques minutes.'],
     [/failed to fetch|network/i, 'Pas de connexion au serveur.'],
     [/same password|different from the old/i, 'Choisis un mot de passe différent de l’ancien.'],
+    [/unknown_code/, 'Code ami inconnu : vérifie les 8 caractères.'],
+    [/own_code/, 'C’est ton propre code ami !'],
   ];
   return known.find(([re]) => re.test(msg))?.[1] ?? msg;
 }
@@ -285,7 +288,7 @@ export async function syncAndWait(): Promise<void> {
 }
 
 const RETURN_KEY = 'cloud-return';
-const siteUrl = () => `${location.origin}${import.meta.env.BASE_URL}`;
+export const siteUrl = () => `${location.origin}${import.meta.env.BASE_URL}`;
 
 async function loadPseudo(userId: string) {
   const { data } = await supabase!.from('profiles').select('pseudo').eq('id', userId).maybeSingle();

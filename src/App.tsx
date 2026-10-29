@@ -12,6 +12,8 @@ import Lists from './pages/Lists';
 import StatsPage from './pages/Stats';
 import Tonight from './pages/Tonight';
 import Settings from './pages/settings/Settings';
+import Friends from './pages/Friends';
+import Duo from './pages/Duo';
 
 /** Route courante, lue dans l'ancre de l'URL : « #/swipe/movie » → ['swipe', 'movie']. */
 function useRoute(): string[] {
@@ -44,6 +46,12 @@ function page(name: string, arg: string | undefined): ReactNode {
       return <Tonight />;
     case 'settings':
       return <Settings />;
+    case 'friends':
+      return <Friends />;
+    case 'invite':
+      return <Friends key={arg} invite={arg} />;
+    case 'duo':
+      return <Duo key={arg} friendId={arg ?? ''} />;
     default:
       return <Home />;
   }
