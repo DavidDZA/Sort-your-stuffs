@@ -208,8 +208,8 @@ export function Sheet({ onClose, children, label }: { onClose: () => void; child
 }
 
 /**
- * « Vu » en deux boutons : 👍 bien ou 😐 bof (l'avis décide de la place dans le classement :
- * les « bien » au-dessus, et classés en priorité). Un « bien » fait aussi recommander des titres proches.
+ * « Vu » en deux boutons : 👍 bien ou 😐 bof (l'avis décide de l'ordre de passage en duel :
+ * les « bien » sont classés en priorité). Un « bien » fait aussi recommander des titres proches.
  */
 export function SeenButtons({
   title,
@@ -245,7 +245,7 @@ export function SeenButtons({
         className={`btn ${size} seen-btn meh ${isActive('meh') ? 'active' : ''}`}
         onClick={() => mark('meh')}
         disabled={isActive('meh')}
-        title={isActive('meh') ? 'Vu, avis « bof »' : 'Vu, mais bof : classé avec les « bof »'}
+        title={isActive('meh') ? 'Vu, avis « bof »' : 'Vu, mais bof : en duel après les « bien »'}
         aria-label="Vu, bof"
       >
         {labels ? '😐 Vu · bof' : '😐'}

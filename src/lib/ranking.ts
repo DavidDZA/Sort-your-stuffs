@@ -63,41 +63,20 @@ export async function unrank(s: Scope, key: string): Promise<void> {
 
 /**
  * Change le statut d'un titre en le retirant proprement du classement de son ancienne liste.
- * `tier` : avis « bien » / « bof » pour un titre vu (il décide de sa place dans le classement).
+ * `tier` : avis « bien » / « bof » pour un titre vu (il décide seulement de l'ordre de passage en duel).
  */
 export async function changeStatus(title: Title, status: Status, tier?: Tier): Promise<void> {
   const current = await db.answers.get(title.key);
-  const changedList = current && current.status !== status && current.status !== 'unseen';
-  // Un vu qui change d'avis (bien ↔ bof) repasse en « non classé » pour être replacé dans le bon groupe.
-  const changedTier = current?.status === 'seen' && status === 'seen' && tier && current.tier !== tier;
-  if (current && (changedList || changedTier)) {
+  if (current && current.status !== status && current.status !== 'unseen') {
     await unrank({ type: title.type, list: current.status as 'seen' | 'wish' }, title.key);
   }
   await setStatus(title, status, status === 'seen' ? tier : undefined);
 }
 
 /**
- * Intervalle de départ pour placer un titre vu. Avec l'avis donné au swipe (mode 4 coins),
- * un titre « bien » se place au-dessus de tous les « bof », et inversement : moins de duels.
- */
-export async function initialBounds(s: Scope, ranking: string[], key: string): Promise<{ lo: number; hi: number }> {
-  const full = { lo: 0, hi: ranking.length };
-  if (s.list !== 'seen') return full;
-  const [answer, ...ranked] = await db.answers.bulkGet([key, ...ranking]);
-  const tiers = ranked.map((a) => a?.tier);
-  let bounds = full;
-  if (answer?.tier === 'good') {
-    const firstMeh = tiers.indexOf('meh');
-    bounds = { lo: 0, hi: firstMeh === -1 ? ranking.length : firstMeh };
-  } else if (answer?.tier === 'meh') {
-    bounds = { lo: tiers.lastIndexOf('good') + 1, hi: ranking.length };
-  }
-  return bounds.lo <= bounds.hi ? bounds : full;
-}
-
-/**
  * Titres à placer en priorité : les « bien » d'abord, puis ceux sans avis,
- * et les « bof » seulement quand il ne reste plus qu'eux.
+ * et les « bof » seulement quand il ne reste plus qu'eux. Tous sont ensuite comparés
+ * à l'ensemble du classement : un « bof » peut finir devant un « bien ».
  */
 export function priorityPool(keys: string[], tiers: (Tier | undefined)[]): string[] {
   const good = keys.filter((_, i) => tiers[i] === 'good');
@@ -123,6 +102,9 @@ export async function tiersOf(s: Scope, keys: string[]): Promise<(Tier | undefin
   if (s.list !== 'seen') return keys.map(() => undefined);
   return (await db.answers.bulkGet(keys)).map((a) => a?.tier);
 }
+
+/** Envoie un titre à la dernière place du classement (bouton poubelle sur un « bof »), sans duel. */
+export const sendToLast = (ranking: string[], key: string) => [...ranking.filter((k) => k !== key), key];
 
 /**
  * Fait remonter le titre en position `from` juste avant celui en position `to` (to < from) :

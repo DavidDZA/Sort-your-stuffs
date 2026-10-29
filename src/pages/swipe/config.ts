@@ -47,7 +47,7 @@ export const PHASES: Record<Phase, PhaseText> = {
     rightBtn: '👍',
     leftCap: 'Bof',
     rightCap: 'Aimé',
-    leftTip: 'Vu, mais bof : classé avec les « bof » (swipe à gauche ou flèche ←)',
+    leftTip: 'Vu, mais bof : en duel après les « bien » (swipe à gauche ou flèche ←)',
     rightTip: 'Vu et aimé : classé avec les « bien » (swipe à droite ou flèche →)',
   },
 };

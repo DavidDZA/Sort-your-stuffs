@@ -6,7 +6,7 @@ export interface MinVotes {
   tv: number;
 }
 
-export const DEFAULT_MIN_VOTES: MinVotes = { movie: 150, tv: 50 };
+export const DEFAULT_MIN_VOTES: MinVotes = { movie: 1000, tv: 50 };
 
 function read(key: string): string | null {
   try {

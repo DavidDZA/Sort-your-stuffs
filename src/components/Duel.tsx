@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { db, type Tier, type Title } from '../lib/db';
 import {
   duelsLeft,
-  initialBounds,
   loadInsert,
   loadRanking,
   pickVerifyPair,
@@ -10,6 +9,7 @@ import {
   saveInsert,
   promote,
   saveRanking,
+  sendToLast,
   tiersOf,
   unrankedKeys,
   type InsertState,
@@ -147,18 +147,7 @@ export function Duel({
         await saveRanking(scope, r);
         continue;
       }
-      // Avec un avis « bien » / « bof », l'intervalle de départ est réduit (parfois à une seule place).
-      const { lo, hi } = await initialBounds(scope, r, key);
-      if (lo >= hi) {
-        r = [...r];
-        r.splice(lo, 0, key);
-        await saveRanking(scope, r);
-        setPlaced((n) => n + 1);
-        const t = await db.titles.get(key);
-        toast(`🏆 « ${t?.title ?? ''} » classé n°${lo + 1} sans duel`);
-        continue;
-      }
-      const ins = { key, lo, hi };
+      const ins = { key, lo: 0, hi: r.length };
       await saveInsert(scope, ins);
       await show(r, ins);
       return;
@@ -233,6 +222,26 @@ export function Duel({
     }
   };
 
+  /** Poubelle (titre « bof » en cours de placement) : dernière place du classement, sans duel. */
+  const trash = async () => {
+    if (!st?.ins || st.tier !== 'meh' || busy.current) return;
+    busy.current = true;
+    try {
+      const { ranking, ins } = st;
+      undoStack.current.push({ ranking, ins, verify: null });
+      recordActivity();
+      const updated = sendToLast(ranking, ins.key);
+      await saveRanking(scope, updated);
+      setPlaced((n) => n + 1);
+      placedCount.current++;
+      toast(`🗑️ « ${st.candidate?.title ?? ''} » envoyé en dernier (n°${updated.length})`);
+      await afterDecision(updated, true);
+    } finally {
+      busy.current = false;
+      setPicked(null);
+    }
+  };
+
   const undo = async () => {
     const prev = undoStack.current.pop();
     if (!prev || busy.current) return;
@@ -257,6 +266,7 @@ export function Duel({
     showVerify(st.ranking);
   };
 
+  const canTrash = !!st?.ins && st.verify === null && st.tier === 'meh';
   const left = st?.candidateLeft ? st.candidate : st?.opponent;
   const right = st?.candidateLeft ? st.opponent : st?.candidate;
   const pick = (t: Title, el: HTMLElement | null) => {
@@ -274,6 +284,7 @@ export function Duel({
       if (e.key === 'ArrowLeft' && left) pick(left, cards[0]);
       else if (e.key === 'ArrowRight' && right) pick(right, cards[1]);
       else if (e.key === 'ArrowDown' && left) choose('tie');
+      else if (e.key === 'Delete' && canTrash) trash();
       else if (e.key === 'Backspace') undo();
       else return;
       e.preventDefault();
@@ -336,6 +347,11 @@ export function Duel({
         <button className="btn" onClick={skip} title={verifying ? 'Passer à une autre vérification' : 'Laisser ce titre de côté pour cette session'}>
           {verifying ? 'Passer' : 'Passer ce titre'}
         </button>
+        {canTrash && (
+          <button className="btn" onClick={trash} title={`Envoyer « ${st.candidate.title} » en dernière place, sans duel (Suppr)`}>
+            🗑️ Trash
+          </button>
+        )}
         {verifying && verifyOnly.current && (
           <button
             className="btn"
@@ -358,7 +374,7 @@ export function Duel({
         ) : (
           <>
             Encore ~{duelsLeft(st.ins!)} duel(s) pour placer « {st.candidate.title} »
-            {st.tier && (st.tier === 'good' ? ' · 👍 parmi tes titres « bien »' : ' · 😐 parmi tes titres « bof »')}
+            {st.tier && (st.tier === 'good' ? ' · 👍 noté « bien »' : ' · 😐 noté « bof »')}
           </>
         )}
         <br />
@@ -369,7 +385,7 @@ export function Duel({
           </>
         )}
       </p>
-      <p className="muted tiny center kbd-hint">Clavier : ← → choisir · ↓ égalité · ⌫ annuler</p>
+      <p className="muted tiny center kbd-hint">Clavier : ← → choisir · ↓ égalité · ⌫ annuler{canTrash && ' · Suppr poubelle'}</p>
     </>
   );
 }

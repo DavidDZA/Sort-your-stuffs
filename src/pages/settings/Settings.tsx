@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { clearChoices, db, getMeta, requestPersistentStorage } from '../../lib/db';
-import { getMinVotes, getToken, getUserToken, hasBuiltInToken, setMinVotes, setToken, type MinVotes } from '../../lib/settings';
+import { DEFAULT_MIN_VOTES, getMinVotes, getToken, getUserToken, hasBuiltInToken, setMinVotes, setToken, type MinVotes } from '../../lib/settings';
 import { syncCatalogue } from '../../lib/sync';
 import { tmdb } from '../../lib/tmdb';
 import { exportData, importData } from '../../lib/backup';
@@ -12,7 +12,11 @@ import { SwipeModeSetting } from './SwipeModeSetting';
 export default function Settings() {
   const [token, setTokenInput] = useState(getUserToken() ?? '');
   const [tokenMsg, setTokenMsg] = useState<string | null>(null);
-  const [votes, setVotes] = useState<MinVotes>(getMinVotes());
+  // Saisie brute (le champ peut être vidé pendant la frappe) ; valeur par défaut remise à la sortie du champ.
+  const [votes, setVotes] = useState<Record<keyof MinVotes, string>>(() => {
+    const v = getMinVotes();
+    return { movie: String(v.movie), tv: String(v.tv) };
+  });
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [backupMsg, setBackupMsg] = useState<string | null>(null);
@@ -36,14 +40,25 @@ export default function Settings() {
     }
   };
 
+  const minVotes = (field: keyof MinVotes) => {
+    const n = Math.floor(Number(votes[field]));
+    return votes[field].trim() !== '' && n >= 1 ? n : DEFAULT_MIN_VOTES[field];
+  };
+  const resetIfInvalid = (field: keyof MinVotes) => setVotes((v) => ({ ...v, [field]: String(minVotes(field)) }));
+
   const sync = async () => {
-    setMinVotes(votes);
+    const chosen = { movie: minVotes('movie'), tv: minVotes('tv') };
+    setVotes({ movie: String(chosen.movie), tv: String(chosen.tv) });
+    setMinVotes(chosen);
     setSyncing(true);
     setSyncMsg('Démarrage…');
     await requestPersistentStorage();
     try {
-      const { movie, tv } = await syncCatalogue(votes, setSyncMsg);
-      setSyncMsg(`✓ Terminé : ${movie.toLocaleString('fr-FR')} films et ${tv.toLocaleString('fr-FR')} séries à jour.`);
+      const { movie, tv, removed } = await syncCatalogue(chosen, setSyncMsg);
+      setSyncMsg(
+        `✓ Terminé : ${movie.toLocaleString('fr-FR')} films et ${tv.toLocaleString('fr-FR')} séries à jour.` +
+          (removed ? ` ${removed.toLocaleString('fr-FR')} titres absents du nouveau catalogue supprimés.` : ''),
+      );
     } catch (e) {
       setSyncMsg(`✕ ${(e as Error).message}`);
     } finally {
@@ -114,18 +129,20 @@ export default function Settings() {
         <div className="row">
           <label className="field">
             Films : votes min.
-            <input className="input" type="number" min={1} value={votes.movie} onChange={(e) => setVotes({ ...votes, movie: Number(e.target.value) || 1 })} />
+            <input className="input" type="number" min={1} value={votes.movie} onChange={(e) => setVotes({ ...votes, movie: e.target.value })} onBlur={() => resetIfInvalid('movie')} />
           </label>
           <label className="field">
             Séries : votes min.
-            <input className="input" type="number" min={1} value={votes.tv} onChange={(e) => setVotes({ ...votes, tv: Number(e.target.value) || 1 })} />
+            <input className="input" type="number" min={1} value={votes.tv} onChange={(e) => setVotes({ ...votes, tv: e.target.value })} onBlur={() => resetIfInvalid('tv')} />
           </label>
         </div>
         <button className="btn primary" onClick={sync} disabled={syncing || !getToken()} title="Récupérer les films et séries depuis TMDB (environ 1 minute)">
           {syncing ? 'Mise à jour en cours…' : info?.lastSync ? 'Mettre à jour le catalogue' : 'Télécharger le catalogue'}
         </button>
         {syncMsg && <p className="small">{syncMsg}</p>}
-        <p className="muted small">La mise à jour ne touche jamais à tes réponses ni à tes classements.</p>
+        <p className="muted small">
+          Les titres absents du nouveau catalogue sont supprimés, même déjà vus, classés ou ajoutés à la main.
+        </p>
       </section>
 
       <section className="card">

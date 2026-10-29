@@ -4,7 +4,6 @@ import { db, setStatus } from '../src/lib/db';
 import {
   changeStatus,
   duelsLeft,
-  initialBounds,
   loadInsert,
   loadRanking,
   pickVerifyPair,
@@ -13,6 +12,7 @@ import {
   saveInsert,
   saveRanking,
   promote,
+  sendToLast,
   unrankedKeys,
   type Scope,
 } from '../src/lib/ranking';
@@ -65,52 +65,23 @@ describe('« Vu » avec un avis', () => {
     expect((await db.answers.get(k(1)))?.tier).toBe('good');
   });
 
-  it('un vu qui change d’avis repasse en « non classé »', async () => {
+  it('un vu qui change d’avis garde sa place dans le classement', async () => {
     for (const id of [1, 2, 3]) await setStatus(makeTitle(id), 'seen', 'meh');
     await saveRanking(seen, [k(1), k(2), k(3)]);
     await changeStatus(makeTitle(2), 'seen', 'good');
-    expect(await loadRanking(seen)).toEqual([k(1), k(3)]);
-    expect(await unrankedKeys(seen, [k(1), k(3)])).toEqual([k(2)]);
-    // Même avis : il reste à sa place.
-    await changeStatus(makeTitle(1), 'seen', 'meh');
-    expect(await loadRanking(seen)).toEqual([k(1), k(3)]);
+    expect(await loadRanking(seen)).toEqual([k(1), k(2), k(3)]);
+    expect((await db.answers.get(k(2)))?.tier).toBe('good');
   });
 });
 
-describe('avis bien / bof', () => {
-  beforeEach(async () => {
-    // Classement : 1 (bien) 2 (bien) 3 (sans avis) 4 (bof) 5 (bof)
-    await setStatus(makeTitle(1), 'seen', 'good');
-    await setStatus(makeTitle(2), 'seen', 'good');
-    await setStatus(makeTitle(3), 'seen');
-    await setStatus(makeTitle(4), 'seen', 'meh');
-    await setStatus(makeTitle(5), 'seen', 'meh');
-  });
-  const ranking = [k(1), k(2), k(3), k(4), k(5)];
-
-  it('place un « bien » au-dessus de tous les « bof »', async () => {
-    await setStatus(makeTitle(10), 'seen', 'good');
-    expect(await initialBounds(seen, ranking, k(10))).toEqual({ lo: 0, hi: 3 });
+describe('poubelle', () => {
+  it('envoie un titre à la dernière place', () => {
+    expect(sendToLast(['a', 'b', 'c'], 'x')).toEqual(['a', 'b', 'c', 'x']);
+    expect(sendToLast([], 'x')).toEqual(['x']);
   });
 
-  it('place un « bof » sous tous les « bien »', async () => {
-    await setStatus(makeTitle(11), 'seen', 'meh');
-    expect(await initialBounds(seen, ranking, k(11))).toEqual({ lo: 2, hi: 5 });
-  });
-
-  it('compare un titre sans avis à tout le classement', async () => {
-    await setStatus(makeTitle(12), 'seen');
-    expect(await initialBounds(seen, ranking, k(12))).toEqual({ lo: 0, hi: 5 });
-  });
-
-  it('place sans duel quand la place est évidente', async () => {
-    await setStatus(makeTitle(10), 'seen', 'good');
-    expect(await initialBounds(seen, [k(4), k(5)], k(10))).toEqual({ lo: 0, hi: 0 });
-  });
-
-  it('ne tient pas compte des avis pour la wishlist', async () => {
-    await setStatus(makeTitle(10), 'seen', 'good');
-    expect(await initialBounds(wish, ranking, k(10))).toEqual({ lo: 0, hi: 5 });
+  it('ne crée pas de doublon si le titre était déjà classé', () => {
+    expect(sendToLast(['a', 'x', 'b'], 'x')).toEqual(['a', 'b', 'x']);
   });
 });
 

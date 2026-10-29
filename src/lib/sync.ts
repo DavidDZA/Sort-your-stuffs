@@ -1,6 +1,5 @@
 import { db, setMeta, type MediaType, type Title } from './db';
-import { EXCLUDED_GENRES, isExcluded, prefetchDetails, tmdb, toTitle, type Page } from './tmdb';
-import { ratingMissing } from './themes';
+import { EXCLUDED_GENRES, isExcluded, tmdb, toTitle, type Page } from './tmdb';
 import type { MinVotes } from './settings';
 
 const MAX_PAGES = 500; // limite imposée par TMDB sur /discover
@@ -90,18 +89,28 @@ async function syncType(type: MediaType, minVotes: number, onProgress: Progress,
   return count;
 }
 
-/** Télécharge ou met à jour le catalogue. Ne touche jamais aux réponses de l'utilisateur. */
-export async function syncCatalogue(minVotes: MinVotes, onProgress: Progress): Promise<{ movie: number; tv: number }> {
+/**
+ * Supprime les titres absents du nouveau téléchargement (seuil de votes relevé, ajout manuel…),
+ * avec leurs réponses : ils disparaissent aussi des classements.
+ */
+async function removeMissing(seen: Set<string>): Promise<number> {
+  return db.transaction('rw', db.titles, db.answers, async () => {
+    const keys = await db.titles.filter((t) => !seen.has(t.key)).primaryKeys();
+    await db.titles.bulkDelete(keys);
+    await db.answers.bulkDelete(keys);
+    return keys.length;
+  });
+}
+
+/**
+ * Télécharge ou met à jour le catalogue. Les titres qui n'en font plus partie sont supprimés,
+ * même s'ils avaient une réponse ou une place dans un classement, y compris les ajouts manuels.
+ */
+export async function syncCatalogue(minVotes: MinVotes, onProgress: Progress): Promise<{ movie: number; tv: number; removed: number }> {
   const seen = new Set<string>();
   const movie = await syncType('movie', minVotes.movie, onProgress, seen);
   const tv = await syncType('tv', minVotes.tv, onProgress, seen);
-  // Titres absents de la liste renvoyée (ajout manuel, saga, seuil de votes relevé…) : la mise à jour
-  // ne leur apporte pas de note ; on la prend dans leur fiche détaillée (une seule fois).
-  const rest = await db.titles.filter((t) => !seen.has(t.key) && ratingMissing(t)).toArray();
-  if (rest.length) {
-    onProgress(`Récupération des notes de ${rest.length.toLocaleString('fr-FR')} autres titres…`);
-    await prefetchDetails(rest, Infinity, CONCURRENCY);
-  }
+  const removed = await removeMissing(seen);
   await setMeta('lastSync', Date.now());
-  return { movie, tv };
+  return { movie, tv, removed };
 }
