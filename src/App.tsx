@@ -1,19 +1,34 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { asCategory } from './lib/category';
 import { checkBadges, checkBadgesSoon } from './lib/badges';
 import { FicheHost } from './components/Fiche';
 import { Toaster } from './components/Toaster';
 import Home from './pages/Home';
-import Swipe from './pages/swipe/Swipe';
-import Rank from './pages/Rank';
-import AddManual from './pages/AddManual';
-import Wishlist from './pages/Wishlist';
-import Lists from './pages/Lists';
-import StatsPage from './pages/Stats';
-import Tonight from './pages/Tonight';
-import Settings from './pages/settings/Settings';
-import Friends from './pages/Friends';
-import Duo from './pages/Duo';
+
+// Pages chargées à la demande : l'appli s'ouvre plus vite (l'accueil seul au démarrage) ;
+// elles sont préchargées juste après, pour s'ouvrir ensuite sans attendre.
+const pages = {
+  swipe: () => import('./pages/swipe/Swipe'),
+  rank: () => import('./pages/Rank'),
+  add: () => import('./pages/AddManual'),
+  wishlist: () => import('./pages/Wishlist'),
+  lists: () => import('./pages/Lists'),
+  stats: () => import('./pages/Stats'),
+  tonight: () => import('./pages/Tonight'),
+  settings: () => import('./pages/settings/Settings'),
+  friends: () => import('./pages/Friends'),
+  duo: () => import('./pages/Duo'),
+};
+const Swipe = lazy(pages.swipe);
+const Rank = lazy(pages.rank);
+const AddManual = lazy(pages.add);
+const Wishlist = lazy(pages.wishlist);
+const Lists = lazy(pages.lists);
+const StatsPage = lazy(pages.stats);
+const Tonight = lazy(pages.tonight);
+const Settings = lazy(pages.settings);
+const Friends = lazy(pages.friends);
+const Duo = lazy(pages.duo);
 
 /** Route courante, lue dans l'ancre de l'URL : « #/swipe/movie » → ['swipe', 'movie']. */
 function useRoute(): string[] {
@@ -65,6 +80,12 @@ export default function App() {
     window.scrollTo(0, 0);
   }, [name, arg]);
 
+  // Préchargement des autres pages, une fois l'accueil affiché.
+  useEffect(() => {
+    const timer = setTimeout(() => Object.values(pages).forEach((load) => load().catch(() => undefined)), 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Vérifie les badges au démarrage puis au fil des swipes et des duels.
   useEffect(() => {
     checkBadges().catch(() => undefined);
@@ -74,7 +95,7 @@ export default function App() {
 
   return (
     <>
-      {page(name, arg)}
+      <Suspense fallback={<p className="muted center">Chargement…</p>}>{page(name, arg)}</Suspense>
       <FicheHost />
       <Toaster />
     </>
