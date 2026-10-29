@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { clearChoices, db, getMeta, requestPersistentStorage } from '../../lib/db';
 import { DEFAULT_MIN_VOTES, getMinVotes, getShowAnime, getToken, getUserToken, hasBuiltInToken, setMinVotes, setShowAnime, setToken, type MinVotes } from '../../lib/settings';
-import { syncCatalogue } from '../../lib/sync';
+import { OLD_MOVIES_BEFORE, syncCatalogue } from '../../lib/sync';
 import { tmdb } from '../../lib/tmdb';
 import { isAnimeTitle } from '../../lib/category';
 import { exportData, importData } from '../../lib/backup';
@@ -21,11 +21,11 @@ export default function Settings({ section }: { section?: string }) {
   const saved = useLiveQuery(getMinVotes);
   const showAnime = useLiveQuery(getShowAnime);
   // Saisie brute (le champ peut être vidé pendant la frappe) ; valeur par défaut remise à la sortie du champ.
-  const [votes, setVotes] = useState<Record<keyof MinVotes, string>>({ movie: '', tv: '', anime: '' });
+  const [votes, setVotes] = useState<Record<keyof MinVotes, string>>(() => asText(DEFAULT_MIN_VOTES));
   const edited = useRef(false);
   useEffect(() => {
     if (saved && !edited.current) setVotes(asText(saved));
-  }, [saved?.movie, saved?.tv, saved?.anime]);
+  }, [saved && JSON.stringify(saved)]);
   const editVotes = (field: keyof MinVotes, value: string) => {
     edited.current = true;
     setVotes((v) => ({ ...v, [field]: value }));
@@ -68,7 +68,7 @@ export default function Settings({ section }: { section?: string }) {
     try {
       // Sans saisie ici : les seuils du compte, à jour (ceux d'un autre appareil ont pu changer).
       if (!edited.current) await syncAndWait();
-      const chosen = edited.current ? { movie: minVotes('movie'), tv: minVotes('tv'), anime: minVotes('anime') } : await getMinVotes();
+      const chosen = edited.current ? (Object.fromEntries(VOTE_KEYS.map((k) => [k, minVotes(k)])) as unknown as MinVotes) : await getMinVotes();
       setVotes(asText(chosen));
       edited.current = false;
       await setMinVotes(chosen);
@@ -155,23 +155,21 @@ export default function Settings({ section }: { section?: string }) {
           {info?.lastSync ? `Dernière mise à jour : ${new Date(info.lastSync).toLocaleString('fr-FR')}` : 'Jamais téléchargé'}
         </p>
         <p className="muted small">
-          Seuls les titres ayant un minimum de votes sur TMDB sont récupérés (pour éviter les titres introuvables). Baisse ces seuils pour en avoir plus. Avec un compte, ils sont les mêmes sur tous tes appareils.
+          Seuls les titres ayant un minimum de votes sur TMDB sont récupérés (pour éviter les titres introuvables). Baisse ces seuils pour en avoir plus. Les titres en français et les vieux films ont moins de votes : ils ont leur propre seuil, plus bas. Avec un compte, ils sont les mêmes sur tous tes appareils.
         </p>
-        <p className="small">Votes minimum :</p>
-        <div className="row">
-          <label className="field">
-            🎬 Films
-            <input className="input" type="number" min={1} value={votes.movie} onChange={(e) => editVotes('movie', e.target.value)} onBlur={() => resetIfInvalid('movie')} />
-          </label>
-          <label className="field">
-            📺 Séries
-            <input className="input" type="number" min={1} value={votes.tv} onChange={(e) => editVotes('tv', e.target.value)} onBlur={() => resetIfInvalid('tv')} />
-          </label>
-          <label className="field">
-            🎌 Animes
-            <input className="input" type="number" min={1} value={votes.anime} onChange={(e) => editVotes('anime', e.target.value)} onBlur={() => resetIfInvalid('anime')} />
-          </label>
-        </div>
+        {VOTE_ROWS.map((row) => (
+          <div key={row.title} className="vote-row">
+            <p className="small">{row.title}</p>
+            <div className="row">
+              {row.fields.map(([key, label]) => (
+                <label key={key} className="field">
+                  {label}
+                  <input className="input" type="number" min={1} value={votes[key]} onChange={(e) => editVotes(key, e.target.value)} onBlur={() => resetIfInvalid(key)} />
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
         <div className="chips">
           <button
             className={`chip ${showAnime ? 'active' : ''}`}
@@ -255,4 +253,12 @@ function useScrollToSection(id: string | undefined) {
   }, [id]);
 }
 
-const asText = (v: MinVotes): Record<keyof MinVotes, string> => ({ movie: String(v.movie), tv: String(v.tv), anime: String(v.anime) });
+const VOTE_KEYS = Object.keys(DEFAULT_MIN_VOTES) as (keyof MinVotes)[];
+const asText = (v: MinVotes) => Object.fromEntries(VOTE_KEYS.map((k) => [k, String(v[k])])) as Record<keyof MinVotes, string>;
+
+/** Champs des seuils, par ligne : un titre est gardé s'il passe l'un des seuils qui le concernent. */
+const VOTE_ROWS: { title: string; fields: [keyof MinVotes, string][] }[] = [
+  { title: 'Votes minimum :', fields: [['movie', '🎬 Films'], ['tv', '📺 Séries'], ['anime', '🎌 Animes']] },
+  { title: '🇫🇷 Titres en français (langue originale) :', fields: [['frMovie', '🎬 Films'], ['frTv', '📺 Séries']] },
+  { title: `🎞️ Films sortis avant ${OLD_MOVIES_BEFORE} :`, fields: [['oldMovie', '🎬 Films']] },
+];

@@ -1,7 +1,7 @@
 import { db, setMeta, type MediaType, type Title } from './db';
 import { EXCLUDED_GENRES, isAnimeResult, isExcluded, tmdb, toTitle, type Page, type RawResult } from './tmdb';
 import type { MinVotes } from './settings';
-import { forgetCategories } from './category';
+import { forgetCategories, isAnimeTitle } from './category';
 
 const MAX_PAGES = 500; // limite imposée par TMDB sur /discover
 const CONCURRENCY = 6;
@@ -9,17 +9,30 @@ const DAY = 86_400_000;
 
 const iso = (t: number) => new Date(t).toISOString().slice(0, 10);
 
-function discover(type: MediaType, from: number, to: number, page: number, minVotes: number) {
-  const dateField = type === 'movie' ? 'primary_release_date' : 'first_air_date';
-  return tmdb<Page>(`/discover/${type}`, {
+/** Une requête /discover : un type, un seuil de votes, et des filtres TMDB en plus (langue, période). */
+interface Query {
+  type: MediaType;
+  minVotes: number;
+  label: string; // pour la progression : « films », « films en français »…
+  extra?: Record<string, string>;
+  /** Dernière date de sortie (films anciens) ; par défaut, jusqu'à l'an prochain. */
+  until?: number;
+  /** Tri plus fin après coup (séries et animes ont chacun leur seuil). */
+  accept?: (r: RawResult) => boolean;
+}
+
+function discover(q: Query, from: number, to: number, page: number) {
+  const dateField = q.type === 'movie' ? 'primary_release_date' : 'first_air_date';
+  return tmdb<Page>(`/discover/${q.type}`, {
     sort_by: 'vote_count.desc',
-    'vote_count.gte': minVotes,
+    'vote_count.gte': q.minVotes,
     include_adult: false,
-    without_genres: EXCLUDED_GENRES[type].join(','),
+    without_genres: EXCLUDED_GENRES[q.type].join(','),
     [`${dateField}.gte`]: iso(from),
     [`${dateField}.lte`]: iso(to),
     page,
-    ...(type === 'movie' ? { 'with_runtime.gte': 40 } : {}),
+    ...(q.type === 'movie' ? { 'with_runtime.gte': 40 } : {}),
+    ...q.extra,
   });
 }
 
@@ -30,11 +43,11 @@ interface Range {
 }
 
 /** Découpe la période en tranches de moins de 500 pages pour contourner la limite de TMDB. */
-async function splitRanges(type: MediaType, from: number, to: number, minVotes: number): Promise<Range[]> {
-  const first = await discover(type, from, to, 1, minVotes);
+async function splitRanges(q: Query, from: number, to: number): Promise<Range[]> {
+  const first = await discover(q, from, to, 1);
   if (first.total_pages > MAX_PAGES && to - from > DAY) {
     const mid = from + Math.floor((to - from) / 2 / DAY) * DAY;
-    return [...(await splitRanges(type, from, mid, minVotes)), ...(await splitRanges(type, mid + DAY, to, minVotes))];
+    return [...(await splitRanges(q, from, mid)), ...(await splitRanges(q, mid + DAY, to))];
   }
   return [{ from, to, first }];
 }
@@ -49,31 +62,16 @@ async function runPool(tasks: (() => Promise<void>)[], concurrency: number) {
 
 export type Progress = (message: string) => void;
 
-/**
- * Récupère un type de titres ; `accept` affine le seuil de votes (séries et animes ont chacun le leur).
- * Renvoie le nombre de titres gardés, dont les animes.
- */
-async function syncType(
-  type: MediaType,
-  minVotes: number,
-  onProgress: Progress,
-  seen: Set<string>,
-  accept: (r: RawResult) => boolean = () => true,
-): Promise<{ count: number; anime: number }> {
-  const label = type === 'movie' ? 'films' : 'séries et animes';
-  let anime = 0;
-  onProgress(`Préparation des ${label}…`);
-  const to = Date.UTC(new Date().getUTCFullYear() + 1, 11, 31);
-  const ranges = await splitRanges(type, Date.UTC(1870, 0, 1), to, minVotes);
+/** Récupère les titres d'une requête ; `seen` reçoit leurs clés (un titre trouvé par deux requêtes compte une fois). */
+async function fetchQuery(q: Query, onProgress: Progress, seen: Set<string>): Promise<void> {
+  onProgress(`Préparation des ${q.label}…`);
+  const until = q.until ?? Date.UTC(new Date().getUTCFullYear() + 1, 11, 31);
+  const ranges = await splitRanges(q, Date.UTC(1870, 0, 1), until);
 
   let buffer: Title[] = [];
   let count = 0;
   const keep = (page: Page) => {
-    for (const r of page.results) {
-      if (isExcluded(type, r) || !accept(r)) continue;
-      if (type === 'tv' && isAnimeResult(r)) anime++;
-      buffer.push(toTitle(type, r));
-    }
+    for (const r of page.results) if (!isExcluded(q.type, r) && (!q.accept || q.accept(r))) buffer.push(toTitle(q.type, r));
   };
   const flush = async () => {
     const batch = buffer;
@@ -86,7 +84,7 @@ async function syncType(
       if (existing[i]?.details) t.details = existing[i]!.details;
     });
     await db.titles.bulkPut(batch);
-    onProgress(`${count.toLocaleString('fr-FR')} ${label} récupérés…`);
+    onProgress(`${count.toLocaleString('fr-FR')} ${q.label} récupérés…`);
   };
 
   const tasks: (() => Promise<void>)[] = [];
@@ -95,14 +93,38 @@ async function syncType(
     const pages = Math.min(range.first.total_pages, MAX_PAGES);
     for (let p = 2; p <= pages; p++) {
       tasks.push(async () => {
-        keep(await discover(type, range.from, range.to, p, minVotes));
+        keep(await discover(q, range.from, range.to, p));
         if (buffer.length >= 500) await flush();
       });
     }
   }
   await runPool(tasks, CONCURRENCY);
   await flush();
-  return { count, anime };
+}
+
+/** Les films sortis avant cette date ont leur propre seuil (moins de votes sur TMDB, plus récent qu'eux). */
+export const OLD_MOVIES_BEFORE = 1980;
+
+/**
+ * Requêtes du catalogue : chaque seuil a la sienne, et un titre est gardé s'il passe l'une d'elles.
+ * Les titres en français et les vieux films ont un seuil plus bas : ils ont moins de votes sur TMDB,
+ * surtout utilisé par un public international.
+ */
+export function catalogueQueries(v: MinVotes): Query[] {
+  const fr = { with_original_language: 'fr' };
+  return [
+    { type: 'movie', minVotes: v.movie, label: 'films' },
+    { type: 'movie', minVotes: v.frMovie, label: 'films en français', extra: fr },
+    { type: 'movie', minVotes: v.oldMovie, label: `films d’avant ${OLD_MOVIES_BEFORE}`, until: Date.UTC(OLD_MOVIES_BEFORE - 1, 11, 31) },
+    // Séries et animes viennent de la même liste TMDB : le plus bas des deux seuils, puis tri.
+    {
+      type: 'tv',
+      minVotes: Math.min(v.tv, v.anime),
+      label: 'séries et animes',
+      accept: (r) => (r.vote_count ?? 0) >= (isAnimeResult(r) ? v.anime : v.tv),
+    },
+    { type: 'tv', minVotes: v.frTv, label: 'séries en français', extra: fr },
+  ];
 }
 
 /**
@@ -124,11 +146,13 @@ async function removeMissing(seen: Set<string>): Promise<number> {
  */
 export async function syncCatalogue(minVotes: MinVotes, onProgress: Progress): Promise<{ movie: number; tv: number; anime: number; removed: number }> {
   const seen = new Set<string>();
-  const { count: movie } = await syncType('movie', minVotes.movie, onProgress, seen);
-  // Séries et animes viennent de la même liste TMDB : on demande le plus bas des deux seuils, puis on trie.
-  const series = await syncType('tv', Math.min(minVotes.tv, minVotes.anime), onProgress, seen, (r) => (r.vote_count ?? 0) >= (isAnimeResult(r) ? minVotes.anime : minVotes.tv));
+  for (const q of catalogueQueries(minVotes)) await fetchQuery(q, onProgress, seen);
   const removed = await removeMissing(seen);
   forgetCategories();
   await setMeta('lastSync', Date.now());
-  return { movie, tv: series.count - series.anime, anime: series.anime, removed };
+  // Décompte par catégorie, sur les titres gardés.
+  const series = await db.titles.where('type').equals('tv').toArray();
+  const anime = series.filter(isAnimeTitle).length;
+  const movie = [...seen].filter((k) => k.startsWith('movie:')).length;
+  return { movie, tv: series.length - anime, anime, removed };
 }

@@ -3,13 +3,17 @@ import { db, getMeta, setMeta } from './db';
 const TOKEN_KEY = 'tmdb-token';
 const VOTES_KEY = 'min-votes';
 
+/** Seuils de votes TMDB du catalogue ; un titre est gardé s'il passe l'un de ceux qui le concernent. */
 export interface MinVotes {
   movie: number;
   tv: number;
   anime: number;
+  frMovie: number; // films en français (langue originale)
+  frTv: number; // séries en français
+  oldMovie: number; // films sortis avant 1980
 }
 
-export const DEFAULT_MIN_VOTES: MinVotes = { movie: 1000, tv: 50, anime: 50 };
+export const DEFAULT_MIN_VOTES: MinVotes = { movie: 1000, tv: 50, anime: 50, frMovie: 150, frTv: 20, oldMovie: 150 };
 
 function read(key: string): string | null {
   try {

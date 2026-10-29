@@ -118,3 +118,10 @@
 .card[id] {
   scroll-margin-top: 12px;
 }
+
+/* Seuils de votes du catalogue, par ligne. */
+.vote-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
